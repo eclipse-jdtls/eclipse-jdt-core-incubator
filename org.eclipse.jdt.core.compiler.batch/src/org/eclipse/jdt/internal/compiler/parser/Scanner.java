@@ -3082,6 +3082,9 @@ public int scanIdentifierOrKeyword() {
 		//have a length which is <= 12...but there are lots of identifier with
 		//only one char....
 		if ((length = this.currentPosition - this.startPosition) == 1) {
+			if (this.source[this.startPosition] == '_') {
+				return TokenNameUNDERSCORE;
+			}
 			return TokenNameIdentifier;
 		}
 		data = this.source;

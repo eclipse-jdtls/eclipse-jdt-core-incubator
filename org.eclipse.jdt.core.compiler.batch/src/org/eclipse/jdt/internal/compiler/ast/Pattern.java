@@ -39,6 +39,8 @@ public abstract class Pattern extends Expression {
 
 	public int nestingLevel = 0;
 
+	public int index = -1; // denoting position
+
 	@Override
 	public boolean containsPatternVariable() {
 		class PatternVariablesVisitor extends ASTVisitor {
