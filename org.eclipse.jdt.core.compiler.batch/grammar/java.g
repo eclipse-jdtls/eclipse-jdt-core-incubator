@@ -124,6 +124,7 @@ $Terminals
 	BeginCaseElement
 	RestrictedIdentifierWhen
 	BeginRecordPattern
+	UNDERSCORE
 
 --    BodyMarker
 
@@ -181,6 +182,7 @@ $Alias
 	'...'  ::= ELLIPSIS
 	'@308' ::= AT308
 	'@308...' ::= AT308DOTDOTDOT
+	'_' ::= UNDERSCORE
 	
 $Start
 	Goal
@@ -835,6 +837,8 @@ RestoreDiet ::= $empty
 VariableDeclaratorId ::= 'Identifier' Dimsopt
 /:$readableName VariableDeclaratorId:/
 /:$recovery_template Identifier:/
+VariableDeclaratorId ::= '_'
+/.$putCase consumeUnnamedVariable(); $break ./
 
 VariableInitializer -> Expression
 VariableInitializer -> ArrayInitializer
@@ -1263,6 +1267,10 @@ Pattern -> RecordPattern
 TypePattern ::= Modifiersopt Type 'Identifier'
 /.$putCase consumeTypePattern(); $break ./
 /:$readableName TypePattern:/
+TypePattern ::= Modifiersopt Type '_'
+/.$putCase consumeTypePattern(); $break ./
+/:$readableName TypePattern:/
+/:$compliance 21:/
 
 -----------------------------------------------
 -- 16 feature : end of instanceof pattern matching
@@ -1272,25 +1280,29 @@ TypePattern ::= Modifiersopt Type 'Identifier'
 -- 20 preview feature : record patterns
 -----------------------------------------------
 
-RecordPattern ::= Modifiersopt ReferenceType PushLPAREN PatternListopt PushRPAREN
+RecordPattern ::= Modifiersopt ReferenceType PushLPAREN ComponentPatternListopt PushRPAREN
 /.$putCase consumeRecordPattern(); $break ./
 /:$readableName RecordPattern:/
 /:$compliance 20:/
 
-PatternListopt ::=  $empty
+ComponentPatternListopt ::=  $empty
 /.$putCase consumePatternListopt(); $break ./
+/:$readableName ComponentPatternListopt:/
+/:$compliance 20:/
+
+ComponentPatternListopt -> ComponentPatternList
 /:$readableName PatternListopt:/
 /:$compliance 20:/
 
-PatternListopt -> PatternList
-/:$readableName PatternListopt:/
-/:$compliance 20:/
-
-PatternList -> Pattern
-PatternList ::= PatternList ',' Pattern
+ComponentPatternList -> ComponentPattern
+ComponentPatternList ::= ComponentPatternList ',' ComponentPattern
 /.$putCase consumePatternList();  $break ./
-/:$readableName PatternList:/
+/:$readableName ComponentPatternList:/
 /:$compliance 20:/
+
+ComponentPattern -> Pattern
+ComponentPattern -> UnnamedPattern
+/:$compliance 21:/
 
 -----------------------------------------------
 -- 20 preview feature : end of record patterns
@@ -1322,6 +1334,11 @@ StringTemplateExpression ::= Primary '.' TemplateArgument
 -----------------------------------------------
 -- 21 preview feature : end of String templates
 -----------------------------------------------
+
+UnnamedPattern ::= '_'
+/.$putCase consumeUnnamedPattern(); $break ./
+/:$readableName UnnamedPattern:/
+/:$compliance 21:/
 
 ConstantDeclaration -> FieldDeclaration
 /:$readableName ConstantDeclaration:/
@@ -1898,6 +1915,11 @@ NestedLambda ::= $empty
 /.$putCase consumeNestedLambda(); $break ./
 /:$readableName NestedLambda:/
 
+LambdaParameters ::= '_' NestedLambda
+/.$putCase consumeTypeElidedLambdaParameter(false); $break ./
+/:$readableName TypeElidedUnnamedFormalParameter:/
+/:$compliance 21:/
+
 LambdaParameters ::= Identifier NestedLambda
 /.$putCase consumeTypeElidedLambdaParameter(false); $break ./
 /:$readableName TypeElidedFormalParameter:/
@@ -1930,6 +1952,11 @@ TypeElidedFormalParameter ::= Modifiersopt Identifier
 /.$putCase consumeTypeElidedLambdaParameter(true); $break ./
 /:$readableName TypeElidedFormalParameter:/
 /:$compliance 1.8:/
+
+TypeElidedFormalParameter ::= '_'
+/.$putCase consumeBracketedTypeElidedUnderscoreLambdaParameter(); $break ./
+/:$readableName TypeElidedFormalParameter:/
+/:$compliance 21:/
 
 -- A lambda body of the form x is really '{' return x; '}'
 LambdaBody -> ElidedLeftBraceAndReturn Expression ElidedSemicolonAndRightBrace
@@ -2515,11 +2542,11 @@ EnhancedForStatementNoShortIf ::= EnhancedForStatementHeader StatementNoShortIf
 /.$putCase consumeEnhancedForStatement(); $break ./
 /:$readableName EnhancedForStatementNoShortIf:/
 
-EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers Identifier Dimsopt
+EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers VariableDeclaratorId
 /.$putCase consumeEnhancedForStatementHeaderInit(false); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
 
-EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers Identifier Dimsopt
+EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers VariableDeclaratorId
 /.$putCase consumeEnhancedForStatementHeaderInit(true); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
 
@@ -3203,6 +3230,7 @@ AT308DOTDOTDOT ::= '@'
 ELLIPSIS ::=    '...'    
 ARROW ::= '->'
 COLON_COLON ::= '::'
+UNDERSCORE ::= '_'
 
 $end
 -- need a carriage return after the $end
