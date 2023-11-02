@@ -259,6 +259,7 @@ public static TestSuite getTestSuite(boolean addComplianceDiagnoseTest) {
 		tests_21.addAll(TEST_CLASSES_1_5);
 		addJava16Tests(tests_21);
 		tests_21.add(EmbeddedExpressionSelectionTest.class);
+		tests_21.add(JEP443UnnamedVariableTest.class);
 		// Reset forgotten subsets tests
 		TestCase.TESTS_PREFIX = null;
 		TestCase.TESTS_NAMES = null;
