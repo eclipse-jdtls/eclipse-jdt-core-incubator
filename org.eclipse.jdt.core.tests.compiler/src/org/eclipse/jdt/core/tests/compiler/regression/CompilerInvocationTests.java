@@ -1328,6 +1328,7 @@ public void test011_problem_categories() {
 	    expectedProblemAttributes.put("ClassExtendFinalRecord", new ProblemAttributes(CategorizedProblem.CAT_TYPE));
 	    expectedProblemAttributes.put("RecordErasureIncompatibilityInCanonicalConstructor", new ProblemAttributes(CategorizedProblem.CAT_TYPE));
 	    expectedProblemAttributes.put("JavadocInvalidModule", new ProblemAttributes(CategorizedProblem.CAT_INTERNAL));
+	    expectedProblemAttributes.put("FieldNameCannotBeUnderscore", new ProblemAttributes(CategorizedProblem.CAT_PREVIEW_RELATED));
 	    StringBuilder failures = new StringBuilder();
 		StringBuilder correctResult = new StringBuilder(70000);
 		Field[] fields = (iProblemClass = IProblem.class).getFields();
@@ -2429,6 +2430,7 @@ public void test012_compiler_problems_tuning() {
 	    expectedProblemAttributes.put("ClassExtendFinalRecord", SKIP);
 	    expectedProblemAttributes.put("RecordErasureIncompatibilityInCanonicalConstructor", SKIP);
 	    expectedProblemAttributes.put("JavadocInvalidModule", SKIP);
+	    expectedProblemAttributes.put("FieldNameCannotBeUnderscore", SKIP);
 
 	    Map constantNamesIndex = new HashMap();
 		Field[] fields = JavaCore.class.getFields();

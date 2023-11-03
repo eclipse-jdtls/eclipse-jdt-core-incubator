@@ -12455,6 +12455,14 @@ public void falseLiteralInGuard(Expression exp) {
 			exp.sourceStart,
 			exp.sourceEnd);
 }
+public void fieldNameCannotBeUnderscore(FieldDeclaration fieldDeclaration) {
+	this.handle(
+			IProblem.FieldNameCannotBeUnderscore,
+			NoArgument,
+			NoArgument,
+			fieldDeclaration.sourceStart,
+			fieldDeclaration.sourceEnd);
+}
 public boolean scheduleProblemForContext(Runnable problemComputation) {
 	if (this.referenceContext != null) {
 		CompilationResult result = this.referenceContext.compilationResult();

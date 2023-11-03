@@ -70,6 +70,9 @@ public FieldDeclaration(	char[] name, int sourceStart, int sourceEnd) {
 }
 
 public FlowInfo analyseCode(MethodScope initializationScope, FlowContext flowContext, FlowInfo flowInfo) {
+	if (this.isUnnamed(initializationScope)) {
+		initializationScope.problemReporter().fieldNameCannotBeUnderscore(this);
+	}
 	if (this.binding != null && !this.binding.isUsed() && this.binding.isOrEnclosedByPrivateType()) {
 		if (!initializationScope.referenceCompilationUnit().compilationResult.hasSyntaxError) {
 			if (!this.isARecordComponent) // record component used by implicit methods
