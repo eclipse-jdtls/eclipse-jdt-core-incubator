@@ -45,8 +45,19 @@ pipeline {
 				always {
 					archiveArtifacts artifacts: '*.log,*/target/work/data/.metadata/*.log,*/tests/target/work/data/.metadata/*.log,apiAnalyzer-workspace/.metadata/*.log', allowEmptyArchive: true
 					junit '**/target/surefire-reports/*.xml'
-					discoverGitReferenceBuild referenceJob: 'eclipse.jdt.core-github/master'
 					recordIssues publishAllIssues: true, tools: [java(), mavenConsole(), javaDoc()]
+				}
+			}
+		}
+		stage('Deploy') {
+			when {
+				branch 'develop'
+			}
+			steps {
+				sshagent ( ['projects-storage.eclipse.org-bot-ssh']) {
+					sh 'ssh genie.ls@projects-storage.eclipse.org rm -rf /home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
+					sh 'ssh genie.ls@projects-storage.eclipse.org mkdir -p /home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
+					sh 'scp -r repository/target/repository/* genie.ls@projects-storage.eclipse.org:/home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
 				}
 			}
 		}
