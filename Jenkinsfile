@@ -54,8 +54,19 @@ pipeline {
 					// The eclipse compiler name is changed because the logfile not only contains ECJ but also API warnings.
 					// "pattern:" is used to collect warnings in dedicated files avoiding output of junit tests treated as warnings   
 					junit '**/target/surefire-reports/*.xml'
-					discoverGitReferenceBuild referenceJob: 'eclipse.jdt.core-github/master'
 					recordIssues publishAllIssues:false, ignoreQualityGate:true, tool: eclipse(name: 'Compiler and API Tools', pattern: '**/target/compilelogs/*.xml'), qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
+				}
+			}
+		}
+		stage('Deploy') {
+			when {
+				branch 'develop'
+			}
+			steps {
+				sshagent ( ['projects-storage.eclipse.org-bot-ssh']) {
+					sh 'ssh genie.ls@projects-storage.eclipse.org rm -rf /home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
+					sh 'ssh genie.ls@projects-storage.eclipse.org mkdir -p /home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
+					sh 'scp -r repository/target/repository/* genie.ls@projects-storage.eclipse.org:/home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
 				}
 			}
 		}
