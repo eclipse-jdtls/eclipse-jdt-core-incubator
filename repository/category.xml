@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<site>
+   <bundle id="org.eclipse.jdt.core.compiler.batch"/>
+   <bundle id="org.eclipse.jdt.core"/>
+   <bundle id="org.eclipse.jdt.apt.core"/>
+</site>
