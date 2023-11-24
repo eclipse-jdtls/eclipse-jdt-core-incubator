@@ -4618,29 +4618,27 @@ private static class Goal {
 	static int SwitchLabelCaseLhsRule = 0;
 	static int[] RestrictedIdentifierSealedRule;
 	static int[] RestrictedIdentifierPermitsRule;
-	static int[] PatternRules;
+	static int PatternCaseRule = 0;
 
 	static Goal LambdaParameterListGoal;
 	static Goal IntersectionCastGoal;
 	static Goal VarargTypeAnnotationGoal;
 	static Goal ReferenceExpressionGoal;
 	static Goal BlockStatementoptGoal;
-	static Goal YieldStatementGoal;
 	static Goal SwitchLabelCaseLhsGoal;
 	static Goal RestrictedIdentifierSealedGoal;
 	static Goal RestrictedIdentifierPermitsGoal;
-	static Goal PatternGoal;
+	static Goal PatternCaseLabelGoal;
 
 	static int[] RestrictedIdentifierSealedFollow =  { TokenNameclass, TokenNameinterface,
 			TokenNameenum, TokenNameRestrictedIdentifierrecord };// Note: enum/record allowed as error flagging rules.
 	static int[] RestrictedIdentifierPermitsFollow =  { TokenNameLBRACE };
-	static int[] PatternCaseLabelFollow = {TokenNameCOLON, TokenNameARROW, TokenNameCOMMA, TokenNameBeginCaseExpr, TokenNameRestrictedIdentifierWhen};
+	static int[] PatternCaseLabelFollow = { TokenNameCOLON, TokenNameBeginCaseExpr };
 
 	static {
 
 		List<Integer> ridSealed = new ArrayList<>(2);
 		List<Integer> ridPermits = new ArrayList<>();
-		List<Integer> patternStates = new ArrayList<>();
 		for (int i = 1; i <= ParserBasicInformation.NUM_RULES; i++) {  // 0 == $acc
 			// TODO: Change to switch
 			if ("ParenthesizedLambdaParameterList".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
@@ -4670,32 +4668,21 @@ private static class Goal {
 			if ("SwitchLabelCaseLhs".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
 				SwitchLabelCaseLhsRule = i;
 			else
-			if ("TypePattern".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
-				patternStates.add(i);
-			else
-			if ("Pattern".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
-				patternStates.add(i);
-			else
-			if ("ParenthesizedPattern".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
-				patternStates.add(i);
-			else
-			if ("RecordPattern".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
-				patternStates.add(i);
+			if ("CaseLabelPatternElements".equals(Parser.name[Parser.non_terminal_index[Parser.lhs[i]]])) //$NON-NLS-1$
+				PatternCaseRule = i;
 		}
 		RestrictedIdentifierSealedRule = ridSealed.stream().mapToInt(Integer :: intValue).toArray(); // overkill but future-proof
 		RestrictedIdentifierPermitsRule = ridPermits.stream().mapToInt(Integer :: intValue).toArray();
-		PatternRules = patternStates.stream().mapToInt(Integer :: intValue).toArray();
 
 		LambdaParameterListGoal =  new Goal(TokenNameARROW, new int[] { TokenNameARROW }, LambdaParameterListRule);
 		IntersectionCastGoal =     new Goal(TokenNameLPAREN, followSetOfCast(), IntersectionCastRule);
 		VarargTypeAnnotationGoal = new Goal(TokenNameAT, new int[] { TokenNameELLIPSIS }, VarargTypeAnnotationsRule);
 		ReferenceExpressionGoal =  new Goal(TokenNameLESS, new int[] { TokenNameCOLON_COLON }, ReferenceExpressionRule);
 		BlockStatementoptGoal =    new Goal(TokenNameLBRACE, new int [0], BlockStatementoptRule);
-		YieldStatementGoal =       new Goal(TokenNameARROW, new int [0], YieldStatementRule);
 		SwitchLabelCaseLhsGoal =   new Goal(TokenNameARROW, new int [0], SwitchLabelCaseLhsRule);
 		RestrictedIdentifierSealedGoal = new Goal(TokenNameRestrictedIdentifiersealed, RestrictedIdentifierSealedFollow, RestrictedIdentifierSealedRule);
 		RestrictedIdentifierPermitsGoal = new Goal(TokenNameRestrictedIdentifierpermits, RestrictedIdentifierPermitsFollow, RestrictedIdentifierPermitsRule);
-		PatternGoal = new Goal(TokenNameBeginCaseElement, PatternCaseLabelFollow, PatternRules);
+		PatternCaseLabelGoal = new Goal(TokenNameBeginCaseElement, PatternCaseLabelFollow, PatternCaseRule);
 	}
 
 
@@ -4903,8 +4890,8 @@ private VanguardScanner getNewVanguardScanner() {
 	return vs;
 }
 protected final boolean mayBeAtCasePattern(int token) {
-	return ((token == TokenNamecase || this.multiCaseLabelComma)
-			&& JavaFeature.PATTERN_MATCHING_IN_SWITCH.isSupported(this.complianceLevel, this.previewEnabled))
+	return token == TokenNamecase
+			&& JavaFeature.PATTERN_MATCHING_IN_SWITCH.isSupported(this.complianceLevel, this.previewEnabled)
 			&& !isInModuleDeclaration();
 }
 protected final boolean maybeAtLambdaOrCast() { // Could the '(' we saw just now herald a lambda parameter list or a cast expression ? (the possible locations for both are identical.)
@@ -5337,11 +5324,12 @@ protected int disambiguateArrowWithCaseExpr(Scanner scanner, int retToken) {
  * Assumption: mayBeAtCasePattern(token) is true before calling this method.
  */
 int disambiguateCasePattern(int token, Scanner scanner) {
-	int delta = token == TokenNamecase ? 4 : 0; // 4 for case.
 	final VanguardParser parser = getNewVanguardParser();
-	parser.scanner.resetTo(parser.scanner.currentPosition + delta, parser.scanner.eofPosition);
+	// skip over 'case'
+	parser.scanner.resetTo(parser.scanner.currentPosition + 4, parser.scanner.eofPosition);
 	parser.scanner.caseStartPosition = this.caseStartPosition;
-	if (parser.parse(Goal.PatternGoal) == VanguardParser.SUCCESS) {
+
+	if (parser.parse(Goal.PatternCaseLabelGoal) == VanguardParser.SUCCESS) {
 		if (token == TokenNamecase) {
 			scanner.nextToken = TokenNameBeginCaseElement;
 		} else {
@@ -5349,6 +5337,7 @@ int disambiguateCasePattern(int token, Scanner scanner) {
 			token = TokenNameBeginCaseElement;
 		}
 	}
+
 	return token;
 }
 

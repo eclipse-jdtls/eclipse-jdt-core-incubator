@@ -27,34 +27,49 @@ import org.eclipse.jdt.internal.compiler.lookup.TypeIds;
 
 public class GuardedPattern extends Pattern {
 
-	public Pattern primaryPattern;
+	public Pattern[] patterns;
 	public Expression condition;
 	int thenInitStateIndex1 = -1;
 	int thenInitStateIndex2 = -1;
 	public int restrictedIdentifierStart = -1; // used only for 'when' restricted keyword.
 
-	public GuardedPattern(Pattern primaryPattern, Expression conditionalAndExpression) {
-		this.primaryPattern = primaryPattern;
+	public GuardedPattern(Pattern patterns[], Expression conditionalAndExpression) {
+		this.patterns = patterns;
 		this.condition = conditionalAndExpression;
-		this.sourceStart = primaryPattern.sourceStart;
+		if (patterns.length > 0) {
+			this.sourceStart = this.patterns[0].sourceStart;
+		} else {
+			this.sourceStart = conditionalAndExpression.sourceStart;
+		}
 		this.sourceEnd = conditionalAndExpression.sourceEnd;
 	}
 
 	@Override
 	public LocalDeclaration getPatternVariable() {
-		return this.primaryPattern.getPatternVariable();
+		if (this.patterns.length == 1) {
+			return this.patterns[0].getPatternVariable();
+		}
+		return null;
 	}
 
 	@Override
 	public LocalVariableBinding[] bindingsWhenTrue() {
-		return LocalVariableBinding.merge(this.primaryPattern.bindingsWhenTrue(),
-											this.condition.bindingsWhenTrue());
+		LocalVariableBinding[] patternsBindings = new LocalVariableBinding[] {};
+		for (Pattern pattern : this.patterns) {
+			patternsBindings = LocalVariableBinding.merge(patternsBindings, pattern.bindingsWhenTrue());
+		}
+		return LocalVariableBinding.merge(patternsBindings, this.condition.bindingsWhenTrue());
 	}
 
 	@Override
 	public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, FlowInfo flowInfo) {
-		flowInfo = this.primaryPattern.analyseCode(currentScope, flowContext, flowInfo);
-		this.thenInitStateIndex1 = currentScope.methodScope().recordInitializationStates(flowInfo);
+		if (this.patterns.length >= 1) {
+			flowInfo = this.patterns[0].analyseCode(currentScope, flowContext, flowInfo);
+			this.thenInitStateIndex1 = currentScope.methodScope().recordInitializationStates(flowInfo);
+		}
+		for (int i = 1; i < this.patterns.length; i++) {
+			flowInfo = this.patterns[i].analyseCode(currentScope, flowContext, flowInfo);
+		}
 		FlowInfo mergedFlow = this.condition.analyseCode(currentScope, flowContext, flowInfo);
 		mergedFlow = mergedFlow.safeInitsWhenTrue();
 		this.thenInitStateIndex2 = currentScope.methodScope().recordInitializationStates(mergedFlow);
@@ -65,7 +80,9 @@ public class GuardedPattern extends Pattern {
 	public void generateOptimizedBoolean(BlockScope currentScope, CodeStream codeStream, BranchLabel trueLabel, BranchLabel falseLabel) {
 		this.thenTarget = new BranchLabel(codeStream);
 		this.elseTarget = new BranchLabel(codeStream);
-		this.primaryPattern.generateOptimizedBoolean(currentScope, codeStream, this.thenTarget, this.elseTarget);
+		for (Pattern pattern : this.patterns ) {
+			pattern.generateOptimizedBoolean(currentScope, codeStream, this.thenTarget, this.elseTarget);
+		}
 		Constant cst =  this.condition.optimizedBooleanConstant();
 
 		setGuardedElseTarget(currentScope, this.elseTarget);
@@ -104,25 +121,42 @@ public class GuardedPattern extends Pattern {
 	}
 	@Override
 	public boolean coversType(TypeBinding type) {
-		return this.primaryPattern.coversType(type) && isAlwaysTrue();
+		if (!isAlwaysTrue()) {
+			return false;
+		}
+		for (Pattern pattern : this.patterns) {
+			if (pattern.coversType(type)) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	@Override
 	public boolean dominates(Pattern p) {
-		if (isAlwaysTrue())
-			return this.primaryPattern.dominates(p);
+		if (isAlwaysTrue()) {
+			for (Pattern pattern : this. patterns) {
+				if (pattern.dominates(p)) {
+					return true;
+				}
+			}
+		}
 		return false;
 	}
 
 	@Override
 	public TypeBinding resolveType(BlockScope scope) {
-		if (this.resolvedType != null || this.primaryPattern == null)
+		if (this.resolvedType != null || this.patterns[0] == null)
 			return this.resolvedType;
-		this.resolvedType = this.primaryPattern.resolveType(scope);
+		this.resolvedType = this.patterns[0].resolveType(scope);
 		// The following call (as opposed to resolveType() ensures that
 		// the implicitConversion code is set properly and thus the correct
 		// unboxing calls are generated.
-		this.condition.resolveTypeExpectingWithBindings(this.primaryPattern.bindingsWhenTrue(), scope, TypeBinding.BOOLEAN);
+		LocalVariableBinding[] patternsBindings = new LocalVariableBinding[] {};
+		for (Pattern pattern: this.patterns) {
+			patternsBindings = LocalVariableBinding.merge(patternsBindings, pattern.bindingsWhenTrue());
+		}
+		this.condition.resolveTypeExpectingWithBindings(patternsBindings, scope, TypeBinding.BOOLEAN);
 		Constant cst = this.condition.optimizedBooleanConstant();
 		if (cst.typeID() == TypeIds.T_boolean && cst.booleanValue() == false) {
 			scope.problemReporter().falseLiteralInGuard(this.condition);
@@ -148,20 +182,27 @@ public class GuardedPattern extends Pattern {
 				return false;
 			}
 		}, scope);
-		return this.resolvedType = this.primaryPattern.resolvedType;
+		return this.resolvedType = this.patterns[0].resolvedType;
 	}
 
 	@Override
 	public StringBuilder printExpression(int indent, StringBuilder output) {
-		this.primaryPattern.print(indent, output).append(" when "); //$NON-NLS-1$
+		for (int i = 0; i < this.patterns.length; i++) {
+			this.patterns[i].print(indent, output);
+			if (i < this.patterns.length - 1) {
+				output.append(", "); //$NON-NLS-1$
+			}
+		}
+		output.append(" when "); //$NON-NLS-1$
 		return this.condition.print(indent, output);
 	}
 
 	@Override
 	public void traverse(ASTVisitor visitor, BlockScope scope) {
 		if (visitor.visit(this, scope)) {
-			if (this.primaryPattern != null)
-				this.primaryPattern.traverse(visitor, scope);
+			for (Pattern pattern : this.patterns) {
+				pattern.traverse(visitor, scope);
+			}
 			if (this.condition != null)
 				this.condition.traverse(visitor, scope);
 		}
@@ -170,28 +211,34 @@ public class GuardedPattern extends Pattern {
 	@Override
 	public void suspendVariables(CodeStream codeStream, BlockScope scope) {
 		codeStream.removeNotDefinitelyAssignedVariables(scope, this.thenInitStateIndex1);
-		this.primaryPattern.suspendVariables(codeStream, scope);
+		if (this.patterns[0] != null) {
+			this.patterns[0].suspendVariables(codeStream, scope);
+		}
 	}
 	@Override
 	public void resumeVariables(CodeStream codeStream, BlockScope scope) {
 		codeStream.addDefinitelyAssignedVariables(scope, this.thenInitStateIndex2);
-		this.primaryPattern.resumeVariables(codeStream, scope);
+		if (this.patterns[0] != null) {
+			this.patterns[0].resumeVariables(codeStream, scope);
+		}
 	}
 	@Override
 	protected boolean isPatternTypeCompatible(TypeBinding other, BlockScope scope) {
-		return this.primaryPattern.isPatternTypeCompatible(other, scope);
+		return this.patterns[0].isPatternTypeCompatible(other, scope);
 	}
 	@Override
 	public void wrapupGeneration(CodeStream codeStream) {
-		this.primaryPattern.wrapupGeneration(codeStream);
+		this.patterns[0].wrapupGeneration(codeStream);
 	}
 	@Override
 	public void fullWrapupGeneration(CodeStream codeStream) {
-		this.primaryPattern.fullWrapupGeneration(codeStream);
+		for (Pattern pattern : this.patterns) {
+			pattern.fullWrapupGeneration(codeStream);
+		}
 	}
 	@Override
 	protected void generatePatternVariable(BlockScope currentScope, CodeStream codeStream, BranchLabel trueLabel,
 			BranchLabel falseLabel) {
-		this.primaryPattern.generatePatternVariable(currentScope, codeStream, trueLabel, falseLabel);
+		this.patterns[0].generatePatternVariable(currentScope, codeStream, trueLabel, falseLabel);
 	}
 }

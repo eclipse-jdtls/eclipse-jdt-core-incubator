@@ -260,10 +260,14 @@ private Expression getFirstValidExpression(BlockScope scope, SwitchStatement swi
 			if (e instanceof Pattern) {
 				scope.problemReporter().validateJavaFeatureSupport(JavaFeature.PATTERN_MATCHING_IN_SWITCH,
 						e.sourceStart, e.sourceEnd);
-				if (this.constantExpressions.length > 1) {
-					scope.problemReporter().illegalCaseConstantCombination(e);
-					return e;
+				if (this.constantExpressions.length > 1 || e instanceof GuardedPattern gp && gp.patterns.length > 1) {
+					PatternVariableCounter myVisitor = new PatternVariableCounter();
+					this.traverse(myVisitor, scope);
+					if (myVisitor.numVars > 0) {
+						scope.problemReporter().illegalCaseLabelWithMultiplePatterns(this);
+					}
 				}
+				return e;
 			} else if (e instanceof NullLiteral) {
 				scope.problemReporter().validateJavaFeatureSupport(JavaFeature.PATTERN_MATCHING_IN_SWITCH,
 						e.sourceStart, e.sourceEnd);
@@ -543,4 +547,24 @@ public LocalDeclaration getLocalDeclaration() {
 	return patternVariableIntroduced;
 }
 
+private class PatternVariableCounter extends ASTVisitor {
+
+	public int numVars = 0;
+
+	@Override
+	public boolean visit(TypePattern pattern, BlockScope scope) {
+		if (pattern.local != null && (pattern.local.name.length != 1 || pattern.local.name[0] != '_') && !"\\u005F".equals(pattern.local.name.toString())) { //$NON-NLS-1$
+			this.numVars++;
+		}
+		return true;
+	}
+
+	@Override
+	public boolean visit(RecordPattern pattern, BlockScope scope) {
+		if (pattern.local != null && (pattern.local.name.length != 1 || pattern.local.name[0] != '_') && !"\\u005F".equals(pattern.local.name.toString())) { //$NON-NLS-1$
+			this.numVars++;
+		}
+		return true;
+	}
+}
 }
