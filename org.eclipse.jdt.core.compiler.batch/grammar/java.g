@@ -1267,6 +1267,10 @@ Pattern -> RecordPattern
 TypePattern ::= Modifiersopt Type 'Identifier'
 /.$putCase consumeTypePattern(); $break ./
 /:$readableName TypePattern:/
+TypePattern ::= Modifiersopt Type '_'
+/.$putCase consumeTypePattern(); $break ./
+/:$readableName TypePattern:/
+/:$compliance 21:/
 
 -----------------------------------------------
 -- 16 feature : end of instanceof pattern matching
@@ -1283,7 +1287,7 @@ RecordPattern ::= Modifiersopt ReferenceType PushLPAREN ComponentPatternListopt 
 
 ComponentPatternListopt ::=  $empty
 /.$putCase consumePatternListopt(); $break ./
-/:$readableName PatternListopt:/
+/:$readableName ComponentPatternListopt:/
 /:$compliance 20:/
 
 ComponentPatternListopt -> ComponentPatternList
@@ -1297,6 +1301,8 @@ ComponentPatternList ::= ComponentPatternList ',' ComponentPattern
 /:$compliance 20:/
 
 ComponentPattern -> Pattern
+ComponentPattern -> UnnamedPattern
+/:$compliance 21:/
 
 -----------------------------------------------
 -- 20 preview feature : end of record patterns
@@ -1329,21 +1335,10 @@ StringTemplateExpression ::= Primary '.' TemplateArgument
 -- 21 preview feature : end of String templates
 -----------------------------------------------
 
----
-TypePattern ::= Modifiersopt Type '_'
-/.$putCase consumeTypePattern(); $break ./
-/:$readableName TypePattern:/
-/:$compliance 21:/
-
-ComponentPattern -> UnnamedPattern
-/:$compliance 21:/
-
 UnnamedPattern ::= '_'
 /.$putCase consumeUnnamedPattern(); $break ./
 /:$readableName UnnamedPattern:/
 /:$compliance 21:/
-
----
 
 ConstantDeclaration -> FieldDeclaration
 /:$readableName ConstantDeclaration:/
@@ -1958,8 +1953,8 @@ TypeElidedFormalParameter ::= Modifiersopt Identifier
 /:$readableName TypeElidedFormalParameter:/
 /:$compliance 1.8:/
 
-TypeElidedFormalParameter ::= Modifiersopt '_'
-/.$putCase consumeTypeElidedLambdaParameter(true); $break ./
+TypeElidedFormalParameter ::= '_'
+/.$putCase consumeBracketedTypeElidedUnderscoreLambdaParameter(); $break ./
 /:$readableName TypeElidedFormalParameter:/
 /:$compliance 21:/
 

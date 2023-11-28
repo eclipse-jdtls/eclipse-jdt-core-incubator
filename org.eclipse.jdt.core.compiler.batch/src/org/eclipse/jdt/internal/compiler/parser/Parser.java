@@ -7455,28 +7455,28 @@ protected void consumeRule(int act) {
 		    consumeTypePattern();
 			break;
 
-    case 364 : if (DEBUG) { System.out.println("RecordPattern ::= Modifiersopt ReferenceType PushLPAREN"); }  //$NON-NLS-1$
+    case 364 : if (DEBUG) { System.out.println("TypePattern ::= Modifiersopt Type UNDERSCORE"); }  //$NON-NLS-1$
+		    consumeTypePattern();
+			break;
+
+    case 365 : if (DEBUG) { System.out.println("RecordPattern ::= Modifiersopt ReferenceType PushLPAREN"); }  //$NON-NLS-1$
 		    consumeRecordPattern();
 			break;
 
-    case 365 : if (DEBUG) { System.out.println("ComponentPatternListopt ::="); }  //$NON-NLS-1$
+    case 366 : if (DEBUG) { System.out.println("ComponentPatternListopt ::="); }  //$NON-NLS-1$
 		    consumePatternListopt();
 			break;
 
-    case 368 : if (DEBUG) { System.out.println("ComponentPatternList ::= ComponentPatternList COMMA..."); }  //$NON-NLS-1$
+    case 369 : if (DEBUG) { System.out.println("ComponentPatternList ::= ComponentPatternList COMMA..."); }  //$NON-NLS-1$
 		    consumePatternList(); 
 			break;
 
-    case 375 : if (DEBUG) { System.out.println("StringTemplateExpression ::= Name DOT TemplateArgument"); }  //$NON-NLS-1$
+    case 377 : if (DEBUG) { System.out.println("StringTemplateExpression ::= Name DOT TemplateArgument"); }  //$NON-NLS-1$
 		    consumeTemplateExpressionWithName();
 			break;
 
-    case 376 : if (DEBUG) { System.out.println("StringTemplateExpression ::= Primary DOT..."); }  //$NON-NLS-1$
+    case 378 : if (DEBUG) { System.out.println("StringTemplateExpression ::= Primary DOT..."); }  //$NON-NLS-1$
 		    consumeTemplateExpressionWithPrimary();
-			break;
-
-    case 377 : if (DEBUG) { System.out.println("TypePattern ::= Modifiersopt Type UNDERSCORE"); }  //$NON-NLS-1$
-		    consumeTypePattern();
 			break;
 
     case 379 : if (DEBUG) { System.out.println("UnnamedPattern ::= UNDERSCORE"); }  //$NON-NLS-1$
@@ -7955,8 +7955,8 @@ protected void consumeRule(int act) {
 		    consumeTypeElidedLambdaParameter(true);
 			break;
 
-    case 575 : if (DEBUG) { System.out.println("TypeElidedFormalParameter ::= Modifiersopt UNDERSCORE"); }  //$NON-NLS-1$
-		    consumeTypeElidedLambdaParameter(true);
+    case 575 : if (DEBUG) { System.out.println("TypeElidedFormalParameter ::= UNDERSCORE"); }  //$NON-NLS-1$
+		    consumeBracketedTypeElidedUnderscoreLambdaParameter();
 			break;
 
     case 578 : if (DEBUG) { System.out.println("ElidedLeftBraceAndReturn ::="); }  //$NON-NLS-1$
@@ -9105,7 +9105,7 @@ protected void consumeLambdaHeader() {
 			if (this.parsingJava21Plus) {
 				problemReporter().validateJavaFeatureSupport(JavaFeature.UNNAMMED_PATTERNS_AND_VARS, argument.sourceStart, argument.sourceEnd);
 			} else {
-				problemReporter().illegalUseOfUnderscoreAsAnIdentifier(argument.sourceStart, argument.sourceEnd, true); // true == lambdaParameter
+				problemReporter().illegalUseOfUnderscoreAsAnIdentifier(argument.sourceStart, argument.sourceEnd, true, false); // true == lambdaParameter
 			}
 		}
 	}
@@ -9238,6 +9238,10 @@ protected void consumeTypeElidedLambdaParameter(boolean parenthesized) {
 	}
 	pushOnAstStack(arg);
 	this.listLength++;  // not relevant really.
+}
+protected void consumeBracketedTypeElidedUnderscoreLambdaParameter() {
+	consumeDefaultModifiers();
+	consumeTypeElidedLambdaParameter(true);
 }
 protected void consumeElidedLeftBraceAndReturn() {
 	/* ElidedLeftBraceAndReturn ::= $empty
@@ -14040,7 +14044,7 @@ protected void pushIdentifier(char [] identifier, long position) {
 		if (this.parsingJava21Plus) {
 			problemReporter().validateJavaFeatureSupport(JavaFeature.UNNAMMED_PATTERNS_AND_VARS, (int) (position >>> 32), (int) position);
 		} else {
-			problemReporter().illegalUseOfUnderscoreAsAnIdentifier((int) (position >>> 32), (int) position, this.parsingJava9Plus);
+			problemReporter().illegalUseOfUnderscoreAsAnIdentifier((int) (position >>> 32), (int) position, this.parsingJava9Plus, false);
 		}
 	}
 }

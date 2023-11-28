@@ -3090,8 +3090,12 @@ public int scanIdentifierOrKeyword() {
 		data = this.source;
 		index = this.startPosition;
 	} else {
-		if ((length = this.withoutUnicodePtr) == 1)
+		if ((length = this.withoutUnicodePtr) == 1) {
+			if (this.withoutUnicodeBuffer[0] == '_') {
+				return TokenNameUNDERSCORE;
+			}
 			return TokenNameIdentifier;
+		}
 		data = this.withoutUnicodeBuffer;
 		index = 1;
 	}

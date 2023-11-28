@@ -116,6 +116,10 @@ public class Argument extends LocalDeclaration {
 		return null;
 	}
 	public TypeBinding bind(MethodScope scope, TypeBinding typeBinding, boolean used) {
+		if (this.isUnnamed(scope)) {
+			scope.problemReporter().illegalUseOfUnderscoreAsAnIdentifier(this.sourceStart, this.sourceEnd, scope.compilerOptions().sourceLevel > ClassFileConstants.JDK1_8, true);
+		}
+
 		TypeBinding newTypeBinding = createBinding(scope, typeBinding); // basically a no-op if createBinding() was called before
 
 		// record the resolved type into the type reference

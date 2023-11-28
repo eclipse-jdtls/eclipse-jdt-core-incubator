@@ -70,9 +70,6 @@ public FieldDeclaration(	char[] name, int sourceStart, int sourceEnd) {
 }
 
 public FlowInfo analyseCode(MethodScope initializationScope, FlowContext flowContext, FlowInfo flowInfo) {
-	if (this.isUnnamed(initializationScope)) {
-		initializationScope.problemReporter().fieldNameCannotBeUnderscore(this);
-	}
 	if (this.binding != null && !this.binding.isUsed() && this.binding.isOrEnclosedByPrivateType()) {
 		if (!initializationScope.referenceCompilationUnit().compilationResult.hasSyntaxError) {
 			if (!this.isARecordComponent) // record component used by implicit methods
@@ -200,6 +197,10 @@ public StringBuilder printStatement(int indent, StringBuilder output) {
 }
 
 public void resolve(MethodScope initializationScope) {
+	if (this.isUnnamed(initializationScope)) {
+		initializationScope.problemReporter().illegalUseOfUnderscoreAsAnIdentifier(this.sourceStart, this.sourceEnd, initializationScope.compilerOptions().sourceLevel > ClassFileConstants.JDK1_8, true);
+	}
+
 	// the two <constant = Constant.NotAConstant> could be regrouped into
 	// a single line but it is clearer to have two lines while the reason of their
 	// existence is not at all the same. See comment for the second one.

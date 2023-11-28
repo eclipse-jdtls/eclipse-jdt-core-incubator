@@ -111,8 +111,8 @@ public class UnnamedPattern extends VariablePattern {
 	}
 
 	@Override
-	public StringBuffer printExpression(int indent, StringBuffer output) {
-		return this.local.printAsExpression(indent, output);
+	public StringBuilder printExpression(int indent, StringBuilder output) {
+		return output.append('_');
 	}
 
 }
@@ -164,7 +164,7 @@ class FakeTypeReference extends TypeReference {
 	}
 
 	@Override
-	public StringBuffer printExpression(int indent, StringBuffer output) {
+	public StringBuilder printExpression(int indent, StringBuilder output) {
 		return output;
 	}
 }

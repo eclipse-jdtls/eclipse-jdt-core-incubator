@@ -9790,9 +9790,10 @@ public void useEnumAsAnIdentifier(int sourceStart, int sourceEnd) {
 		sourceStart,
 		sourceEnd);
 }
-public void illegalUseOfUnderscoreAsAnIdentifier(int sourceStart, int sourceEnd, boolean reportError) {
+public void illegalUseOfUnderscoreAsAnIdentifier(int sourceStart, int sourceEnd, boolean reportError, boolean unusedVariablesSupported) {
 	this.underScoreIsError = reportError;
 	int problemId = (reportError) ? IProblem.ErrorUseOfUnderscoreAsAnIdentifier : IProblem.IllegalUseOfUnderscoreAsAnIdentifier;
+	problemId = unusedVariablesSupported ? IProblem.UnderscoreCannotBeUsedHere : problemId;
 	try {
 		this.handle(
 			problemId,
@@ -12455,9 +12456,9 @@ public void falseLiteralInGuard(Expression exp) {
 			exp.sourceStart,
 			exp.sourceEnd);
 }
-public void fieldNameCannotBeUnderscore(FieldDeclaration fieldDeclaration) {
+public void underscoreCannotBeUsedHere(FieldDeclaration fieldDeclaration) {
 	this.handle(
-			IProblem.FieldNameCannotBeUnderscore,
+			IProblem.UnderscoreCannotBeUsedHere,
 			NoArgument,
 			NoArgument,
 			fieldDeclaration.sourceStart,

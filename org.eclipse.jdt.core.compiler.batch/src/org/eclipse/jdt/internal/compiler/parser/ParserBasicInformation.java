@@ -25,8 +25,8 @@ public interface ParserBasicInformation {
 					NUM_STATES = 1258,
 
 					NT_OFFSET = 141,
-					SCOPE_UBOUND = 325,
-					SCOPE_SIZE = 326,
+					SCOPE_UBOUND = 324,
+					SCOPE_SIZE = 325,
 					LA_STATE_OFFSET = 18629,
 					MAX_LA = 1,
 					NUM_RULES = 958,
