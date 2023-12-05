@@ -7468,7 +7468,7 @@ protected void consumeRule(int act) {
 			break;
 
     case 369 : if (DEBUG) { System.out.println("ComponentPatternList ::= ComponentPatternList COMMA..."); }  //$NON-NLS-1$
-		    consumePatternList(); 
+		    consumePatternList();
 			break;
 
     case 377 : if (DEBUG) { System.out.println("StringTemplateExpression ::= Name DOT TemplateArgument"); }  //$NON-NLS-1$
@@ -11000,7 +11000,7 @@ protected void consumeUnnamedPattern() {
 	this.identifierPtr--;
 	this.identifierLengthPtr--;
 
-	UnnamedPattern aUnnamedPattern = new UnnamedPattern(local);
+	TypePattern aUnnamedPattern = new TypePattern(local);
 	aUnnamedPattern.sourceStart = local.sourceStart;
 	aUnnamedPattern.sourceEnd = local.sourceEnd;
 

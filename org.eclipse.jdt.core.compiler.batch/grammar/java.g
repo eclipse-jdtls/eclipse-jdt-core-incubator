@@ -2542,7 +2542,7 @@ EnhancedForStatementNoShortIf ::= EnhancedForStatementHeader StatementNoShortIf
 /.$putCase consumeEnhancedForStatement(); $break ./
 /:$readableName EnhancedForStatementNoShortIf:/
 
-EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers Identifier Dimsopt
+EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers VariableDeclaratorId
 /.$putCase consumeEnhancedForStatementHeaderInit(false); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
 

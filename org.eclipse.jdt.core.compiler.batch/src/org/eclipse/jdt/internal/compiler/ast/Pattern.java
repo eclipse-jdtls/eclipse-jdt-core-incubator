@@ -39,7 +39,8 @@ public abstract class Pattern extends Expression {
 
 	public int nestingLevel = 0;
 
-	public int index = -1; // denoting position
+	// denotes index of this pattern in the parent record pattern, or -1 for patterns whose parent is not a record pattern
+	public int index = -1;
 
 	@Override
 	public boolean containsPatternVariable() {
@@ -50,7 +51,7 @@ public abstract class Pattern extends Expression {
 			@Override
 			public boolean visit(TypePattern typePattern, BlockScope blockScope) {
 				 this.hasPatternVar = typePattern.local != null;
-				 this.typeElidedVar |= typePattern.getType().isTypeNameVar(blockScope);
+				 this.typeElidedVar |= typePattern.getType() == null || typePattern.getType().isTypeNameVar(blockScope);
 				 return !(this.hasPatternVar && this.typeElidedVar);
 			}
  		}

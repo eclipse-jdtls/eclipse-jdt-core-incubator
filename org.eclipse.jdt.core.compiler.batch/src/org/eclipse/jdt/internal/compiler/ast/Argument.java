@@ -116,7 +116,7 @@ public class Argument extends LocalDeclaration {
 		return null;
 	}
 	public TypeBinding bind(MethodScope scope, TypeBinding typeBinding, boolean used) {
-		if (this.isUnnamed(scope)) {
+		if (this.isUnnamed(scope) && !scope.isLambdaScope()) {
 			scope.problemReporter().illegalUseOfUnderscoreAsAnIdentifier(this.sourceStart, this.sourceEnd, scope.compilerOptions().sourceLevel > ClassFileConstants.JDK1_8, true);
 		}
 

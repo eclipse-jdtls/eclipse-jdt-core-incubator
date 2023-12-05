@@ -223,7 +223,6 @@ public class ProblemReporter extends ProblemHandler implements AutoCloseable {
 
 	public ReferenceContext referenceContext;
 	private Scanner positionScanner;
-	private boolean underScoreIsError;
 	private final static byte
 	  // TYPE_ACCESS = 0x0,
 	  FIELD_ACCESS = 0x4,
@@ -1786,7 +1785,7 @@ public int computeSeverity(int problemID){
 		case IProblem.ToleratedMisplacedTypeAnnotations:
 			return ProblemSeverities.Warning;
 		case IProblem.IllegalUseOfUnderscoreAsAnIdentifier:
-			return this.underScoreIsError ? ProblemSeverities.Error : ProblemSeverities.Warning;
+			return ProblemSeverities.Warning;
 		// for Java 16
 		case IProblem.DiscouragedValueBasedTypeSynchronization:
 			return ProblemSeverities.Warning;
@@ -9791,19 +9790,14 @@ public void useEnumAsAnIdentifier(int sourceStart, int sourceEnd) {
 		sourceEnd);
 }
 public void illegalUseOfUnderscoreAsAnIdentifier(int sourceStart, int sourceEnd, boolean reportError, boolean unusedVariablesSupported) {
-	this.underScoreIsError = reportError;
 	int problemId = (reportError) ? IProblem.ErrorUseOfUnderscoreAsAnIdentifier : IProblem.IllegalUseOfUnderscoreAsAnIdentifier;
 	problemId = unusedVariablesSupported ? IProblem.UnderscoreCannotBeUsedHere : problemId;
-	try {
-		this.handle(
-			problemId,
-			NoArgument,
-			NoArgument,
-			sourceStart,
-			sourceEnd);
-	} finally {
-		this.underScoreIsError = false;
-	}
+	this.handle(
+		problemId,
+		NoArgument,
+		NoArgument,
+		sourceStart,
+		sourceEnd);
 }
 public void varargsArgumentNeedCast(MethodBinding method, TypeBinding argumentType, InvocationSite location) {
 	int severity = this.options.getSeverity(CompilerOptions.VarargsArgumentNeedCast);
@@ -12456,13 +12450,12 @@ public void falseLiteralInGuard(Expression exp) {
 			exp.sourceStart,
 			exp.sourceEnd);
 }
-public void underscoreCannotBeUsedHere(FieldDeclaration fieldDeclaration) {
-	this.handle(
-			IProblem.UnderscoreCannotBeUsedHere,
+public void unnamedVariableMustHaveInitializer(LocalDeclaration variableDeclaration) {
+	this.handle(IProblem.UnnamedVariableMustHaveInitializer,
 			NoArgument,
 			NoArgument,
-			fieldDeclaration.sourceStart,
-			fieldDeclaration.sourceEnd);
+			variableDeclaration.sourceStart,
+			variableDeclaration.sourceEnd);
 }
 public boolean scheduleProblemForContext(Runnable problemComputation) {
 	if (this.referenceContext != null) {

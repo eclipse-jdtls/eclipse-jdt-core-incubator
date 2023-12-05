@@ -192,9 +192,9 @@ public class RecordPattern extends TypePattern {
 		} else {
 			for (int i = 0; i < components.length; i++) {
 				Pattern p = this.patterns[i];
-				if (!(p instanceof VariablePattern))
+				if (!(p instanceof TypePattern))
 					continue;
-				VariablePattern tp = (VariablePattern) p;
+				TypePattern tp = (TypePattern) p;
 				RecordComponentBinding componentBinding = components[i];
 				if (p.getType() == null || p.getType().isTypeNameVar(scope)) {
 					infuseInferredType(tp, componentBinding);
@@ -225,19 +225,27 @@ public class RecordPattern extends TypePattern {
 	private boolean shouldInitiateRecordTypeInference() {
 		return this.resolvedType != null && this.resolvedType.isRawType();
 	}
-	private void infuseInferredType(VariablePattern tp, RecordComponentBinding componentBinding) {
+	private void infuseInferredType(TypePattern tp, RecordComponentBinding componentBinding) {
+		SingleTypeReference ref;
 		if (tp.local.type == null) {
-			// unused variable
-			return;
+			ref = new SingleTypeReference("var".toCharArray(), //$NON-NLS-1$
+					tp.local.sourceStart,
+					tp.local.sourceEnd) {
+				@Override
+				public TypeBinding resolveType(BlockScope scope, boolean checkBounds) {
+					return componentBinding.type;
+				}
+			};
+		} else {
+			ref = new SingleTypeReference(tp.local.type.getTypeName()[0],
+					tp.local.type.sourceStart,
+					tp.local.type.sourceEnd) {
+				@Override
+				public TypeBinding resolveType(BlockScope scope, boolean checkBounds) {
+					return componentBinding.type;
+				}
+			};
 		}
-		SingleTypeReference ref = new SingleTypeReference(tp.local.type.getTypeName()[0],
-				tp.local.type.sourceStart,
-				tp.local.type.sourceEnd) {
-			@Override
-			public TypeBinding resolveType(BlockScope scope, boolean checkBounds) {
-				return componentBinding.type;
-			}
-		};
 		tp.local.type = ref;
 	}
 	@Override
@@ -307,7 +315,7 @@ public class RecordPattern extends TypePattern {
 				if (TypeBinding.notEquals(p.accessorMethod.original().returnType.erasure(),
 						p.accessorMethod.returnType.erasure()))
 					codeStream.checkcast(p.accessorMethod.returnType);
-				if (p instanceof RecordPattern || (p instanceof TypePattern && !p.isTotalTypeNode)) {
+				if (p instanceof RecordPattern || !p.isTotalTypeNode) {
 					((TypePattern)p).getSecretVariable(currentScope, p.resolvedType);
 					((TypePattern)p).initializePatternVariables(currentScope, codeStream);
 					codeStream.load(p.secretPatternVariable);

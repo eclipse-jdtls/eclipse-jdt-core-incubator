@@ -2570,4 +2570,9 @@ void setSourceStart(int sourceStart);
 	 * @noreference preview feature
 	 */
 	int UnderscoreCannotBeUsedHere = PreviewRelated + 2000;
+	/**
+	 * @since 3.37
+	 * @noreference preview feature
+	 */
+	int UnnamedVariableMustHaveInitializer = PreviewRelated + 2001;
 }

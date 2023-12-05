@@ -34,8 +34,9 @@ import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.TypeBindingVisitor;
 import org.eclipse.jdt.internal.compiler.lookup.TypeVariableBinding;
 
-public class TypePattern extends VariablePattern {
+public class TypePattern extends Pattern {
 
+	public LocalDeclaration local;
 	Expression expression;
 
 	public TypePattern(LocalDeclaration local) {
