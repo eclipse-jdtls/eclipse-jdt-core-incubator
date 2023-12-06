@@ -534,7 +534,7 @@ public class ForeachStatement extends Statement {
 		// use the scope that will hold the init declarations
 		this.scope = new BlockScope(upperScope);
 		this.scope.blockStatement = this;
-		this.elementVariable.resolve(this.scope, false, true); // collection expression can see itemVariable
+		this.elementVariable.resolve(this.scope); // collection expression can see itemVariable
 		LocalVariableBinding[] patternVariablesInTrueScope = null;
 
 		if (this.pattern != null && JavaFeature.RECORD_PATTERNS.isSupported(upperScope.compilerOptions())) {

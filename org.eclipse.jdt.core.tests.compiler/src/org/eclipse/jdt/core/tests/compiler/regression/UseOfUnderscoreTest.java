@@ -1,7 +1,5 @@
 package org.eclipse.jdt.core.tests.compiler.regression;
 
-import java.util.Map;
-
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 
@@ -17,15 +15,6 @@ public class UseOfUnderscoreTest extends AbstractBatchCompilerTest {
 		super(name);
 	}
 
-	@Override
-	protected Map<String, String> getCompilerOptions() {
-		CompilerOptions compilerOptions = new CompilerOptions(super.getCompilerOptions());
-		if (compilerOptions.sourceLevel == ClassFileConstants.JDK21) {
-			compilerOptions.enablePreviewFeatures = true;
-		}
-		return compilerOptions.getMap();
-	}
-
 	public void testReportsUnderscoreInstanceMemberAsError() {
 		CompilerOptions options = new CompilerOptions(getCompilerOptions());
 
@@ -38,7 +27,7 @@ public class UseOfUnderscoreTest extends AbstractBatchCompilerTest {
 			message = "'_' is a keyword from source level 9 onwards, cannot be used as identifier";
 			errorLevel = "ERROR";
 		} else {
-			message = "As of release 21, '_' is only allowed to declare unnamed patterns, local variables, exception parameters or lambda parameters";
+			message = "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable";
 			errorLevel = "ERROR";
 		}
 
@@ -71,7 +60,7 @@ public class UseOfUnderscoreTest extends AbstractBatchCompilerTest {
 			message = "'_' is a keyword from source level 9 onwards, cannot be used as identifier";
 			errorLevel = "ERROR";
 		} else {
-			message = "As of release 21, '_' is only allowed to declare unnamed patterns, local variables, exception parameters or lambda parameters";
+			message =  "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable";
 			errorLevel = "ERROR";
 		}
 
@@ -103,7 +92,7 @@ public class UseOfUnderscoreTest extends AbstractBatchCompilerTest {
 			message = "'_' is a keyword from source level 9 onwards, cannot be used as identifier";
 			errorLevel = "ERROR";
 		} else {
-			message = "As of release 21, '_' is only allowed to declare unnamed patterns, local variables, exception parameters or lambda parameters";
+			message =  "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable";
 			errorLevel = "ERROR";
 		}
 
@@ -137,7 +126,7 @@ public class UseOfUnderscoreTest extends AbstractBatchCompilerTest {
 			message = "'_' is a keyword from source level 9 onwards, cannot be used as identifier";
 			errorLevel = "ERROR";
 		} else {
-			message = "As of release 21, '_' is only allowed to declare unnamed patterns, local variables, exception parameters or lambda parameters";
+			message =  "Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable";
 			errorLevel = "ERROR";
 		}
 
@@ -157,6 +146,51 @@ public class UseOfUnderscoreTest extends AbstractBatchCompilerTest {
 				"	                           ^^^^^^\n" +
 				message + "\n" +
 				"----------\n");
+	}
+
+	public void testReportsUnderscoreLocalVariableAsErrorUnicodeEscape() {
+		CompilerOptions options = new CompilerOptions(getCompilerOptions());
+
+		String SOURCE_CODE = """
+				public class A {
+				public static void main(String[] args) {
+					int \\u005F = 12;
+					System.out.println("hello, world");
+				}
+			}
+			""";
+
+		if (options.sourceLevel < ClassFileConstants.JDK9) {
+			runNegativeTest(new String[] { "A.java", SOURCE_CODE },
+					"""
+					----------
+					1. WARNING in A.java (at line 3)
+						int \\u005F = 12;
+						    ^^^^^^
+					'_' should not be used as an identifier, since it is a reserved keyword from source level 1.8 on
+					----------
+					""");
+		} else if (options.sourceLevel < ClassFileConstants.JDK21) {
+			runNegativeTest(new String[] { "A.java", SOURCE_CODE },
+					"""
+					----------
+					1. ERROR in A.java (at line 3)
+						int \\u005F = 12;
+						    ^^^^^^
+					'_' is a keyword from source level 9 onwards, cannot be used as identifier
+					----------
+					""");
+		} else {
+			runNegativeTest(new String[] { "A.java", SOURCE_CODE },
+					"""
+					----------
+					1. ERROR in A.java (at line 3)
+						int \\u005F = 12;
+						    ^^^^^^
+					Unnamed Patterns and Variables is a preview feature and disabled by default. Use --enable-preview to enable
+					----------
+					""");
+		}
 	}
 
 }

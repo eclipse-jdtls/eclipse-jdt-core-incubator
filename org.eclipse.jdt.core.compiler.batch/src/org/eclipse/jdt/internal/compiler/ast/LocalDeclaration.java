@@ -266,16 +266,12 @@ public FlowInfo analyseCode(BlockScope currentScope, FlowContext flowContext, Fl
 
 	@Override
 	public void resolve(BlockScope scope) {
-		resolve(scope, false, false);
+		resolve(scope, false);
 	}
-	public void resolve(BlockScope scope, boolean isPatternVariable) {
-		resolve(scope, isPatternVariable, false);
-	}
-	public void resolve(BlockScope scope, boolean isPatternVariable, boolean isEnhancedForLoopElement) {
-		// prescan NNBD
+	public void resolve(BlockScope scope, boolean isPatternVariable) {		// prescan NNBD
 		handleNonNullByDefault(scope, this.annotations, this);
 
-		if (!isPatternVariable && !isEnhancedForLoopElement && this.initialization == null && this.isUnnamed(scope)) {
+		if (!isPatternVariable && (this.bits & ASTNode.IsForeachElementVariable) == 0 && this.initialization == null && this.isUnnamed(scope)) {
 			scope.problemReporter().unnamedVariableMustHaveInitializer(this);
 		}
 
