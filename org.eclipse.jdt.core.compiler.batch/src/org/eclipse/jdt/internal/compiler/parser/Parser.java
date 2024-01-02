@@ -7468,7 +7468,7 @@ protected void consumeRule(int act) {
 			break;
 
     case 369 : if (DEBUG) { System.out.println("ComponentPatternList ::= ComponentPatternList COMMA..."); }  //$NON-NLS-1$
-		    consumePatternList();
+		    consumePatternList(); 
 			break;
 
     case 377 : if (DEBUG) { System.out.println("StringTemplateExpression ::= Name DOT TemplateArgument"); }  //$NON-NLS-1$

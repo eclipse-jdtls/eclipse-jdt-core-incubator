@@ -448,6 +448,26 @@ public class UnnamedPatternsAndVariablesTest extends AbstractBatchCompilerTest {
 				"""}, "2");
 	}
 
+	public void testEnhancedForLoopVariableWithModifier() {
+		runConformTest(new String[] { "A.java", """
+				import java.util.List;
+				public class A {
+					public static void main(String... args) {
+						List<String> myList = List.of("hi", "hello", "salu", "bonjour");
+						int accumulator = 0;
+						for (final String _ : myList) {
+							accumulator++;
+						}
+						System.out.println(accumulator);
+						accumulator = 0;
+						for (final int _ : new int[0]) {
+						}
+						System.out.println(accumulator);
+					}
+				}
+				"""}, "4\n0");
+	}
+
 
 
 	public void testInstanceofUnnamedPatternMatching() {

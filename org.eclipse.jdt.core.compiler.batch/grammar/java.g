@@ -2546,7 +2546,7 @@ EnhancedForStatementHeaderInit ::= 'for' '(' Type PushModifiers VariableDeclarat
 /.$putCase consumeEnhancedForStatementHeaderInit(false); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
 
-EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers Identifier Dimsopt
+EnhancedForStatementHeaderInit ::= 'for' '(' Modifiers Type PushRealModifiers VariableDeclaratorId
 /.$putCase consumeEnhancedForStatementHeaderInit(true); $break ./
 /:$readableName EnhancedForStatementHeaderInit:/
 
