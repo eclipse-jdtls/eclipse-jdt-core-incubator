@@ -20,6 +20,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.core.CompilationUnit;
 
 public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 
@@ -1377,7 +1378,7 @@ public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 			"   /**\n" +
 			"	 * {@inheritDoc}\n" +	// should navigate to X.foo(int)
 			"	 */\n" +
-			"	void foo(int x);\n\n" +
+			"	public void foo(int x);\n\n" +
 			"   /**\n" +
 			"	 * {@inheritDoc}\n" +	// should navigate to Y.foo(String)
 			"	 */\n" +
@@ -1424,7 +1425,7 @@ public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 			"   /**\n" +
 			"	 * {@inheritDoc}\n" +	// should navigate to X2.foo(int)
 			"	 */\n" +
-			"	void foo(int x);\n\n" +
+			"	public void foo(int x);\n\n" +
 			"}\n"
 		);
 		IJavaElement[] elements = new IJavaElement[1];
@@ -1494,7 +1495,7 @@ public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 			"	/**\n" +
 			"	 * {@inheritDoc}\n" +	// navigates to X.foo(int)
 			"	 */\n" +
-			"	void foo(int x) {\n" +
+			"	public void foo(int x) {\n" +
 			"	}\n" +
 			"}"
 		);

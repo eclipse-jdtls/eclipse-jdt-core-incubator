@@ -2634,7 +2634,7 @@ public void test439234() throws JavaModelException {
 			"    };" +
 			"   i.foo(10);" +
 			"   X x = new X();\n" +
-			"   I i2 = x::bar;\n" +
+			"   I i2 = x:: bar;\n" +
 			"   i2.foo(10);\n" +
 			"  }" +
 			"}");
