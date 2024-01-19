@@ -7186,6 +7186,7 @@ public class SwitchPatternTest extends AbstractRegressionTest9 {
 			},
 			"Default");
 	}
+
 	// https://github.com/eclipse-jdt/eclipse.jdt.core/issues/1856
 	// [switch][record patterns] NPE: Cannot invoke "org.eclipse.jdt.internal.compiler.lookup.MethodBinding.isStatic()"
 	public void testGHI1856() {

@@ -81,7 +81,8 @@ public FlowInfo analyseCode(
 				local.useFlag = LocalVariableBinding.USED; // these are structurally required even if not touched
 			}
 			nullPatternCount +=  e instanceof NullLiteral ? 1 : 0;
-			if (i > 0 && (e instanceof Pattern)) {
+			if (i > 0 && (e instanceof Pattern)
+					&& (currentScope.compilerOptions().sourceLevel < ClassFileConstants.JDK21 || !currentScope.compilerOptions().enablePreviewFeatures)) {
 				if (!(i == nullPatternCount && e instanceof TypePattern))
 					currentScope.problemReporter().IllegalFallThroughToPattern(e);
 			}
@@ -172,14 +173,28 @@ public void generateCode(BlockScope currentScope, CodeStream codeStream) {
 
 private void casePatternExpressionGenerateCode(BlockScope currentScope, CodeStream codeStream) {
 	if (this.patternIndex != -1) {
-		Pattern pattern = ((Pattern) this.constantExpressions[this.patternIndex]);
-		if (containsPatternVariable()) {
+		BranchLabel thenTarget = new BranchLabel(codeStream);
+		for (int i = 0; i < this.constantExpressions.length - 1; i++) {
+			Pattern pattern = ((Pattern)this.constantExpressions[i]);
+			pattern.thenTarget = thenTarget;
 			LocalVariableBinding local = currentScope.findVariable(SwitchStatement.SecretPatternVariableName, null);
 			codeStream.load(local);
 			pattern.generateCode(currentScope, codeStream);
-		} else {
-			pattern.setTargets(codeStream);
+			pattern.fullWrapupGeneration(codeStream);
+			codeStream.goto_(pattern.thenTarget);
+			pattern.elseTarget.place();
 		}
+		Pattern pattern = ((Pattern)this.constantExpressions[this.constantExpressions.length - 1]);
+		pattern.thenTarget = thenTarget;
+		LocalVariableBinding local = currentScope.findVariable(SwitchStatement.SecretPatternVariableName, null);
+		codeStream.load(local);
+		pattern.generateCode(currentScope, codeStream);
+		if (pattern.countNamedVariables(currentScope) > 0) {
+			pattern.wrapupGeneration(codeStream);
+		} else {
+			pattern.fullWrapupGeneration(codeStream);
+		}
+		pattern.setTargets(codeStream);
 
 		if (!(pattern instanceof GuardedPattern))
 			codeStream.goto_(pattern.thenTarget);
@@ -261,9 +276,11 @@ private Expression getFirstValidExpression(BlockScope scope, SwitchStatement swi
 				scope.problemReporter().validateJavaFeatureSupport(JavaFeature.PATTERN_MATCHING_IN_SWITCH,
 						e.sourceStart, e.sourceEnd);
 				if (this.constantExpressions.length > 1 || e instanceof GuardedPattern gp && gp.patterns.length > 1) {
-					PatternVariableCounter myVisitor = new PatternVariableCounter();
-					this.traverse(myVisitor, scope);
-					if (myVisitor.numVars > 0) {
+					int count = 0;
+					for (Expression expr : this.constantExpressions) {
+						count += ((Pattern)expr).countNamedVariables(scope);
+					}
+					if (count > 0) {
 						scope.problemReporter().illegalCaseLabelWithMultiplePatterns(this);
 					}
 				}
@@ -547,24 +564,4 @@ public LocalDeclaration getLocalDeclaration() {
 	return patternVariableIntroduced;
 }
 
-private class PatternVariableCounter extends ASTVisitor {
-
-	public int numVars = 0;
-
-	@Override
-	public boolean visit(TypePattern pattern, BlockScope scope) {
-		if (pattern.local != null && (pattern.local.name.length != 1 || pattern.local.name[0] != '_') && !"\\u005F".equals(pattern.local.name.toString())) { //$NON-NLS-1$
-			this.numVars++;
-		}
-		return true;
-	}
-
-	@Override
-	public boolean visit(RecordPattern pattern, BlockScope scope) {
-		if (pattern.local != null && (pattern.local.name.length != 1 || pattern.local.name[0] != '_') && !"\\u005F".equals(pattern.local.name.toString())) { //$NON-NLS-1$
-			this.numVars++;
-		}
-		return true;
-	}
-}
 }

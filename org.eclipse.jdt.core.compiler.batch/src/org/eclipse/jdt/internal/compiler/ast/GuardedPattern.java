@@ -80,9 +80,29 @@ public class GuardedPattern extends Pattern {
 	public void generateOptimizedBoolean(BlockScope currentScope, CodeStream codeStream, BranchLabel trueLabel, BranchLabel falseLabel) {
 		this.thenTarget = new BranchLabel(codeStream);
 		this.elseTarget = new BranchLabel(codeStream);
-		for (Pattern pattern : this.patterns ) {
-			pattern.generateOptimizedBoolean(currentScope, codeStream, this.thenTarget, this.elseTarget);
+
+		LocalVariableBinding local = currentScope.findVariable(SwitchStatement.SecretPatternVariableName, null);
+		BranchLabel toGuard = new BranchLabel(codeStream);
+
+		for (int i = 0; i < this.patterns.length - 1; i++) {
+			Pattern pattern = this.patterns[i];
+			pattern.thenTarget = toGuard;
+			pattern.generateCode(currentScope, codeStream);
+			pattern.fullWrapupGeneration(codeStream);
+			codeStream.goto_(pattern.thenTarget);
+			pattern.elseTarget.place();
+			codeStream.load(local);
 		}
+		Pattern pattern = this.patterns[this.patterns.length - 1];
+		pattern.thenTarget = toGuard;
+		pattern.elseTarget = this.elseTarget;
+		pattern.generateCode(currentScope, codeStream);
+		if (pattern.countNamedVariables(currentScope) > 0) {
+			pattern.wrapupGeneration(codeStream);
+		} else {
+			pattern.fullWrapupGeneration(codeStream);
+		}
+		toGuard.place();
 		Constant cst =  this.condition.optimizedBooleanConstant();
 
 		setGuardedElseTarget(currentScope, this.elseTarget);
@@ -92,6 +112,9 @@ public class GuardedPattern extends Pattern {
 				this.thenTarget,
 				null,
 				cst == Constant.NotAConstant);
+		if (cst != Constant.NotAConstant) {
+			codeStream.goto_(this.thenTarget);
+		}
 		if (this.thenInitStateIndex2 != -1) {
 			codeStream.removeNotDefinitelyAssignedVariables(currentScope, this.thenInitStateIndex2);
 			codeStream.addDefinitelyAssignedVariables(currentScope, this.thenInitStateIndex2);
@@ -232,9 +255,7 @@ public class GuardedPattern extends Pattern {
 	}
 	@Override
 	public void fullWrapupGeneration(CodeStream codeStream) {
-		for (Pattern pattern : this.patterns) {
-			pattern.fullWrapupGeneration(codeStream);
-		}
+		this.patterns[0].fullWrapupGeneration(codeStream);
 	}
 	@Override
 	protected void generatePatternVariable(BlockScope currentScope, CodeStream codeStream, BranchLabel trueLabel,

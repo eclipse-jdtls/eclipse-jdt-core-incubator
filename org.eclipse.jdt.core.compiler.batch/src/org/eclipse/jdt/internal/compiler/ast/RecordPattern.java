@@ -214,6 +214,12 @@ public class RecordPattern extends TypePattern {
 					return false;
 				}
 			}
+		} else if (p instanceof GuardedPattern gp) {
+			for (Pattern gpChild : gp.patterns) {
+				if (!this.dominates(gpChild)) {
+					return false;
+				}
+			}
 		}
 		return true;
 	}

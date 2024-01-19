@@ -983,15 +983,13 @@ public class SwitchStatement extends Expression {
 		if (this.switchPatternRestartTarget != null && caseStatement != null
 				&& caseStatement.patternIndex != -1 // for null
 				) {
-			Pattern pattern = (Pattern) caseStatement.constantExpressions[caseStatement.patternIndex];
-			pattern.elseTarget.place();
+			Pattern pattern = (Pattern) caseStatement.constantExpressions[caseStatement.constantExpressions.length - 1];
 			pattern.suspendVariables(codeStream, this.scope);
+			pattern.elseTarget.place();
 			caseIndex = this.nullProcessed ? caseIndex - 1 : caseIndex;
-			if (!pattern.isAlwaysTrue()) {
-				codeStream.loadInt(caseIndex);
-				codeStream.store(this.restartIndexLocal, false);
-				codeStream.goto_(this.switchPatternRestartTarget);
-			}
+			codeStream.loadInt(caseIndex);
+			codeStream.store(this.restartIndexLocal, false);
+			codeStream.goto_(this.switchPatternRestartTarget);
 			pattern.thenTarget.place();
 			pattern.resumeVariables(codeStream, this.scope);
 		} else if (this.containsNull && caseStatement != null) {

@@ -116,8 +116,36 @@ public abstract class Pattern extends Expression {
 
 	public abstract boolean dominates(Pattern p);
 
+	public int countNamedVariables(BlockScope scope) {
+		var pvc = new PatternVariableCounter();
+		this.traverse(pvc, scope);
+		return pvc.numVars;
+	}
+
 	@Override
 	public StringBuilder print(int indent, StringBuilder output) {
 		return this.printExpression(indent, output);
+	}
+
+	private class PatternVariableCounter extends ASTVisitor {
+
+		public int numVars = 0;
+
+		@Override
+		public boolean visit(TypePattern pattern, BlockScope scope) {
+			if (pattern.local != null && (pattern.local.name.length != 1 || pattern.local.name[0] != '_')) {
+				this.numVars++;
+			}
+			return true;
+		}
+
+		@Override
+		public boolean visit(RecordPattern pattern, BlockScope scope) {
+			if (pattern.local != null && (pattern.local.name.length != 1 || pattern.local.name[0] != '_')) {
+				this.numVars++;
+			}
+			return true;
+		}
+
 	}
 }
