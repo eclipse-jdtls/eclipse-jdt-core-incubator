@@ -22,6 +22,7 @@ import java.util.Stack;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IImportDeclaration;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMemberValuePair;
 import org.eclipse.jdt.core.JavaModelException;
@@ -178,9 +179,20 @@ class DOMToModelPopulator extends ASTVisitor {
 		this.elements.push(newElement);
 		addAsChild(this.infos.peek(), newElement);
 		SourceTypeElementInfo newInfo = new SourceTypeElementInfo();
+		boolean isDeprecated = ((List<ASTNode>)node.modifiers()).stream() //
+		.anyMatch(modifier -> {
+			if (!isAnnotation(modifier)) {
+				return false;
+			}
+			String potentiallyUnqualifiedAnnotationType = ((org.eclipse.jdt.core.dom.Annotation)modifier).getTypeName().toString();
+			if ("java.lang.Deprecated".equals(potentiallyUnqualifiedAnnotationType)) { //$NON-NLS-1$
+				return true;
+			}
+			return "Deprecated".equals(potentiallyUnqualifiedAnnotationType) && !hasAlternativeDeprecated(); //$NON-NLS-1$
+		});
 		newInfo.setSourceRangeStart(node.getStartPosition());
 		newInfo.setSourceRangeEnd(node.getStartPosition() + node.getLength() - 1);
-		newInfo.setFlags(node.getFlags() | (node.isInterface() ? ClassFileConstants.AccInterface : 0));
+		newInfo.setFlags(node.getFlags() | (node.isInterface() ? ClassFileConstants.AccInterface : 0) | (isDeprecated ? ClassFileConstants.AccDeprecated : 0));
 		newInfo.setHandle(newElement);
 		newInfo.setNameSourceStart(node.getName().getStartPosition());
 		newInfo.setNameSourceEnd(node.getName().getStartPosition() + node.getName().getLength() - 1);
@@ -581,10 +593,11 @@ class DOMToModelPopulator extends ASTVisitor {
 
 	@Override
 	public boolean visit(FieldDeclaration field) {
+		JavaElementInfo parent = this.infos.peek();
 		for (VariableDeclarationFragment fragment : (Collection<VariableDeclarationFragment>) field.fragments()) {
 			SourceField newElement = new SourceField(this.elements.peek(), fragment.getName().toString());
 			this.elements.push(newElement);
-			addAsChild(this.infos.peek(), newElement);
+			addAsChild(parent, newElement);
 			SourceFieldElementInfo info = new SourceFieldElementInfo();
 			info.setTypeName(field.getType().toString().toCharArray());
 			info.setSourceRangeStart(field.getStartPosition());
@@ -600,8 +613,11 @@ class DOMToModelPopulator extends ASTVisitor {
 	}
 	@Override
 	public void endVisit(FieldDeclaration decl) {
-		this.elements.pop();
-		this.infos.pop();
+		int numFragments = decl.fragments().size();
+		for (int i = 0; i < numFragments; i++) {
+			this.elements.pop();
+			this.infos.pop();
+		}
 	}
 
 	private String createSignature(SingleVariableDeclaration decl) {
@@ -713,5 +729,30 @@ class DOMToModelPopulator extends ASTVisitor {
 		res.setSourceRangeStart(node.getStartPosition());
 		res.setSourceRangeEnd(node.getStartPosition() + node.getLength() - 1);
 		return res;
+	}
+	private static boolean isAnnotation(ASTNode node) {
+		int nodeType = node.getNodeType();
+		return nodeType == ASTNode.MARKER_ANNOTATION || nodeType == ASTNode.SINGLE_MEMBER_ANNOTATION
+				|| nodeType == ASTNode.NORMAL_ANNOTATION;
+	}
+	private boolean hasAlternativeDeprecated() {
+		try {
+			IJavaElement[] importElements = this.importContainer.getChildren();
+			for (IJavaElement child : importElements) {
+				IImportDeclaration importDeclaration = (IImportDeclaration) child;
+				// It's possible that the user has imported
+				// an annotation called "Deprecated" using a wildcard import
+				// that replaces "java.lang.Deprecated"
+				// However, it's very costly and complex to check if they've done this,
+				// so I haven't bothered.
+				if (!importDeclaration.isOnDemand()
+						&& importDeclaration.getElementName().endsWith("Deprecated")) { //$NON-NLS-1$
+					return true;
+				}
+			}
+		} catch (JavaModelException e) {
+			// do nothing
+		}
+		return false;
 	}
 }
