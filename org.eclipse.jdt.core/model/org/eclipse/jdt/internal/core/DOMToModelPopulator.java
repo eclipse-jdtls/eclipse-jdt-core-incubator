@@ -10,15 +10,15 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.Stack;
-import java.util.AbstractMap.SimpleEntry;
-import java.util.Map.Entry;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.jdt.core.IAnnotation;
@@ -50,6 +50,7 @@ import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.OpensDirective;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ProvidesDirective;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.RecordDeclaration;
@@ -347,13 +348,21 @@ class DOMToModelPopulator extends ASTVisitor {
 			new String[0]);
 		this.elements.push(newElement);
 		addAsChild(this.infos.peek(), newElement);
-		SourceMethodInfo info = new SourceMethodInfo();
+		SourceAnnotationMethodInfo info = new SourceAnnotationMethodInfo();
 		info.setReturnType(method.getType().toString().toCharArray());
 		info.setSourceRangeStart(method.getStartPosition());
 		info.setSourceRangeEnd(method.getStartPosition() + method.getLength() - 1);
 		info.setFlags(method.getFlags());
 		info.setNameSourceStart(method.getName().getStartPosition());
 		info.setNameSourceEnd(method.getName().getStartPosition() + method.getName().getLength() - 1);
+		Expression defaultExpr = method.getDefault();
+		if (defaultExpr != null) {
+			Entry<Object, Integer> value = memberValue(defaultExpr);
+			org.eclipse.jdt.internal.core.MemberValuePair mvp = new org.eclipse.jdt.internal.core.MemberValuePair(newElement.getElementName(), value.getKey(), value.getValue());
+			info.defaultValue = mvp;
+			info.defaultValueStart = defaultExpr.getStartPosition();
+			info.defaultValueEnd = defaultExpr.getStartPosition() + defaultExpr.getLength();
+		}
 		this.infos.push(info);
 		this.toPopulate.put(newElement, info);
 		return true;
@@ -501,6 +510,10 @@ class DOMToModelPopulator extends ASTVisitor {
 				};
 			}
 			return new SimpleEntry<>(value, type);
+		}
+		if (dom instanceof PrefixExpression prefixExpression) {
+			Entry<Object, Integer> entry = memberValue(prefixExpression.getOperand());
+			return new SimpleEntry<>(prefixExpression.getOperator().toString() + entry.getKey(), entry.getValue());
 		}
 		return new SimpleEntry<>(null, IMemberValuePair.K_UNKNOWN);
 	}
