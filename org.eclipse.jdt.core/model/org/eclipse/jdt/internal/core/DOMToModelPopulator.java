@@ -524,6 +524,10 @@ class DOMToModelPopulator extends ASTVisitor {
 			return new SimpleEntry<>(value, type);
 		}
 		if (dom instanceof PrefixExpression prefixExpression) {
+			Expression operand = prefixExpression.getOperand();
+			if (!(operand instanceof NumberLiteral) && !(operand instanceof BooleanLiteral)) {
+				return new SimpleEntry<>(null, IMemberValuePair.K_UNKNOWN);
+			}
 			Entry<Object, Integer> entry = memberValue(prefixExpression.getOperand());
 			return new SimpleEntry<>(prefixExpression.getOperator().toString() + entry.getKey(), entry.getValue());
 		}
