@@ -36,6 +36,7 @@ import org.eclipse.jdt.core.dom.ArrayInitializer;
 import org.eclipse.jdt.core.dom.BodyDeclaration;
 import org.eclipse.jdt.core.dom.BooleanLiteral;
 import org.eclipse.jdt.core.dom.CharacterLiteral;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.ExportsDirective;
 import org.eclipse.jdt.core.dom.Expression;
@@ -273,27 +274,28 @@ class DOMToModelPopulator extends ASTVisitor {
 		this.infos.pop();
 	}
 
-//	@Override
-//	public boolean visit(EnumConstantDeclaration node) {
-//		SourceField newElement = new SourceField(this.elements.peek(), node.getName().toString());
-//		this.elements.push(newElement);
-//		addAsChild(this.infos.peek(), newElement);
-//		SourceFieldElementInfo info = new SourceFieldElementInfo();
-//		info.setSourceRangeStart(node.getStartPosition());
-//		info.setSourceRangeEnd(node.getStartPosition() + node.getLength() - 1);
-//		info.setFlags(node.getFlags());
-//		info.setNameSourceStart(node.getName().getStartPosition());
-//		info.setNameSourceEnd(node.getName().getStartPosition() + node.getName().getLength() - 1);
-//		// TODO populate info
-//		this.infos.push(info);
-//		this.toPopulate.put(newElement, info);
-//		return true;
-//	}
-//	@Override
-//	public void endVisit(EnumConstantDeclaration decl) {
-//		this.elements.pop();
-//		this.infos.pop();
-//	}
+	@Override
+	public boolean visit(EnumConstantDeclaration node) {
+		SourceField newElement = new SourceField(this.elements.peek(), node.getName().toString());
+		this.elements.push(newElement);
+		addAsChild(this.infos.peek(), newElement);
+		SourceFieldElementInfo info = new SourceFieldElementInfo();
+		info.setSourceRangeStart(node.getStartPosition());
+		info.setSourceRangeEnd(node.getStartPosition() + node.getLength() - 1);
+		boolean isDeprecated = isNodeDeprecated(node);
+		info.setFlags(node.getModifiers() | ClassFileConstants.AccEnum | (isDeprecated ? ClassFileConstants.AccDeprecated : 0));
+		info.setNameSourceStart(node.getName().getStartPosition());
+		info.setNameSourceEnd(node.getName().getStartPosition() + node.getName().getLength() - 1);
+		// TODO populate info
+		this.infos.push(info);
+		this.toPopulate.put(newElement, info);
+		return true;
+	}
+	@Override
+	public void endVisit(EnumConstantDeclaration decl) {
+		this.elements.pop();
+		this.infos.pop();
+	}
 
 	@Override
 	public boolean visit(RecordDeclaration node) {
