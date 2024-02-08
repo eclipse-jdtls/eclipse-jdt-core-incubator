@@ -89,6 +89,7 @@ class DOMToModelPopulator extends ASTVisitor {
 	private final Set<String> currentTypeParameters = new HashSet<>();
 	private final CompilationUnitElementInfo unitInfo;
 	private ImportContainer importContainer;
+	private ImportContainerInfo importContainerInfo;
 	private final CompilationUnit root;
 	private Boolean alternativeDeprecated = null;
 
@@ -167,15 +168,15 @@ class DOMToModelPopulator extends ASTVisitor {
 	public boolean visit(ImportDeclaration node) {
 		if (this.importContainer == null) {
 			this.importContainer = this.root.getImportContainer();
-			ImportContainerInfo importContainerInfo = new ImportContainerInfo();
+			this.importContainerInfo = new ImportContainerInfo();
 			JavaElementInfo parentInfo = this.infos.peek();
 			addAsChild(parentInfo, this.importContainer);
-			this.toPopulate.put(this.importContainer, importContainerInfo);
+			this.toPopulate.put(this.importContainer, this.importContainerInfo);
 		}
 		org.eclipse.jdt.internal.core.ImportDeclaration newElement = new org.eclipse.jdt.internal.core.ImportDeclaration(this.importContainer, node.getName().toString(), node.isOnDemand());
 		this.elements.push(newElement);
-		addAsChild(this.infos.peek(), newElement);
-		AnnotatableInfo newInfo = new AnnotatableInfo();
+		addAsChild(this.importContainerInfo, newElement);
+		ImportDeclarationElementInfo newInfo = new ImportDeclarationElementInfo();
 		newInfo.setSourceRangeStart(node.getStartPosition());
 		newInfo.setSourceRangeEnd(node.getStartPosition() + node.getLength() - 1);
 		newInfo.setNameSourceStart(node.getName().getStartPosition());
@@ -622,12 +623,13 @@ class DOMToModelPopulator extends ASTVisitor {
 
 	@Override
 	public boolean visit(FieldDeclaration field) {
-		JavaElementInfo parent = this.infos.peek();
+		JavaElementInfo parentInfo = this.infos.peek();
+		JavaElement parentElement = this.elements.peek();
 		boolean isDeprecated = isNodeDeprecated(field);
 		for (VariableDeclarationFragment fragment : (Collection<VariableDeclarationFragment>) field.fragments()) {
-			SourceField newElement = new SourceField(this.elements.peek(), fragment.getName().toString());
+			SourceField newElement = new SourceField(parentElement, fragment.getName().toString());
 			this.elements.push(newElement);
-			addAsChild(parent, newElement);
+			addAsChild(parentInfo, newElement);
 			SourceFieldElementInfo info = new SourceFieldElementInfo();
 			info.setTypeName(field.getType().toString().toCharArray());
 			info.setSourceRangeStart(field.getStartPosition());
