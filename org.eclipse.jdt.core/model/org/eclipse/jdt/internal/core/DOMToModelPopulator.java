@@ -48,6 +48,7 @@ import org.eclipse.jdt.core.dom.MemberValuePair;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.AbstractTagElement;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
@@ -63,6 +64,7 @@ import org.eclipse.jdt.core.dom.SingleMemberAnnotation;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.TypeLiteral;
 import org.eclipse.jdt.core.dom.UsesDirective;
@@ -763,6 +765,15 @@ class DOMToModelPopulator extends ASTVisitor {
 		return res;
 	}
 	private boolean isNodeDeprecated(BodyDeclaration node) {
+		if (node.getJavadoc() != null) {
+			boolean javadocDeprecated = node.getJavadoc().tags().stream() //
+					.anyMatch(tag -> {
+						return TagElement.TAG_DEPRECATED.equals(((AbstractTagElement)tag).getTagName());
+					});
+			if (javadocDeprecated) {
+				return true;
+			}
+		}
 		return ((List<ASTNode>)node.modifiers()).stream() //
 				.anyMatch(modifier -> {
 					if (!isAnnotation(modifier)) {
