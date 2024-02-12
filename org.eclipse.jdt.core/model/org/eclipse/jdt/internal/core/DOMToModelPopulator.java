@@ -755,6 +755,10 @@ class DOMToModelPopulator extends ASTVisitor {
 			return this.alternativeDeprecated;
 		}
 		try {
+			if (this.importContainer == null) {
+				this.alternativeDeprecated = false;
+				return this.alternativeDeprecated;
+			}
 			IJavaElement[] importElements = this.importContainer.getChildren();
 			for (IJavaElement child : importElements) {
 				IImportDeclaration importDeclaration = (IImportDeclaration) child;
