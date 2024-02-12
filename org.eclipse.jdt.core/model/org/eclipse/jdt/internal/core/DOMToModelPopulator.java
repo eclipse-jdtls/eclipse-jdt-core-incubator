@@ -397,7 +397,9 @@ class DOMToModelPopulator extends ASTVisitor {
 				info.setReturnType("void".toCharArray()); //$NON-NLS-1$
 			}
 		}
-		((SourceTypeElementInfo)this.infos.peek()).addCategories(newElement, getCategories(method));
+		if (this.infos.peek() instanceof SourceTypeElementInfo parentInfo) {
+			parentInfo.addCategories(newElement, getCategories(method));
+		}
 		info.setSourceRangeStart(method.getStartPosition());
 		info.setSourceRangeEnd(method.getStartPosition() + method.getLength() - 1);
 		boolean isDeprecated = isNodeDeprecated(method);
@@ -586,15 +588,24 @@ class DOMToModelPopulator extends ASTVisitor {
 				value = token.substring(0, token.length() - 1);
 			}
 			if (value instanceof String valueString) {
-				value = switch (type) {
-					case IMemberValuePair.K_INT -> Integer.parseInt(valueString);
-					case IMemberValuePair.K_LONG -> Long.parseLong(valueString);
-					case IMemberValuePair.K_SHORT -> Short.parseShort(valueString);
-					case IMemberValuePair.K_BYTE -> Byte.parseByte(valueString);
-					case IMemberValuePair.K_FLOAT -> Float.parseFloat(valueString);
-					case IMemberValuePair.K_DOUBLE -> Double.parseDouble(valueString);
-					default -> throw new IllegalArgumentException("Type not (yet?) supported"); //$NON-NLS-1$
-				};
+				// I tried using `yield`, but this caused ECJ to throw an AIOOB, preventing compilation
+				switch (type) {
+					case IMemberValuePair.K_INT: {
+						try {
+							value =  Integer.parseInt(valueString);
+						} catch (NumberFormatException e) {
+							type = IMemberValuePair.K_LONG;
+							value = Long.parseLong(valueString);
+						}
+						break;
+					}
+					case IMemberValuePair.K_LONG: value = Long.parseLong(valueString); break;
+					case IMemberValuePair.K_SHORT: value = Short.parseShort(valueString); break;
+					case IMemberValuePair.K_BYTE: value = Byte.parseByte(valueString); break;
+					case IMemberValuePair.K_FLOAT: value = Float.parseFloat(valueString); break;
+					case IMemberValuePair.K_DOUBLE: value = Double.parseDouble(valueString); break;
+					default: throw new IllegalArgumentException("Type not (yet?) supported"); //$NON-NLS-1$
+				}
 			}
 			return new SimpleEntry<>(value, type);
 		}
@@ -824,6 +835,9 @@ class DOMToModelPopulator extends ASTVisitor {
 			if (javadocDeprecated) {
 				return true;
 			}
+		}
+		if (node.getAST().apiLevel() <= 2) {
+			return false;
 		}
 		return ((List<ASTNode>)node.modifiers()).stream() //
 				.anyMatch(modifier -> {
