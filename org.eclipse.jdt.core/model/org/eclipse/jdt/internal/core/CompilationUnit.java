@@ -28,6 +28,7 @@ import org.eclipse.jdt.core.compiler.*;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -443,7 +444,8 @@ public IJavaElement[] codeSelect(int offset, int length, WorkingCopyOwner workin
 		}
 		NodeFinder finder = new NodeFinder(currentAST, offset, length);
 		ASTNode node = finder.getCoveredNode() != null ? finder.getCoveredNode() : finder.getCoveringNode();
-		IBinding binding = resolveBinding(node);
+		ASTNode nodeToUse = getParentNodeToUse(node);
+		IBinding binding = resolveBinding(nodeToUse);
 		if (binding != null) {
 			return new IJavaElement[] { binding.getJavaElement() };
 		}
@@ -452,6 +454,20 @@ public IJavaElement[] codeSelect(int offset, int length, WorkingCopyOwner workin
 		return super.codeSelect(this, offset, length, workingCopyOwner);
 	}
 }
+private static ASTNode getParentNodeToUse(ASTNode node) {
+	if (node instanceof Name) {
+		ASTNode parentFinder = node.getParent();
+		while (parentFinder.getParent() != null && parentFinder.getParent() instanceof Type) {
+			parentFinder = parentFinder.getParent();
+		}
+		if (parentFinder.getParent() != null && parentFinder.getParent() instanceof ClassInstanceCreation) {
+			return parentFinder.getParent();
+		}
+	}
+	return node;
+}
+
+
 static IBinding resolveBinding(ASTNode node) {
 	if (node instanceof MethodDeclaration decl) {
 		return decl.resolveBinding();
@@ -483,6 +499,9 @@ static IBinding resolveBinding(ASTNode node) {
 	}
 	if (node instanceof org.eclipse.jdt.core.dom.TypeParameter typeParameter) {
 		return typeParameter.resolveBinding();
+	}
+	if (node instanceof ClassInstanceCreation classInstanceCreation) {
+		return classInstanceCreation.resolveConstructorBinding();
 	}
 	return null;
 }
