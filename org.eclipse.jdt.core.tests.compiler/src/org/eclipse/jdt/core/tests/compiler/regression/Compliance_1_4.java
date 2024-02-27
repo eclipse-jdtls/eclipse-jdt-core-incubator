@@ -2634,10 +2634,10 @@ public void test079() {
 			       ^^^^
 		blah cannot be resolved to a variable
 		----------
-		3. ERROR in Hello.java (at line 14)
-			public static void main(String[] args) {
-			                   ^^^^^^^^^^^^^^^^^^^
-		The method main cannot be declared static; static methods can only be declared in a static or top level type
+		3. ERROR in Hello.java (at line 11)
+			public class Hello {
+			             ^^^^^
+		The nested type Hello cannot hide an enclosing type
 		----------
 		"""
 	);

@@ -2734,28 +2734,29 @@ public void test079() {
 			+ "	return blah;\n"
 			+ "	       ^^^^\n"
 			+ "blah cannot be resolved to a variable\n"
+			+ "----------\n"
+			+ "3. ERROR in Hello.java (at line 11)\n"
+			+ "	public class Hello {\n"
+			+ "	             ^^^^^\n"
+			+ "The nested type Hello cannot hide an enclosing type\n"
 			+ "----------\n";
-	if (this.complianceLevel < ClassFileConstants.JDK16) {
-		expectedErrorLog += "3. ERROR in Hello.java (at line 14)\n"
-			+ "	public static void main(String[] args) {\n"
-			+ "	                   ^^^^^^^^^^^^^^^^^^^\n"
-			+ "The method main cannot be declared static; static methods can only be declared in a static or top level type\n"
-			+ "----------\n";
-	}
-	if (this.complianceLevel == ClassFileConstants.JDK21) {
-		expectedErrorLog = """
-				----------
-				1. ERROR in Hello.java (at line 1)
-					void ___eval() {
-					^
-				Unnamed Classes and Instance Main Methods is a preview feature and disabled by default. Use --enable-preview to enable
-				----------
-				2. ERROR in Hello.java (at line 4)
-					return blah;
-					       ^^^^
-				blah cannot be resolved to a variable
-				----------
-				""";
+	if (ClassFileConstants.JDK21 == this.complianceLevel) {
+		expectedErrorLog = "----------\n"
+				+ "1. ERROR in Hello.java (at line 1)\n"
+				+ "	void ___eval() {\n"
+				+ "	^\n"
+				+ "Unnamed Classes and Instance Main Methods is a preview feature and disabled by default. Use --enable-preview to enable\n"
+				+ "----------\n"
+				+ "2. ERROR in Hello.java (at line 4)\n"
+				+ "	return blah;\n"
+				+ "	       ^^^^\n"
+				+ "blah cannot be resolved to a variable\n"
+				+ "----------\n"
+				+ "3. ERROR in Hello.java (at line 11)\n"
+				+ "	public class Hello {\n"
+				+ "	             ^^^^^\n"
+				+ "The nested type Hello cannot hide an enclosing type\n"
+				+ "----------\n";
 	}
 	this.runNegativeTest(
 		new String[] {

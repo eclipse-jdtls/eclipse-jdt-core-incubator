@@ -4517,7 +4517,7 @@ public void test63() {
 		"int x;\n";
 
 	String expectedUnitToString =
-		"final class <unnamed_class$test63: full parse> {\n"
+		"final class test63: full parse {\n"
 		+ "\tpublic class X {\n"
 		+ "\t\tjava.lang.Object(0)\n"
 		+ "\t\tint foo() {}\n"
@@ -4578,7 +4578,7 @@ public void test64() {
 		"int x;\n";
 
 	String expectedUnitToString =
-			"final class <unnamed_class$test64: diet parse> {\n"
+			"final class test64: diet parse {\n"
 			+ "\tpublic class X {\n"
 			+ "\t\tint foo() {}\n"
 			+ "\t}\n"
@@ -4638,7 +4638,7 @@ public void test65() {
 		"int x();\n";
 
 	String expectedUnitToString =
-		"final class <unnamed_class$test65: diet parse> {\n"
+		"final class test65: diet parse {\n"
 		+ "\tpublic class X {\n"
 		+ "\t\tint foo() {}\n"
 		+ "\t}\n"
@@ -4699,7 +4699,7 @@ public void test66() {
 		"int x();\n";
 
 	String expectedUnitToString =
-		"final class <unnamed_class$test66: diet parse> {\n"
+		"final class test66: diet parse {\n"
 		+ "\tpublic interface X {\n"
 		+ "\t\tint foo() {}\n"
 		+ "\t}\n"

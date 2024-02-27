@@ -6082,7 +6082,7 @@ public void test102() {
 		""";
 
 	String expectedDietUnitToString = """
-final class <unnamed_class$<12454 - handling toplevel anonymous>> {
+final class <12454 - handling toplevel anonymous> {
   public class Hello {
     private static int x;
     private String blah;
@@ -6099,7 +6099,7 @@ final class <unnamed_class$<12454 - handling toplevel anonymous>> {
     public void foo() {
     }
   }
-  <unnamed_class$<12454 - handling toplevel anonymous>>() {
+  <12454 - handling toplevel anonymous>() {
   }
   void ___eval() {
   }
@@ -6107,7 +6107,7 @@ final class <unnamed_class$<12454 - handling toplevel anonymous>> {
 """;
 
 	String expectedDietPlusBodyUnitToString = """
-final class <unnamed_class$<12454 - handling toplevel anonymous>> {
+final class <12454 - handling toplevel anonymous> {
   public class Hello {
     private static int x;
     private String blah;
@@ -6126,7 +6126,7 @@ final class <unnamed_class$<12454 - handling toplevel anonymous>> {
     public void foo() {
     }
   }
-  <unnamed_class$<12454 - handling toplevel anonymous>>() {
+  <12454 - handling toplevel anonymous>() {
     super();
   }
   void ___eval() {
@@ -6150,7 +6150,7 @@ final class <unnamed_class$<12454 - handling toplevel anonymous>> {
 """;
 
 	String expectedFullUnitToString = """
-final class <unnamed_class$<12454 - handling toplevel anonymous>> {
+final class <12454 - handling toplevel anonymous> {
   public class Hello {
     private static int x;
     private String blah;
@@ -6169,7 +6169,7 @@ final class <unnamed_class$<12454 - handling toplevel anonymous>> {
     public void foo() {
     }
   }
-  <unnamed_class$<12454 - handling toplevel anonymous>>() {
+  <12454 - handling toplevel anonymous>() {
   }
   void ___eval() {
     new Runnable() {

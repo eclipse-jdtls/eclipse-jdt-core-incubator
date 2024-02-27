@@ -3253,7 +3253,7 @@ public class ASTMatcher {
 	 * Returns whether the given node and the other object match.
 	 * @param node the node to check
 	 * @param other the other object
-	 * @since 3.37
+	 * @since 3.38
 	 */
 	public boolean match(UnnamedClass node, Object other) {
 		if (!(other instanceof UnnamedClass)) {

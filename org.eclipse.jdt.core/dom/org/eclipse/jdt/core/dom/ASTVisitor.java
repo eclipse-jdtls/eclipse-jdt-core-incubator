@@ -2161,7 +2161,7 @@ public abstract class ASTVisitor {
 	 * @return <code>true</code> if the children of this node should be
 	 * visited, and <code>false</code> if the children of this node should
 	 * be skipped
-	 * @since 3.37
+	 * @since 3.38
 	 */
 	public boolean visit(UnnamedClass unnamedClass) {
 		return true;
@@ -3628,7 +3628,7 @@ public abstract class ASTVisitor {
 	 * </p>
 	 *
 	 * @param node the node to visit
-	 * @since 3.37
+	 * @since 3.38
 	 */
 	public void endVisit(UnnamedClass node) {
 		// default implementation: do nothing

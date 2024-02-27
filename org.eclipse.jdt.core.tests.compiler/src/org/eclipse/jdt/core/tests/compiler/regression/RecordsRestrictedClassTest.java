@@ -8131,10 +8131,15 @@ public void testBug566846_2() {
 			"	^\n" +
 			"The preview feature Unnamed Classes and Instance Main Methods is only available with source level 21 and above\n" +
 			"----------\n" +
-			"2. ERROR in X.java (at line 3)\n" +
+			"2. ERROR in X.java (at line 1)\n" +
+			"	public class X {\n" +
+			"	             ^\n" +
+			"The nested type X cannot hide an enclosing type\n" +
+			"----------\n" +
+			"3. ERROR in X.java (at line 3)\n" +
 			"	record R1;\n" +
 			"	^^^^^^\n" +
-			"\'record\' is not a valid type name; it is a restricted identifier and not allowed as a type identifier in Java 16\n" +
+			"'record' is not a valid type name; it is a restricted identifier and not allowed as a type identifier in Java 16\n" +
 			"----------\n",
 			null,
 			true,

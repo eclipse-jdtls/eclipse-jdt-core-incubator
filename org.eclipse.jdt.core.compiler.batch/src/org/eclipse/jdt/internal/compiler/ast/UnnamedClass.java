@@ -12,7 +12,6 @@ package org.eclipse.jdt.internal.compiler.ast;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.text.MessageFormat;
 
 import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
@@ -22,23 +21,20 @@ import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
  */
 public class UnnamedClass extends TypeDeclaration {
 
-	private static String NAME_TEMPLATE = "<unnamed_class${0}>"; //$NON-NLS-1$
-
 	public UnnamedClass(CompilationResult result) {
 		super(result);
 		this.modifiers = ClassFileConstants.AccDefault | ClassFileConstants.AccFinal;
 
 		Path p = Paths.get(new String(result.fileName));
 		String basename = p.getFileName().toString();
-		String classSuffix;
+		String className;
 		if (basename.endsWith(".java")) { //$NON-NLS-1$
-			classSuffix = basename.substring(0, basename.length() - 5);
+			className = basename.substring(0, basename.length() - 5);
 		} else {
-			classSuffix = basename;
+			className = basename;
 		}
 
-		String nameString = MessageFormat.format(NAME_TEMPLATE, classSuffix);
-		this.name = nameString.toCharArray();
+		this.name = className.toCharArray();
 	}
 
 }

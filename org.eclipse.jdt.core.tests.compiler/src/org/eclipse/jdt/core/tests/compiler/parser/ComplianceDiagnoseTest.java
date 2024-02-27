@@ -2043,15 +2043,14 @@ public void test0042() {
 				       ^^^^
 			blah cannot be resolved to a variable
 			----------
-			""";
-
-	String expected1_3ProblemLog = expected16ProblemLog + """
-			3. ERROR in X.java (at line 14)
-				public static void main(String[] args) {
-				                   ^^^^^^^^^^^^^^^^^^^
-			The method main cannot be declared static; static methods can only be declared in a static or top level type
+			3. ERROR in X.java (at line 11)
+				public class X {
+				             ^
+			The nested type X cannot hide an enclosing type
 			----------
 			""";
+
+	String expected1_3ProblemLog = expected16ProblemLog;
 
 	String expected21ProblemLog = """
 			----------
@@ -2064,6 +2063,11 @@ public void test0042() {
 				return blah;
 				       ^^^^
 			blah cannot be resolved to a variable
+			----------
+			3. ERROR in X.java (at line 11)
+				public class X {
+				             ^
+			The nested type X cannot hide an enclosing type
 			----------
 			""";
 	runComplianceParserTest(

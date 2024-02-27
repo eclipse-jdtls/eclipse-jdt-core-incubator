@@ -1101,7 +1101,7 @@ public abstract class ASTNode {
 
 	/**
 	 * @see UnnamedClass
-	 * @since 3.37
+	 * @since 3.38
 	 * @noreference This field is not intended to be referenced by clients.
 	 */
 	public static final int UNNAMED_CLASS = 118;
