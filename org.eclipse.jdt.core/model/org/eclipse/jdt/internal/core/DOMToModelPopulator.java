@@ -61,6 +61,7 @@ import org.eclipse.jdt.core.dom.NullLiteral;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.OpensDirective;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
+import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.ProvidesDirective;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -158,6 +159,12 @@ class DOMToModelPopulator extends ASTVisitor {
 			IJavaElement[] newElements = Arrays.copyOf(method.children, method.children.length + 1);
 			newElements[newElements.length - 1] = childElement;
 			method.children = newElements;
+			return;
+		}
+		if (parentInfo instanceof InitializerWithChildrenInfo info) {
+			IJavaElement[] newElements = Arrays.copyOf(info.getChildren(), info.getChildren().length + 1);
+			newElements[newElements.length - 1] = childElement;
+			info.children = newElements;
 			return;
 		}
 	}
@@ -674,9 +681,16 @@ class DOMToModelPopulator extends ASTVisitor {
 					.map(SimpleType::getName)
 					.map(Name::getFullyQualifiedName)
 					.forEach(this.currentTypeParameters::add);
-				newInfo.setNameSourceStart(constructorInvocation.getType().getStartPosition());
+				Type type = constructorInvocation.getType();
+				newInfo.setNameSourceStart(type.getStartPosition());
 				newInfo.setSourceRangeStart(constructorInvocation.getStartPosition());
-				newInfo.setNameSourceEnd(constructorInvocation.getType().getStartPosition() + constructorInvocation.getType().getLength() - 1);
+				int length;
+				if (type instanceof ParameterizedType pType) {
+					length= pType.getType().getLength();
+				} else {
+					length = type.getLength();
+				}
+				newInfo.setNameSourceEnd(type.getStartPosition() + length - 1);
 			} else {
 				newInfo.setNameSourceStart(constructorInvocation.getName().getStartPosition());
 				newInfo.setSourceRangeStart(constructorInvocation.getName().getStartPosition());
@@ -893,7 +907,7 @@ class DOMToModelPopulator extends ASTVisitor {
 		org.eclipse.jdt.internal.core.Initializer newElement = new org.eclipse.jdt.internal.core.Initializer(this.elements.peek(), 1);
 		this.elements.push(newElement);
 		addAsChild(this.infos.peek(), newElement);
-		InitializerElementInfo newInfo = new InitializerElementInfo();
+		InitializerElementInfo newInfo = new InitializerWithChildrenInfo(new IJavaElement[0]);
 		newInfo.setSourceRangeStart(node.getStartPosition());
 		newInfo.setSourceRangeEnd(node.getStartPosition() + node.getLength() - 1);
 		newInfo.setFlags(node.getModifiers());
