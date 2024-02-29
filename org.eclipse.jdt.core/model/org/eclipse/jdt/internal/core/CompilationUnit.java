@@ -19,12 +19,14 @@ package org.eclipse.jdt.internal.core;
 import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.eclipse.core.resources.*;
 import org.eclipse.core.runtime.*;
 import org.eclipse.jdt.core.*;
 import org.eclipse.jdt.core.compiler.*;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
@@ -33,6 +35,7 @@ import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
@@ -538,35 +541,55 @@ public IJavaElement[] codeSelect(int offset, int length, WorkingCopyOwner workin
 		ASTNode node = finder.getCoveredNode() != null && finder.getCoveringNode().getStartPosition() + finder.getCoveringNode().getLength() > offset + length ?
 			finder.getCoveredNode() :
 			finder.getCoveringNode();
-		IBinding binding = resolveBinding(node);
-		if (binding != null) {
-			IJavaElement element = binding.getJavaElement();
-			if (element == null && binding instanceof ITypeBinding typeBinding) {
-				// fallback to calling index, inspired/copied from SelectionEngine
-				List<IType> indexMatch = new ArrayList<>();
-				TypeNameMatchRequestor requestor = new TypeNameMatchRequestor() {
-					@Override
-					public void acceptTypeNameMatch(org.eclipse.jdt.core.search.TypeNameMatch match) {
-						indexMatch.add(match.getType());
-					}
-				};
-				IJavaSearchScope scope = BasicSearchEngine.createWorkspaceScope();
-				new BasicSearchEngine(getOwner()).searchAllTypeNames(
-					typeBinding.getPackage() != null ? typeBinding.getPackage().getName().toCharArray() : null,
-					SearchPattern.R_EXACT_MATCH,
-					typeBinding.getName().toCharArray(),
-					SearchPattern.R_EXACT_MATCH | SearchPattern.R_CASE_SENSITIVE,
-					IJavaSearchConstants.TYPE,
-					scope,
-					new TypeNameMatchRequestorWrapper(requestor, scope),
-					IJavaSearchConstants.CANCEL_IF_NOT_READY_TO_SEARCH,
-					new NullProgressMonitor());
-				if (!indexMatch.isEmpty()) {
-					return indexMatch.toArray(IJavaElement[]::new);
+		org.eclipse.jdt.core.dom.ImportDeclaration importDecl = findImportDeclaration(node);
+		if (importDecl != null && importDecl.isStatic()) {
+			IBinding importBinding = importDecl.resolveBinding();
+			if (importBinding instanceof IMethodBinding methodBinding) {
+				ArrayDeque<IJavaElement> overloadedMethods = Stream.of(methodBinding.getDeclaringClass().getDeclaredMethods()) //
+						.filter(otherMethodBinding -> {
+							return methodBinding.getName().equals(otherMethodBinding.getName());
+						}) //
+						.map(binding -> binding.getJavaElement()) //
+						.collect(Collectors.toCollection(ArrayDeque::new));
+				IJavaElement[] reorderedOverloadedMethods = new IJavaElement[overloadedMethods.size()];
+				Iterator<IJavaElement> reverseIterator = overloadedMethods.descendingIterator();
+				for (int i = 0; i < reorderedOverloadedMethods.length; i++) {
+					reorderedOverloadedMethods[i] = reverseIterator.next();
 				}
+				return reorderedOverloadedMethods;
 			}
-			if (element != null) {
-				return new IJavaElement[] { element };
+			return new IJavaElement[] { importBinding.getJavaElement() };
+		} else if (findTypeDeclaration(node) == null) {
+			IBinding binding = resolveBinding(node);
+			if (binding != null) {
+				IJavaElement element = binding.getJavaElement();
+				if (element == null && binding instanceof ITypeBinding typeBinding) {
+					// fallback to calling index, inspired/copied from SelectionEngine
+					List<IType> indexMatch = new ArrayList<>();
+					TypeNameMatchRequestor requestor = new TypeNameMatchRequestor() {
+						@Override
+						public void acceptTypeNameMatch(org.eclipse.jdt.core.search.TypeNameMatch match) {
+							indexMatch.add(match.getType());
+						}
+					};
+					IJavaSearchScope scope = BasicSearchEngine.createWorkspaceScope();
+					new BasicSearchEngine(getOwner()).searchAllTypeNames(
+						typeBinding.getPackage() != null ? typeBinding.getPackage().getName().toCharArray() : null,
+						SearchPattern.R_EXACT_MATCH,
+						typeBinding.getName().toCharArray(),
+						SearchPattern.R_EXACT_MATCH | SearchPattern.R_CASE_SENSITIVE,
+						IJavaSearchConstants.TYPE,
+						scope,
+						new TypeNameMatchRequestorWrapper(requestor, scope),
+						IJavaSearchConstants.CANCEL_IF_NOT_READY_TO_SEARCH,
+						new NullProgressMonitor());
+					if (!indexMatch.isEmpty()) {
+						return indexMatch.toArray(IJavaElement[]::new);
+					}
+				}
+				if (element != null) {
+					return new IJavaElement[] { element };
+				}
 			}
 		}
 		// fallback: crawl the children of this unit
@@ -631,17 +654,36 @@ static IBinding resolveBinding(ASTNode node) {
 			var constructorBinding = newInstance.resolveConstructorBinding();
 			if (constructorBinding != null) {
 				var constructorElement = constructorBinding.getJavaElement();
+				if (constructorElement == null) {
+					// it's not in the anonymous class body, check for constructor decl in parent types
+
+					ITypeBinding superclassBinding = newInstance.getType().resolveBinding();
+
+					while (superclassBinding != null) {
+						Optional<IMethodBinding> potentialConstructor = Stream.of(superclassBinding.getDeclaredMethods()) //
+								.filter(methodBinding -> {
+									return methodBinding.isConstructor() &&
+											matchSignatures(constructorBinding, methodBinding);
+								}) //
+								.findFirst();
+						if (potentialConstructor.isPresent()) {
+							IMethodBinding theConstructor = potentialConstructor.get();
+							if (theConstructor.isDefaultConstructor()) {
+								return theConstructor.getDeclaringClass();
+							}
+							return theConstructor;
+						}
+						superclassBinding = superclassBinding.getSuperclass();
+					}
+					return null;
+				}
 				boolean hasSource = true;
 				try {
 					hasSource = ((ISourceReference)constructorElement.getParent()).getSource() != null;
 				} catch (Exception e) {
 					hasSource = false;
 				}
-				// TODO improve binding->Java element resolution for anonymous types
-				// maybe a bug in Util.getUnresolvedJavaElement(methodBinding, ...)
-				// for constructors of anonymous types?
-				if (constructorElement != null &&
-					(constructorBinding.getParameterTypes().length > 0 /*non-default*/ ||
+				if ((constructorBinding.getParameterTypes().length > 0 /*non-default*/ ||
 					constructorElement instanceof SourceMethod || !hasSource)) {
 					return constructorBinding;
 				}
@@ -674,7 +716,6 @@ static IBinding resolveBinding(ASTNode node) {
 	return null;
 }
 
-
 private static ClassInstanceCreation findConstructor(ASTNode node) {
 	while (node != null && !(node instanceof ClassInstanceCreation)) {
 		ASTNode parent = node.getParent();
@@ -687,6 +728,49 @@ private static ClassInstanceCreation findConstructor(ASTNode node) {
 		}
 	}
 	return (ClassInstanceCreation)node;
+}
+
+private static AbstractTypeDeclaration findTypeDeclaration(ASTNode node) {
+	ASTNode cursor = node;
+	while (cursor != null && (cursor instanceof Type || cursor instanceof Name)) {
+		cursor = cursor.getParent();
+	}
+	if (cursor instanceof AbstractTypeDeclaration typeDecl) {
+		return typeDecl;
+	}
+	return null;
+}
+
+private static org.eclipse.jdt.core.dom.ImportDeclaration findImportDeclaration(ASTNode node) {
+	while (node != null && !(node instanceof org.eclipse.jdt.core.dom.ImportDeclaration)) {
+		node = node.getParent();
+	}
+	return (org.eclipse.jdt.core.dom.ImportDeclaration)node;
+}
+
+private static boolean matchSignatures(IMethodBinding invocation, IMethodBinding declaration) {
+	if (declaration.getTypeParameters().length == 0) {
+		return invocation.isSubsignature(declaration);
+	}
+	if (invocation.getParameterTypes().length != declaration.getParameterTypes().length) {
+		return false;
+	}
+	for (int i = 0; i < invocation.getParameterTypes().length; i++) {
+		if (declaration.getParameterTypes()[i].isTypeVariable()) {
+			if (declaration.getParameterTypes()[i].getTypeBounds().length > 0) {
+				ITypeBinding[] bounds = declaration.getParameterTypes()[i].getTypeBounds();
+				for (int j = 0; j < bounds.length; j++) {
+					if (!invocation.getParameterTypes()[i].isSubTypeCompatible(bounds[j])) {
+						return false;
+					}
+				}
+			}
+		} else if (!invocation.getParameterTypes()[i].isSubTypeCompatible(declaration.getParameterTypes()[i])) {
+			return false;
+		}
+
+	}
+	return true;
 }
 
 
