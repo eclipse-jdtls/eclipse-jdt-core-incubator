@@ -185,7 +185,7 @@ protected boolean buildStructure(OpenableElementInfo info, final IProgressMonito
 		try {
 			dom = astParser.createAST(pm);
 		} catch (AbortCompilationUnit e) {
-			var problem = e.problem; 
+			var problem = e.problem;
 			if (problem == null && e.exception instanceof IOException ioEx) {
 				String path = source.getPath().toString();
 				String exceptionTrace = ioEx.getClass().getName() + ':' + ioEx.getMessage();
@@ -594,7 +594,7 @@ public IJavaElement[] codeSelect(int offset, int length, WorkingCopyOwner workin
 					.findAny();
 				if (candidate.isPresent()) {
 					newChildFound = true;
-					currentElement = candidate.get();	
+					currentElement = candidate.get();
 				}
 			}
 		} while (newChildFound);
@@ -641,7 +641,7 @@ static IBinding resolveBinding(ASTNode node) {
 				// maybe a bug in Util.getUnresolvedJavaElement(methodBinding, ...)
 				// for constructors of anonymous types?
 				if (constructorElement != null &&
-					(constructorBinding.getParameterTypes().length > 0 /*non-default*/ || 
+					(constructorBinding.getParameterTypes().length > 0 /*non-default*/ ||
 					constructorElement instanceof SourceMethod || !hasSource)) {
 					return constructorBinding;
 				}
@@ -667,6 +667,9 @@ static IBinding resolveBinding(ASTNode node) {
 	}
 	if (node instanceof ConstructorInvocation constructor) {
 		return constructor.resolveConstructorBinding();
+	}
+	if (node instanceof org.eclipse.jdt.core.dom.Annotation annotation) {
+		return annotation.resolveTypeBinding();
 	}
 	return null;
 }
@@ -1785,7 +1788,7 @@ public Map<String, String> getCustomOptions() {
 			AST.newAST(parentOptions).apiLevel() != AST.getJLSLatest()) {
 			// Disable preview features for older Java releases as it causes the compiler to fail later
 			if (customOptions != null) {
-				customOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.DISABLED);	
+				customOptions.put(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.DISABLED);
 			} else {
 				customOptions = Map.of(JavaCore.COMPILER_PB_ENABLE_PREVIEW_FEATURES, JavaCore.DISABLED);
 			}
