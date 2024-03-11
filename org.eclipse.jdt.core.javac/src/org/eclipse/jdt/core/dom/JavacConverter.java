@@ -35,6 +35,7 @@ import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.PrimitiveType.Code;
 import org.eclipse.jdt.internal.compiler.ast.TypeReference;
+import org.eclipse.jdt.internal.compiler.ast.Wildcard;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblem;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 
@@ -864,7 +865,11 @@ class JavacConverter {
 		SuperMethodInvocation res = this.ast.newSuperMethodInvocation();
 		commonSettings(res, javac);
 		javac.getArguments().stream().map(this::convertExpression).forEach(res.arguments()::add);
-		javac.getTypeArguments().stream().map(this::convertToType).forEach(res.typeArguments()::add);
+
+		//res.setFlags(javac.getFlags() | ASTNode.MALFORMED);
+		if( this.ast.apiLevel > AST.JLS2_INTERNAL) {
+			javac.getTypeArguments().stream().map(this::convertToType).forEach(res.typeArguments()::add);
+		}
 		return res;
 	}
 
