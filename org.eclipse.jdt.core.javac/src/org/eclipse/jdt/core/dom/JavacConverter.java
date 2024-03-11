@@ -40,6 +40,7 @@ import org.eclipse.jdt.internal.compiler.problem.DefaultProblem;
 import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 
 import com.sun.source.tree.CaseTree.CaseKind;
+import com.sun.tools.javac.code.BoundKind;
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.tree.JCTree;
@@ -1186,8 +1187,15 @@ class JavacConverter {
 			jcTypeApply.getTypeArguments().stream().map(this::convertToType).forEach(res.typeArguments()::add);
 			return res;
 		}
-		if (javac instanceof JCWildcard) {
+		if (javac instanceof JCWildcard wc) {
 			WildcardType res = this.ast.newWildcardType();
+			if( wc.kind.kind == BoundKind.SUPER) {
+				final Type bound = convertToType(wc.inner);
+				res.setBound(bound, false);
+			} else if( wc.kind.kind == BoundKind.EXTENDS) {
+				final Type bound = convertToType(wc.inner);
+				res.setBound(bound, true);
+			}
 			commonSettings(res, javac);
 			return res;
 		}
