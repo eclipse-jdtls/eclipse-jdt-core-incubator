@@ -654,7 +654,18 @@ static IBinding resolveBinding(ASTNode node) {
 			var constructorBinding = newInstance.resolveConstructorBinding();
 			if (constructorBinding != null) {
 				var constructorElement = constructorBinding.getJavaElement();
-				if (constructorElement == null) {
+				if (constructorElement != null) {
+					boolean hasSource = true;
+					try {
+						hasSource = ((ISourceReference)constructorElement.getParent()).getSource() != null;
+					} catch (Exception e) {
+						hasSource = false;
+					}
+					if ((constructorBinding.getParameterTypes().length > 0 /*non-default*/ ||
+							constructorElement instanceof SourceMethod || !hasSource)) {
+						return constructorBinding;
+					}
+				} else if (newInstance.resolveTypeBinding().isAnonymous()) {
 					// it's not in the anonymous class body, check for constructor decl in parent types
 
 					ITypeBinding superclassBinding = newInstance.getType().resolveBinding();
@@ -676,16 +687,6 @@ static IBinding resolveBinding(ASTNode node) {
 						superclassBinding = superclassBinding.getSuperclass();
 					}
 					return null;
-				}
-				boolean hasSource = true;
-				try {
-					hasSource = ((ISourceReference)constructorElement.getParent()).getSource() != null;
-				} catch (Exception e) {
-					hasSource = false;
-				}
-				if ((constructorBinding.getParameterTypes().length > 0 /*non-default*/ ||
-					constructorElement instanceof SourceMethod || !hasSource)) {
-					return constructorBinding;
 				}
 			}
 		}
@@ -735,7 +736,7 @@ private static AbstractTypeDeclaration findTypeDeclaration(ASTNode node) {
 	while (cursor != null && (cursor instanceof Type || cursor instanceof Name)) {
 		cursor = cursor.getParent();
 	}
-	if (cursor instanceof AbstractTypeDeclaration typeDecl) {
+	if (cursor instanceof AbstractTypeDeclaration typeDecl && typeDecl.getName() == node) {
 		return typeDecl;
 	}
 	return null;
