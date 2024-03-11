@@ -33,6 +33,7 @@ import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.ConstructorInvocation;
+import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -52,6 +53,7 @@ import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchPattern;
@@ -555,6 +557,12 @@ public IJavaElement[] codeSelect(int offset, int length, WorkingCopyOwner workin
 			finder.getCoveredNode() :
 			finder.getCoveringNode();
 		org.eclipse.jdt.core.dom.ImportDeclaration importDecl = findImportDeclaration(node);
+		if (node instanceof ExpressionMethodReference emr && emr.getExpression().getStartPosition() + emr.getExpression().getLength() <= offset && offset + length <= emr.getName().getStartPosition()) {
+			if (emr.getParent() instanceof MethodInvocation methodInvocation) {
+				int index = methodInvocation.arguments().indexOf(emr);
+				return new IJavaElement[] {methodInvocation.resolveMethodBinding().getParameterTypes()[index].getDeclaredMethods()[0].getJavaElement()};
+			}
+		}
 		if (importDecl != null && importDecl.isStatic()) {
 			IBinding importBinding = importDecl.resolveBinding();
 			if (importBinding instanceof IMethodBinding methodBinding) {
@@ -739,6 +747,9 @@ static IBinding resolveBinding(ASTNode node) {
 				}
 			}
 		}
+		if (node.getParent() instanceof ExpressionMethodReference exprMethodReference && exprMethodReference.getName() == node) {
+			return resolveBinding(exprMethodReference);
+		}
 		IBinding res = aName.resolveBinding();
 		if (res != null) {
 			return res;
@@ -747,6 +758,47 @@ static IBinding resolveBinding(ASTNode node) {
 	}
 	if (node instanceof org.eclipse.jdt.core.dom.LambdaExpression lambda) {
 		return lambda.resolveMethodBinding();
+	}
+	if (node instanceof ExpressionMethodReference methodRef) {
+		IMethodBinding methodBinding = methodRef.resolveMethodBinding();
+		try {
+			if (methodBinding == null) {
+				return null;
+			}
+			IMethod methodModel = ((IMethod)methodBinding.getJavaElement());
+			boolean allowExtraParam = true;
+			if ((methodModel.getFlags() & Flags.AccStatic) != 0) {
+				allowExtraParam = false;
+				if (methodRef.getExpression() instanceof ClassInstanceCreation) {
+					return null;
+				}
+			}
+
+			// find the type that the method is bound to
+			ITypeBinding type = null;
+			ASTNode cursor = methodRef;
+			while (type == null && cursor != null) {
+				if (cursor.getParent() instanceof VariableDeclarationFragment declFragment) {
+					type = declFragment.resolveBinding().getType();
+				}
+				else if (cursor.getParent() instanceof MethodInvocation methodInvocation) {
+					IMethodBinding methodInvocationBinding = methodInvocation.resolveMethodBinding();
+					int index = methodInvocation.arguments().indexOf(cursor);
+					type = methodInvocationBinding.getParameterTypes()[index];
+				} else {
+					cursor = cursor.getParent();
+				}
+			}
+
+			IMethodBinding boundMethod = type.getDeclaredMethods()[0];
+
+			if (boundMethod.getParameterTypes().length != methodBinding.getParameterTypes().length && (!allowExtraParam || boundMethod.getParameterTypes().length != methodBinding.getParameterTypes().length + 1)) {
+				return null;
+			}
+		} catch (JavaModelException e) {
+			return null;
+		}
+		return methodBinding;
 	}
 	if (node instanceof MethodReference methodRef) {
 		return methodRef.resolveMethodBinding();
