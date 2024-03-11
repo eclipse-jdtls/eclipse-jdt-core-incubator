@@ -424,6 +424,8 @@ class JavacConverter {
 		commonSettings(res, javac);
 		if( this.ast.apiLevel != AST.JLS2_INTERNAL) {
 			res.modifiers().addAll(convert(javac.getModifiers()));
+		} else {
+			res.internalSetModifiers(getJLS2ModifiersFlags(javac.mods));
 		}
 		boolean isConstructor = Objects.equals(javac.getName(), Names.instance(this.context).init);
 		res.setConstructor(isConstructor);
@@ -441,9 +443,22 @@ class JavacConverter {
 				res.internalSetReturnType(convertToType(javac.getReturnType()));
 			}
 		}
+
 		javac.getParameters().stream().map(this::convertVariableDeclaration).forEach(res.parameters()::add);
 		if (javac.getBody() != null) {
 			res.setBody(convertBlock(javac.getBody()));
+		}
+		
+		List throwing = javac.getThrows();
+		for( Iterator i = throwing.iterator(); i.hasNext(); ) {
+			if( this.ast.apiLevel < AST.JLS8_INTERNAL) {
+				JCIdent id = (JCIdent)i.next();
+				Name r = convert(id.getName());
+				res.thrownExceptions().add(r);
+			} else {
+				JCIdent id = (JCIdent)i.next();
+				res.thrownExceptionTypes().add(convertToType(id));
+			}
 		}
 		return res;
 	}
@@ -1120,7 +1135,10 @@ class JavacConverter {
 		if (javac.finalizer != null) {
 			res.setFinally(convertBlock(javac.getFinallyBlock()));
 		}
-		javac.getResources().stream().map(this::convertTryResource).forEach(res.resources()::add);
+		
+		if( this.ast.apiLevel >= AST.JLS4_INTERNAL) {
+			javac.getResources().stream().map(this::convertTryResource).forEach(res.resources()::add);
+		}
 		javac.getCatches().stream().map(this::convertCatcher).forEach(res.catchClauses()::add);
 		return res;
 	}
