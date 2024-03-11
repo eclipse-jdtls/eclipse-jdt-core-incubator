@@ -519,9 +519,10 @@ class JavacConverter {
 		// if (singleDecl) {
 		VariableDeclarationFragment fragment = this.ast.newVariableDeclarationFragment();
 		commonSettings(fragment, javac);
+		// start=34, len=17
 		int fragmentEnd = javac.getEndPosition(this.javacCompilationUnit.endPositions);
-		int fragmentLength = javac.getName().toString().length();
-		int fragmentStart = fragmentEnd - fragmentLength - 1;
+		int fragmentStart = javac.pos;
+		int fragmentLength = fragmentEnd - fragmentStart - 1;
 		fragment.setSourceRange(fragmentStart, Math.max(0, fragmentLength));
 
 		if (convert(javac.getName()) instanceof SimpleName simpleName) {
