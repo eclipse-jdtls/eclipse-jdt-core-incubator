@@ -50,6 +50,7 @@ import com.sun.tools.javac.tree.JCTree.JCArrayAccess;
 import com.sun.tools.javac.tree.JCTree.JCArrayTypeTree;
 import com.sun.tools.javac.tree.JCTree.JCAssert;
 import com.sun.tools.javac.tree.JCTree.JCAssign;
+import com.sun.tools.javac.tree.JCTree.JCAssignOp;
 import com.sun.tools.javac.tree.JCTree.JCBinary;
 import com.sun.tools.javac.tree.JCTree.JCBindingPattern;
 import com.sun.tools.javac.tree.JCTree.JCBlock;
@@ -759,6 +760,27 @@ class JavacConverter {
 			commonSettings(res, javac);
 			res.setLeftHandSide(convertExpression(assign.getVariable()));
 			res.setRightHandSide(convertExpression(assign.getExpression()));
+			return res;
+		}
+		if (javac instanceof JCAssignOp assignOp) {
+			Assignment res = this.ast.newAssignment();
+			commonSettings(res, javac);
+			res.setLeftHandSide(convertExpression(assignOp.getVariable()));
+			res.setRightHandSide(convertExpression(assignOp.getExpression()));
+			res.setOperator(switch (assignOp.getTag()) {
+				case PLUS_ASG -> Assignment.Operator.PLUS_ASSIGN;
+				case BITOR_ASG -> Assignment.Operator.BIT_OR_ASSIGN;
+				case BITXOR_ASG-> Assignment.Operator.BIT_XOR_ASSIGN;
+				case BITAND_ASG-> Assignment.Operator.BIT_AND_ASSIGN;
+				case SL_ASG-> Assignment.Operator.LEFT_SHIFT_ASSIGN;
+				case SR_ASG-> Assignment.Operator.RIGHT_SHIFT_SIGNED_ASSIGN;
+				case USR_ASG-> Assignment.Operator.RIGHT_SHIFT_UNSIGNED_ASSIGN;
+				case MINUS_ASG-> Assignment.Operator.MINUS_ASSIGN;
+				case MUL_ASG-> Assignment.Operator.TIMES_ASSIGN;
+				case DIV_ASG-> Assignment.Operator.DIVIDE_ASSIGN;
+				case MOD_ASG-> Assignment.Operator.REMAINDER_ASSIGN;
+				default -> null;
+			});
 			return res;
 		}
 		if (javac instanceof JCInstanceOf jcInstanceOf) {
