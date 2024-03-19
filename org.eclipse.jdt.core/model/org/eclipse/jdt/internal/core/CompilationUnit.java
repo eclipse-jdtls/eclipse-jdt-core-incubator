@@ -197,12 +197,13 @@ protected boolean buildStructure(OpenableElementInfo info, final IProgressMonito
 	CompilationUnit source = cloneCachingContents();
 	Map<String, CategorizedProblem[]> problems = info instanceof ASTHolderCUInfo astHolder ? astHolder.problems : null;
 	if (DOM_BASED_OPERATIONS) {
+		boolean isModuleInfo = TypeConstants.MODULE_INFO_FILE_NAME_STRING.equals(getElementName());
 		ASTParser astParser = ASTParser.newParser(info instanceof ASTHolderCUInfo astHolder && astHolder.astLevel > 0 ? astHolder.astLevel : AST.getJLSLatest());
 		astParser.setWorkingCopyOwner(getOwner());
 		astParser.setSource(this instanceof ClassFileWorkingCopy ? source : this);
 		astParser.setProject(getJavaProject());
 		astParser.setStatementsRecovery((reconcileFlags & ICompilationUnit.ENABLE_STATEMENTS_RECOVERY) != 0);
-		astParser.setResolveBindings(computeProblems || resolveBindings);
+		astParser.setResolveBindings((computeProblems && !isModuleInfo) || resolveBindings);
 		astParser.setBindingsRecovery((reconcileFlags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0);
 		astParser.setIgnoreMethodBodies((reconcileFlags & ICompilationUnit.IGNORE_METHOD_BODIES) != 0);
 		astParser.setCompilerOptions(options);
