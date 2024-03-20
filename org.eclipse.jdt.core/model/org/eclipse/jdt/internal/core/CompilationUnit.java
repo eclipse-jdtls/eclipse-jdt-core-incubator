@@ -271,9 +271,9 @@ protected boolean buildStructure(OpenableElementInfo info, final IProgressMonito
 				(reconcileFlags & ICompilationUnit.ENABLE_BINDINGS_RECOVERY) != 0 &&
 				(reconcileFlags & ICompilationUnit.IGNORE_METHOD_BODIES) == 0) {
 				// most complete possible AST
-				this.ast = newAST;		
+				this.ast = newAST;
 			} else {
-				this.ast = null; 
+				this.ast = null;
 			}
 		}
 	} else {
@@ -531,7 +531,7 @@ org.eclipse.jdt.core.dom.CompilationUnit getOrBuildAST(WorkingCopyOwner workingC
 	boolean storeAST = isConsistent() &&
 		workingCopyOwner == getOwner() &&
 		isWorkingCopy() &&
-		!hasUnsavedChanges(); 
+		!hasUnsavedChanges();
 	if (this.ast != null && storeAST) {
 		return this.ast;
 	}
