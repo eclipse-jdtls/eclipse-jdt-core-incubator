@@ -894,7 +894,7 @@ class DOMToModelPopulator extends ASTVisitor {
 		} else {
 			members = new IMemberValuePair[0];
 		}
-		
+
 		return new Annotation(parent, domAnnotation.getTypeName().toString()) {
 			@Override
 			public IMemberValuePair[] getMemberValuePairs() {
@@ -1042,13 +1042,13 @@ class DOMToModelPopulator extends ASTVisitor {
 
 		this.infos.push(newInfo);
 		this.toPopulate.put(newElement, newInfo);
-		
+
 		this.unitInfo.setModule(newElement);
-		try {
-			this.root.getJavaProject().setModuleDescription(newElement);
-		} catch (JavaModelException e) {
-			ILog.get().error(e.getMessage(), e);
-		}
+//		try {
+//			this.root.getJavaProject().setModuleDescription(newElement);
+//		} catch (JavaModelException e) {
+//			ILog.get().error(e.getMessage(), e);
+//		}
 		return true;
 	}
 	@Override
@@ -1088,7 +1088,7 @@ class DOMToModelPopulator extends ASTVisitor {
 		ModuleReferenceInfo res = new ModuleReferenceInfo();
 		res.modifiers =
 			(ModuleModifier.isTransitive(node.getModifiers()) ? ClassFileConstants.ACC_TRANSITIVE : 0) |
-			(ModuleModifier.isStatic(node.getModifiers()) ? Flags.AccStatic : 0); 
+			(ModuleModifier.isStatic(node.getModifiers()) ? Flags.AccStatic : 0);
 		res.name = node.getName().toString().toCharArray();
 		setSourceRange(res, node);
 		return res;
