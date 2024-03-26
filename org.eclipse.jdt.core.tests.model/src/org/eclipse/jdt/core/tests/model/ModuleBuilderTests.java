@@ -7851,12 +7851,22 @@ public class ModuleBuilderTests extends ModifyingResourceTests {
 			this.problemRequestor.initialize(sourceChars);
 			getCompilationUnit(test1path).getWorkingCopy(this.wcOwner, null);
 			assertProblems("unexpected problems",
-					"----------\n" +
-					"1. ERROR in /current/src/current/Test1.java (at line 2)\n" +
-					"	import other.p.C;\n" +
-					"	       ^^^^^^^^^\n" +
-					"The type other.p.C is not accessible\n" +
-					"----------\n",
+					org.eclipse.jdt.internal.core.CompilationUnit.DOM_BASED_OPERATIONS && dependencyAttrs == null ? """
+					----------
+					1. ERROR in /current/src/current/Test1.java (at line 2)
+						import other.p.C;
+						       ^^^^^^^
+					The package other.p is not accessible
+					----------
+					""" :
+					"""
+					----------
+					1. ERROR in /current/src/current/Test1.java (at line 2)
+						import other.p.C;
+						       ^^^^^^^^^
+					The type other.p.C is not accessible
+					----------
+					""",
 					this.problemRequestor);
 			sourceChars = test2source.toCharArray();
 			this.problemRequestor.initialize(sourceChars);

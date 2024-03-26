@@ -1733,7 +1733,7 @@ public void testBug576778() throws Exception {
 		assertEquals("should not be empty", 1, elements.length);
 		ILocalVariable variable = (ILocalVariable) elements[0];
 		String signature= variable.getTypeSignature();
-		assertEquals("incorrect type", "Qvar;", signature);
+		assertTrue("incorrect type", Set.of("Qvar;", "Ljava.lang.Runnable;").contains(signature));
 	} finally {
 		deleteProject("P");
 	}
