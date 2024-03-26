@@ -144,7 +144,7 @@ class JavacConverter {
 		javacCompilationUnit.getImports().stream().map(jc -> convert(jc)).forEach(res.imports()::add);
 		javacCompilationUnit.getTypeDecls().stream()
 			.map(n -> convertBodyDeclaration(n, res))
-			.filter(entry -> entry != null)
+			.filter(Objects::nonNull)
 			.forEach(res.types()::add);
 		res.accept(new FixPositions());
 	}
