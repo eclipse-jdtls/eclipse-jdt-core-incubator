@@ -18,32 +18,34 @@ jobs:
       run: |
         sudo apt update
         sudo apt install -y libxml2-utils
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         submodules: recursive
         fetch-depth: 0
     - name: Enable DOM-first and Javac
       run: sed -i 's$</argLine>$ -DCompilationUnit.DOM_BASED_OPERATIONS=true -DSourceIndexer.DOM_BASED_INDEXER=false -DICompilationUnitResolver=org.eclipse.jdt.core.dom.JavacCompilationUnitResolver -DAbstractImageBuilder.compiler=org.eclipse.jdt.internal.javac.JavacCompiler_</argLine>$g' */pom.xml
     - name: Set up JDKs ☕
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4
       with:
         java-version: |
           8
           17
-          20
+          21
+          22
         mvn-toolchain-id: |
           JavaSE-1.8
           JavaSE-17
-          JavaSE-20
+          JavaSE-21
+          JavaSE-22
         distribution: 'temurin'
     - name: Set up Maven
       uses: stCarolas/setup-maven@07fbbe97d97ef44336b7382563d66743297e442f # v4.5
       with:
-        maven-version: 3.9.3
+        maven-version: 3.9.6
     - name: Build with Maven 🏗️
       run: |
         mvn clean install --batch-mode -f org.eclipse.jdt.core.compiler.batch -DlocalEcjVersion=99.99
-        mvn -U clean verify --batch-mode --fail-at-end -Ptest-on-javase-20 -Pbree-libs -Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 -Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,20 -Djdt.performance.asserts=disabled" -Dcbi-ecj-version=99.99
+        mvn -U clean verify --batch-mode --fail-at-end -Ptest-on-javase-22 -Pbree-libs -Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 -Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,21,22 -Djdt.performance.asserts=disabled" -Dcbi-ecj-version=99.99
     - name: Test Report
       if: success() || failure()    # run this step even if previous step failed
       run: |

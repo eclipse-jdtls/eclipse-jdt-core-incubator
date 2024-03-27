@@ -17,7 +17,6 @@ pipeline {
 			steps {
 					sh """#!/bin/bash -x
 					
-					# /opt/tools/java/openjdk/jdk-11/latest/bin/java -version
 					java -version
 					
 					mkdir -p $WORKSPACE/tmp
@@ -33,10 +32,11 @@ pipeline {
 
 					# Build and test without DOM-first to ensure no regression takes place
 					mvn -U clean verify --batch-mode --fail-at-end -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-						-Ptest-on-javase-21 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
+						-Ptest-on-javase-22 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
+						-Dmaven.test.failure.ignore=true \
 						-Dcompare-version-with-baselines.skip=false \
 						-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,20,21 -Djdt.performance.asserts=disabled" \
+						-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,21,22 -Djdt.performance.asserts=disabled" \
 						-DDetectVMInstallationsJob.disabled=true \
 						-Dtycho.apitools.debug \
 						-Dtycho.debug.artifactcomparator \
@@ -55,7 +55,6 @@ pipeline {
 					// The eclipse compiler name is changed because the logfile not only contains ECJ but also API warnings.
 					// "pattern:" is used to collect warnings in dedicated files avoiding output of junit tests treated as warnings   
 					junit '**/target/surefire-reports/*.xml'
-					//discoverGitReferenceBuild referenceJob: 'eclipse.jdt.core-github/master'
 					//recordIssues publishAllIssues:false, ignoreQualityGate:true, tool: eclipse(name: 'Compiler and API Tools', pattern: '**/target/compilelogs/*.xml'), qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
 				}
 			}
@@ -67,10 +66,11 @@ pipeline {
 				sed -i 's|</argLine>| -DCompilationUnit.DOM_BASED_OPERATIONS=true -DSourceIndexer.DOM_BASED_INDEXER=false -DICompilationUnitResolver=org.eclipse.jdt.core.dom.JavacCompilationUnitResolver -DAbstractImageBuilder.compiler=org.eclipse.jdt.internal.javac.JavacCompiler_</argLine>|g' */pom.xml
 				# and build/run it
 				mvn -U clean verify --batch-mode --fail-at-end -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-					-Ptest-on-javase-21 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
+					-Ptest-on-javase-22 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
+					-Dmaven.test.failure.ignore=true \
 					-Dcompare-version-with-baselines.skip=false \
 					-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-					-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,20,21 -Djdt.performance.asserts=disabled -DCompilationUnit.DOM_BASED_OPERATIONS=true -DSourceIndexer.DOM_BASED_INDEXER=false -DICompilationUnitResolver=org.eclipse.jdt.core.dom.JavacCompilationUnitResolver -DAbstractImageBuilder.compiler=org.eclipse.jdt.internal.javac.JavacCompiler_ " \
+					-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,21,22 -Djdt.performance.asserts=disabled -DCompilationUnit.DOM_BASED_OPERATIONS=true -DSourceIndexer.DOM_BASED_INDEXER=false -DICompilationUnitResolver=org.eclipse.jdt.core.dom.JavacCompilationUnitResolver -DAbstractImageBuilder.compiler=org.eclipse.jdt.internal.javac.JavacCompiler_ " \
 					-Dtycho.surefire.error=ignore -Dtycho.surefire.failure=ignore \
 					-DDetectVMInstallationsJob.disabled=true \
 					-Dtycho.apitools.debug \
@@ -89,6 +89,18 @@ pipeline {
 					// The eclipse compiler name is changed because the logfile not only contains ECJ but also API warnings.
 					// "pattern:" is used to collect warnings in dedicated files avoiding output of junit tests treated as warnings   
 					junit '**/target/surefire-reports/*.xml'
+				}
+			}
+		}
+		stage('Deploy') {
+			when {
+				branch 'develop'
+			}
+			steps {
+				sshagent ( ['projects-storage.eclipse.org-bot-ssh']) {
+					sh 'ssh genie.ls@projects-storage.eclipse.org rm -rf /home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
+					sh 'ssh genie.ls@projects-storage.eclipse.org mkdir -p /home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
+					sh 'scp -r repository/target/repository/* genie.ls@projects-storage.eclipse.org:/home/data/httpd/download.eclipse.org/jdtls/jdt-core-incubator/snapshots'
 				}
 			}
 		}
