@@ -53,7 +53,7 @@ public class JavacUtils {
 		}
 		String release = compilerOptions.get(CompilerOptions.OPTION_Release);
 		String compliance = compilerOptions.get(CompilerOptions.OPTION_Compliance);
-		if (release == CompilerOptions.ENABLED && compliance != null && !compliance.isEmpty()) {
+		if (CompilerOptions.ENABLED.equals(release) && compliance != null && !compliance.isEmpty()) {
 			options.put(Option.RELEASE, compliance);
 		}
 		String source = compilerOptions.get(CompilerOptions.OPTION_Source);
