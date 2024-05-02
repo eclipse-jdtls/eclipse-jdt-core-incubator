@@ -196,7 +196,7 @@ class JavacConverter {
 	private ModuleDeclaration convert(JCModuleDecl javac) {
 		ModuleDeclaration res = this.ast.newModuleDeclaration();
 		res.setName(toName(javac.getName()));
-		boolean isOpen = javac.getModuleType() == ModuleKind.OPEN; 
+		boolean isOpen = javac.getModuleType() == ModuleKind.OPEN;
 		res.setOpen(isOpen);
 		if (javac.getDirectives() != null) {
 			List<JCDirective> directives = javac.getDirectives();
@@ -210,7 +210,7 @@ class JavacConverter {
 			int start = res.getStartPosition();
 			if( !this.rawText.substring(start).trim().startsWith("open")) {
 				// we are open but we don't start with open... so... gotta look backwards
-				String prefix =  this.rawText.substring(0,start); 
+				String prefix =  this.rawText.substring(0,start);
 				if( prefix.trim().endsWith("open")) {
 					// previous token is open
 					int ind = new StringBuffer().append(prefix).reverse().toString().indexOf("nepo");
@@ -1063,7 +1063,7 @@ class JavacConverter {
 					return res2;
 				}
 			}
-			
+
 			MethodInvocation res = this.ast.newMethodInvocation();
 			commonSettings(res, methodInvocation);
 			if (nameExpr instanceof JCIdent ident) {
@@ -1345,8 +1345,8 @@ class JavacConverter {
 				// we have no type, we should return an initializer directly
 				ArrayInitializer ret = createArrayInitializerFromJCNewArray(jcNewArray);
 				return ret;
-			}	
-			
+			}
+
 			if (jcNewArray.getType() != null) {
 				Type type = convertToType(jcNewArray.getType());
 				ArrayType arrayType;
@@ -1392,7 +1392,7 @@ class JavacConverter {
 		jcNewArray.getInitializers().stream().map(this::convertExpression).forEach(initializer.expressions()::add);
 		return initializer;
 	}
-	
+
 	private AnonymousClassDeclaration createAnonymousClassDeclaration(JCClassDecl javacAnon, ASTNode parent) {
 		AnonymousClassDeclaration anon = this.ast.newAnonymousClassDeclaration();
 		commonSettings(anon, javacAnon);
@@ -1474,12 +1474,12 @@ class JavacConverter {
 			} else {
 				PrefixExpression res = this.ast.newPrefixExpression();
 				commonSettings(res, literal);
-				
+
 				String fromSrc = this.rawText.substring(res.getStartPosition()+1, res.getStartPosition() + res.getLength());
 				NumberLiteral operand = this.ast.newNumberLiteral();
 				commonSettings(operand, literal);
 				operand.setToken(fromSrc);
-				
+
 				res.setOperand(operand);
 				res.setOperator(Operator.MINUS);
 				return res;
@@ -1786,7 +1786,7 @@ class JavacConverter {
 		}
 		return vartype;
 	}
-	
+
 	private Block convertBlock(JCBlock javac) {
 		Block res = this.ast.newBlock();
 		commonSettings(res, javac);
@@ -1862,7 +1862,7 @@ class JavacConverter {
 					SimpleType res = this.ast.newSimpleType(qn);
 					commonSettings(res, qualified);
 					return res;
-				} 
+				}
 			} catch (Exception ex) {
 			}
 			// case of not translatable name, eg because of generics
@@ -1890,6 +1890,9 @@ class JavacConverter {
 		}
 		if (javac instanceof JCArrayTypeTree jcArrayType) {
 			Type t = convertToType(jcArrayType.getType());
+			if (t == null) {
+				return null;
+			}
 			ArrayType res;
 			if (t instanceof ArrayType childArrayType) {
 				res = childArrayType;
@@ -2204,7 +2207,7 @@ class JavacConverter {
 		return 0;
 	}
 
-	
+
 	private Modifier convert(javax.lang.model.element.Modifier javac, int startPos, int endPos) {
 		Modifier res = modifierToDom(javac);
 		if (startPos >= 0) {
@@ -2371,7 +2374,7 @@ class JavacConverter {
 							}
 						}
 					}
-				} 
+				}
 			}
 		}
 		return enumConstantDeclaration;
