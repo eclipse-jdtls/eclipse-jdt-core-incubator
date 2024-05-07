@@ -291,7 +291,6 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			var fileObject = fileManager.getJavaFileObject(sourceUnitPath);
 			fileManager.cache(fileObject, CharBuffer.wrap(sourceUnit.getContents()));
 			AST ast = createAST(compilerOptions, apiLevel, context);
-			ast.setDefaultNodeFlag(ASTNode.ORIGINAL);
 			CompilationUnit res = ast.newCompilationUnit();
 			result.put(sourceUnit, res);
 			filesToUnits.put(fileObject, res);
@@ -326,6 +325,8 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 				CompilationUnit res = result.get(sourceUnits[i]);
 				AST ast = res.ast;
+				int savedDefaultNodeFlag = ast.getDefaultNodeFlag();
+				ast.setDefaultNodeFlag(ASTNode.ORIGINAL);
 				JavacConverter converter = new JavacConverter(ast, javacCompilationUnit, context, rawText);
 				converter.populateCompilationUnit(res, javacCompilationUnit);
 				List<org.eclipse.jdt.core.dom.Comment> comments = new ArrayList<>();
@@ -351,6 +352,7 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				ast.setBindingResolver(new JavacBindingResolver(javaProject, task, context, converter));
 				//
 				ast.setOriginalModificationCount(ast.modificationCount()); // "un-dirty" AST so Rewrite can process it
+				ast.setDefaultNodeFlag(savedDefaultNodeFlag);
 			}
 		} catch (IOException ex) {
 			ILog.get().error(ex.getMessage(), ex);
