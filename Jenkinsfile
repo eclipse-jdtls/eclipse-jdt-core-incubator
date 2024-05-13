@@ -10,7 +10,7 @@ pipeline {
 	}
 	tools {
 		maven 'apache-maven-latest'
-		jdk 'openjdk-jdk21-latest'
+		jdk 'openjdk-jdk22-latest'
 	}
 	stages {
 		stage('Build and Test') {
@@ -57,6 +57,24 @@ pipeline {
 					junit '**/target/surefire-reports/*.xml'
 					//discoverGitReferenceBuild referenceJob: 'eclipse.jdt.core-github/master'
 					//recordIssues publishAllIssues:false, ignoreQualityGate:true, tool: eclipse(name: 'Compiler and API Tools', pattern: '**/target/compilelogs/*.xml'), qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
+				}
+			}
+		}
+		stage('javac specific tests') {
+			steps {
+				sh """#!/bin/bash -x
+					mkdir -p $WORKSPACE/tmp
+					
+					unset JAVA_TOOL_OPTIONS
+					unset _JAVA_OPTIONS
+					mvn install -DskipTests -Djava.io.tmpdir=$WORKSPACE/tmp
+
+					mvn verify --batch-mode -f org.eclipse.jdt.core.tests.javac --fail-at-end -Ptest-on-javase-22 -Pbree-libs -Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8
+"""
+			}
+			post {
+				always {
+					junit 'org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'
 				}
 			}
 		}
