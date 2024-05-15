@@ -10,20 +10,32 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.indexing;
 
+import java.util.LinkedList;
 import java.util.List;
 
-import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.AnnotationTypeDeclaration;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.CreationReference;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.RecordDeclaration;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
+import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
+import org.eclipse.jdt.core.dom.TypeMethodReference;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 
@@ -31,42 +43,81 @@ class DOMToIndexVisitor extends ASTVisitor {
 
 	private SourceIndexer sourceIndexer;
 
+	private char[] packageName;
+	private List<AbstractTypeDeclaration> enclosingTypes = new LinkedList<>();
+
 	public DOMToIndexVisitor(SourceIndexer sourceIndexer) {
 		this.sourceIndexer = sourceIndexer;
 	}
 
 	@Override
+	public boolean visit(PackageDeclaration packageDeclaration) {
+		this.packageName = packageDeclaration.getName().toString().toCharArray();
+		return false;
+	}
+
+	@Override
 	public boolean visit(TypeDeclaration type) {
+		char[][] enclosing = this.enclosingTypes.stream().map(AbstractTypeDeclaration::getName).map(SimpleName::getIdentifier).map(String::toCharArray).toArray(char[][]::new);
 		if (type.isInterface()) {
-			this.sourceIndexer.addInterfaceDeclaration(type.getModifiers(), getPackage(type), type.getName().toString().toCharArray(), null, ((List<Type>)type.superInterfaceTypes()).stream().map(superInterface -> superInterface.toString().toCharArray()).toArray(char[][]::new), null, false);
+			this.sourceIndexer.addInterfaceDeclaration(type.getModifiers(), this.packageName, type.getName().toString().toCharArray(), enclosing, ((List<Type>)type.superInterfaceTypes()).stream().map(superInterface -> superInterface.toString().toCharArray()).toArray(char[][]::new), null, isSecondary(type));
 		} else {
-			this.sourceIndexer.addClassDeclaration(type.getModifiers(), getPackage(type), type.getName().toString().toCharArray(), null, type.getSuperclassType() == null ? null : type.getSuperclassType().toString().toCharArray(),
+			this.sourceIndexer.addClassDeclaration(type.getModifiers(), this.packageName, type.getName().toString().toCharArray(), enclosing, type.getSuperclassType() == null ? null : type.getSuperclassType().toString().toCharArray(),
 				((List<Type>)type.superInterfaceTypes()).stream().map(superInterface -> superInterface.toString().toCharArray()).toArray(char[][]::new), null, isSecondary(type));
+			if (type.bodyDeclarations().stream().noneMatch(member -> member instanceof MethodDeclaration method && method.isConstructor())) {
+				this.sourceIndexer.addDefaultConstructorDeclaration(type.getName().toString().toCharArray(),
+						this.packageName, type.getModifiers(), 0);
+			}
 		}
+		this.enclosingTypes.add(type);
 		// TODO other types
 		return true;
 	}
+	@Override
+	public void endVisit(TypeDeclaration type) {
+		this.enclosingTypes.remove(type);
+	}
 
-	private boolean isSecondary(TypeDeclaration type) {
+	@Override
+	public boolean visit(EnumDeclaration type) {
+		char[][] enclosing = this.enclosingTypes.stream().map(AbstractTypeDeclaration::getName).map(SimpleName::getIdentifier).map(String::toCharArray).toArray(char[][]::new);
+		this.sourceIndexer.addEnumDeclaration(type.getModifiers(), this.packageName, type.getName().getIdentifier().toCharArray(), enclosing, Enum.class.getName().toCharArray(), ((List<Type>)type.superInterfaceTypes()).stream().map(superInterface -> superInterface.toString().toCharArray()).toArray(char[][]::new), isSecondary(type));
+		this.enclosingTypes.add(type);
+		return true;
+	}
+	@Override
+	public void endVisit(EnumDeclaration type) {
+		this.enclosingTypes.remove(type);
+	}
+	@Override
+	public boolean visit(EnumConstantDeclaration enumConstant) {
+		this.sourceIndexer.addFieldDeclaration(this.enclosingTypes.get(this.enclosingTypes.size() - 1).getName().toString().toCharArray(), enumConstant.getName().getIdentifier().toCharArray());
+		return true;
+	}
+
+	@Override
+	public boolean visit(AnnotationTypeDeclaration type) {
+		char[][] enclosing = this.enclosingTypes.stream().map(AbstractTypeDeclaration::getName).map(SimpleName::getIdentifier).map(String::toCharArray).toArray(char[][]::new);
+		this.sourceIndexer.addAnnotationTypeDeclaration(type.getModifiers(), this.packageName, type.getName().getIdentifier().toCharArray(), enclosing, isSecondary(type));
+		this.enclosingTypes.add(type);
+		return true;
+	}
+	@Override
+	public void endVisit(AnnotationTypeDeclaration type) {
+		this.enclosingTypes.remove(type);
+	}
+
+	private boolean isSecondary(AbstractTypeDeclaration type) {
 		return type.getParent() instanceof CompilationUnit unit &&
 			unit.types().size() > 1 &&
 			unit.types().indexOf(type) > 0;
 			// TODO: check name?
 	}
 
-	private char[] getPackage(ASTNode node) {
-		while (node != null && !(node instanceof CompilationUnit)) {
-			node = node.getParent();
-		}
-		return node == null ? null :
-			node instanceof CompilationUnit unit && unit.getPackage() != null ? unit.getPackage().getName().toString().toCharArray() :
-			null; 
-	}
-
 	@Override
 	public boolean visit(RecordDeclaration recordDecl) {
 		// copied processing of TypeDeclaration
-		this.sourceIndexer.addClassDeclaration(recordDecl.getModifiers(), getPackage(recordDecl), recordDecl.getName().toString().toCharArray(), null, null,
+		this.sourceIndexer.addClassDeclaration(recordDecl.getModifiers(), this.packageName, recordDecl.getName().toString().toCharArray(), null, null,
 				((List<Type>)recordDecl.superInterfaceTypes()).stream().map(type -> type.toString().toCharArray()).toArray(char[][]::new), null, false);
 		return true;
 	}
@@ -95,25 +146,31 @@ class DOMToIndexVisitor extends ASTVisitor {
 			.map(Type::toString)
 			.map(String::toCharArray)
 			.toArray(char[][]::new);
-		this.sourceIndexer.addMethodDeclaration(methodName, parameterTypes, returnType, exceptionTypes);
 		char[][] parameterNames = ((List<VariableDeclaration>)method.parameters()).stream()
-			.map(VariableDeclaration::getName)
-			.map(SimpleName::toString)
-			.map(String::toCharArray)
-			.toArray(char[][]::new);
-		this.sourceIndexer.addMethodDeclaration(null,
-			null /* TODO: fully qualified name of enclosing type? */,
-			methodName,
-			parameterTypes.length,
-			null,
-			parameterTypes,
-			parameterNames,
-			returnType,
-			method.getModifiers(),
-			getPackage(method),
-			0 /* TODO What to put here? */,
-			exceptionTypes,
-			0 /* TODO ExtraFlags.IsLocalType ? */);
+				.map(VariableDeclaration::getName)
+				.map(SimpleName::toString)
+				.map(String::toCharArray)
+				.toArray(char[][]::new);
+		if (!method.isConstructor()) {
+			this.sourceIndexer.addMethodDeclaration(methodName, parameterTypes, returnType, exceptionTypes);
+			this.sourceIndexer.addMethodDeclaration(this.enclosingTypes.get(this.enclosingTypes.size() - 1).getName().toString().toCharArray(),
+				null /* TODO: fully qualified name of enclosing type? */,
+				methodName,
+				parameterTypes.length,
+				null,
+				parameterTypes,
+				parameterNames,
+				returnType,
+				method.getModifiers(),
+				this.packageName,
+				0 /* TODO What to put here? */,
+				exceptionTypes,
+				0 /* TODO ExtraFlags.IsLocalType ? */);
+		} else {
+			this.sourceIndexer.addConstructorDeclaration(method.getName().toString().toCharArray(),
+					method.parameters().size(),
+					null, parameterTypes, parameterNames, method.getModifiers(), this.packageName, 0, exceptionTypes, 0);
+		}
 		return true;
 	}
 
@@ -125,10 +182,56 @@ class DOMToIndexVisitor extends ASTVisitor {
 		}
 		return true;
 	}
-	
+
+	@Override
+	public boolean visit(MethodInvocation methodInvocation) {
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().toString().toCharArray(), methodInvocation.arguments().size());
+		return true;
+	}
+	@Override
+	public boolean visit(ExpressionMethodReference methodInvocation) {
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().toString().toCharArray(), 0);
+		return true;
+	}
+	@Override
+	public boolean visit(TypeMethodReference methodInvocation) {
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().toString().toCharArray(), 0);
+		return true;
+	}
+	@Override
+	public boolean visit(SuperMethodInvocation methodInvocation) {
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().toString().toCharArray(), 0);
+		return true;
+	}
+	@Override
+	public boolean visit(SuperMethodReference methodInvocation) {
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().toString().toCharArray(), 0);
+		return true;
+	}
+	@Override
+	public boolean visit(ClassInstanceCreation methodInvocation) {
+		this.sourceIndexer.addConstructorReference(methodInvocation.getType().toString().toCharArray(), methodInvocation.arguments().size());
+		return true;
+	}
+	@Override
+	public boolean visit(CreationReference methodInvocation) {
+		this.sourceIndexer.addConstructorReference(methodInvocation.getType().toString().toCharArray(), 0);
+		return true;
+	}
+
+	@Override
+	public boolean visit(SimpleType type) {
+		this.sourceIndexer.addTypeReference(type.getName().toString().toCharArray());
+		return true;
+	}
+	@Override
+	public boolean visit(SimpleName name) {
+		this.sourceIndexer.addNameReference(name.getIdentifier().toString().toCharArray());
+		return true;
+	}
 	// TODO (cf SourceIndexer and SourceIndexerRequestor)
 	// * Module: addModuleDeclaration/addModuleReference/addModuleExportedPackages
 	// * Lambda: addIndexEntry/addClassDeclaration
-	// * addMethodReference
-	// * addConstructorReference
+	// * FieldReference
+	// * Deprecated
 }

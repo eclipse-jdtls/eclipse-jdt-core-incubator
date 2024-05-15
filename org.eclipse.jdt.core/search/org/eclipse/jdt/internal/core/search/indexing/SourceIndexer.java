@@ -302,7 +302,6 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 						astParser.setSource(modelUnit);
 						astParser.setResolveBindings(false);
 						astParser.setProject(javaProject);
-						astParser.setIgnoreMethodBodies(true);
 						org.eclipse.jdt.core.dom.ASTNode dom = astParser.createAST(null);
 						if (dom != null) {
 							dom.accept(new DOMToIndexVisitor(this));
