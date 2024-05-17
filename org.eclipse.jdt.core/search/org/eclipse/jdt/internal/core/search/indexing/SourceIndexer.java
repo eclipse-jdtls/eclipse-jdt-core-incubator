@@ -29,6 +29,8 @@ import org.eclipse.jdt.core.JavaCore;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.MethodReference;
 import org.eclipse.jdt.core.search.SearchDocument;
 import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
@@ -226,6 +228,15 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 
 	@Override
 	public void indexResolvedDocument() {
+		// TODO We need to rebuild the DOM with binding resolution enabled
+		// however this currently causes deadlock because name resolver
+		// tries to use the currently populated Index
+		// This is what is mentioned in #resolveDocument with "Use a non model name environment to avoid locks"
+//		if (Boolean.getBoolean(getClass().getSimpleName() + ".DOM_BASED_INDEXER")) { //$NON-NLS-1$
+//			indexDocumentFromDOM();
+//			return;
+//		}
+
 		try {
 			if (DEBUG) {
 				trace(new String(this.cud.compilationResult.fileName) + ':');
@@ -286,9 +297,9 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 	}
 
 	/**
-	 * @return whether the operatin was successful
+	 * @return whether the operation was successful
 	 */
-	private boolean indexDocumentFromDOM() {
+	boolean indexDocumentFromDOM() {
 		if (this.document instanceof JavaSearchDocument javaSearchDoc) {
 			IFile file = javaSearchDoc.getFile();
 			try {
@@ -300,11 +311,26 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 						// TODO check element info: if has AST and flags are set sufficiently, just reuse instead of rebuilding
 						ASTParser astParser = ASTParser.newParser(modelUnit.getElementInfo() instanceof ASTHolderCUInfo astHolder ? astHolder.astLevel : AST.getJLSLatest());
 						astParser.setSource(modelUnit);
-						astParser.setResolveBindings(false);
+						astParser.setStatementsRecovery(true);
+						astParser.setResolveBindings(this.document.shouldIndexResolvedDocument());
 						astParser.setProject(javaProject);
 						org.eclipse.jdt.core.dom.ASTNode dom = astParser.createAST(null);
 						if (dom != null) {
 							dom.accept(new DOMToIndexVisitor(this));
+							dom.accept(
+									new ASTVisitor() {
+										@Override
+										public boolean preVisit2(org.eclipse.jdt.core.dom.ASTNode node) {
+											if (SourceIndexer.this.document.shouldIndexResolvedDocument()) {
+												return false; // interrupt
+											}
+											if (node instanceof MethodReference) {
+												SourceIndexer.this.document.requireIndexingResolvedDocument();
+												return false;
+											}
+											return true;
+										}
+									});
 							return true;
 						}
 					}

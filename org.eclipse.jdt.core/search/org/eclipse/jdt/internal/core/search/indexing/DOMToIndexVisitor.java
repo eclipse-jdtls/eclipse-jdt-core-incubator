@@ -26,6 +26,7 @@ import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
+import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.ImportDeclaration;
 import org.eclipse.jdt.core.dom.MemberRef;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
@@ -213,14 +214,29 @@ class DOMToIndexVisitor extends ASTVisitor {
 		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), methodInvocation.arguments().size());
 		return true;
 	}
+
 	@Override
 	public boolean visit(ExpressionMethodReference methodInvocation) {
-		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), 0);
+		int argsCount = 0;
+		if (this.sourceIndexer.document.shouldIndexResolvedDocument()) {
+			IMethodBinding binding = methodInvocation.resolveMethodBinding();
+			if (binding != null) {
+				argsCount = binding.getParameterTypes().length;
+			}
+		}
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), argsCount);
 		return true;
 	}
 	@Override
 	public boolean visit(TypeMethodReference methodInvocation) {
-		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), 0);
+		int argsCount = 0;
+		if (this.sourceIndexer.document.shouldIndexResolvedDocument()) {
+			IMethodBinding binding = methodInvocation.resolveMethodBinding();
+			if (binding != null) {
+				argsCount = binding.getParameterTypes().length;
+			}
+		}
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), argsCount);
 		return true;
 	}
 	@Override
@@ -230,7 +246,14 @@ class DOMToIndexVisitor extends ASTVisitor {
 	}
 	@Override
 	public boolean visit(SuperMethodReference methodInvocation) {
-		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), 0);
+		int argsCount = 0;
+		if (this.sourceIndexer.document.shouldIndexResolvedDocument()) {
+			IMethodBinding binding = methodInvocation.resolveMethodBinding();
+			if (binding != null) {
+				argsCount = binding.getParameterTypes().length;
+			}
+		}
+		this.sourceIndexer.addMethodReference(methodInvocation.getName().getIdentifier().toCharArray(), argsCount);
 		return true;
 	}
 	@Override
@@ -244,7 +267,14 @@ class DOMToIndexVisitor extends ASTVisitor {
 	}
 	@Override
 	public boolean visit(CreationReference methodInvocation) {
-		this.sourceIndexer.addConstructorReference(name(methodInvocation.getType()), 0);
+		int argsCount = 0;
+		if (this.sourceIndexer.document.shouldIndexResolvedDocument()) {
+			IMethodBinding binding = methodInvocation.resolveMethodBinding();
+			if (binding != null) {
+				argsCount = binding.getParameterTypes().length;
+			}
+		}
+		this.sourceIndexer.addConstructorReference(name(methodInvocation.getType()), argsCount);
 		return true;
 	}
 
