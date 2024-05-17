@@ -12942,7 +12942,7 @@ public void testBug341462() throws CoreException {
 				"        }\n" +
 				"        public static void main(String[] args) {\n" +
 				"            X.testFunction(new X<>(\"hello\").getField());\n" +
-				"            X.testFunction(new X<>(new Object()).getField());\n" +
+				"...         X.testFunction(new X<>(new Object()).getField());\n" +
 				"        }\n" +
 				"}\n");
 		waitUntilIndexesReady();
