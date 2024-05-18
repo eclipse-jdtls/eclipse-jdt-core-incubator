@@ -369,6 +369,10 @@ public class DOMCompletionEngine implements Runnable {
 			completion += "()"; //$NON-NLS-1$
 		}
 		res.setCompletion(completion.toCharArray());
+		if (binding instanceof IMethodBinding m) {
+			res.setParameterNames(
+					Arrays.stream(m.getParameterNames()).map(String::toCharArray).toArray(i -> new char[i][]));
+		}
 		res.setSignature(
 			binding instanceof IMethodBinding methodBinding ?
 				Signature.createMethodSignature(
@@ -377,7 +381,9 @@ public class DOMCompletionEngine implements Runnable {
 						.map(String::toCharArray)
 						.map(type -> Signature.createTypeSignature(type, true).toCharArray())
 						.toArray(char[][]::new),
-					Signature.createTypeSignature(methodBinding.getReturnType().getQualifiedName().toCharArray(), true).toCharArray()) :
+								Signature.createTypeSignature(qualifiedTypeName(methodBinding.getReturnType()), true)
+										.toCharArray())
+						:
 			binding instanceof IVariableBinding variableBinding ?
 				Signature.createTypeSignature(variableBinding.getType().getQualifiedName().toCharArray(), true).toCharArray() :
 			binding instanceof ITypeBinding typeBinding ?
@@ -416,6 +422,14 @@ public class DOMCompletionEngine implements Runnable {
 				CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE) + //no access restriction for class field
 				CompletionEngine.R_NON_INHERITED);
 		return res;
+	}
+
+	private String qualifiedTypeName(ITypeBinding typeBinding) {
+		if (typeBinding.isTypeVariable()) {
+			return typeBinding.getName();
+		} else {
+			return typeBinding.getQualifiedName();
+		}
 	}
 
 	private CompletionProposal toProposal(IType type) {
