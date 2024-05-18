@@ -421,6 +421,8 @@ public class DOMCompletionEngine implements Runnable {
 					this.toComplete.getAST().resolveWellKnownType(Object.class.getName())) +
 				CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE) + //no access restriction for class field
 				CompletionEngine.R_NON_INHERITED);
+		// set defaults for now to avoid error downstream
+		res.setRequiredProposals(new CompletionProposal[0]);
 		return res;
 	}
 
