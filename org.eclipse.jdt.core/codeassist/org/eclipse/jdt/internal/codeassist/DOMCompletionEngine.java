@@ -41,6 +41,8 @@ import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.LambdaExpression;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.PrimitiveType;
@@ -79,7 +81,8 @@ public class DOMCompletionEngine implements Runnable {
 	private ExpectedTypes expectedTypes;
 	private String prefix;
 	private ASTNode toComplete;
-	private DOMCompletionEngineVariableDeclHandler variableDeclHandler;
+	private final DOMCompletionEngineVariableDeclHandler variableDeclHandler;
+	private final DOMCompletionEngineVisibleBindingsCollector visibleBindingsCollector;
 
 	static class Bindings {
 		private HashSet<IMethodBinding> methods = new HashSet<>();
@@ -138,19 +141,30 @@ public class DOMCompletionEngine implements Runnable {
 		// ...
 		this.nestedEngine = new CompletionEngine(this.nameEnvironment, this.requestor, this.modelUnit.getOptions(true), this.modelUnit.getJavaProject(), workingCopyOwner, monitor);
 		this.variableDeclHandler = new DOMCompletionEngineVariableDeclHandler();
+		this.visibleBindingsCollector = new DOMCompletionEngineVisibleBindingsCollector();
 	}
 
-	private static Collection<? extends IBinding> visibleBindings(ASTNode node, int offset) {
+	private Collection<? extends IBinding> visibleBindings(ASTNode node) {
+		List<IBinding> visibleBindings = new ArrayList<>();
+
+		if (node instanceof MethodDeclaration m) {
+			visibleBindings.addAll(this.visibleBindingsCollector.collectVisibleBindingsFrom(m));
+		}
+
+		if (node instanceof LambdaExpression le) {
+			visibleBindings.addAll(this.visibleBindingsCollector.collectVisibleBindingsFrom(le));
+		}
+
 		if (node instanceof Block block) {
-			return ((List<Statement>)block.statements()).stream()
-				.filter(statement -> statement.getStartPosition() < offset)
+			var bindings = ((List<Statement>) block.statements()).stream()
+					.filter(statement -> statement.getStartPosition() < this.offset)
 				.filter(VariableDeclarationStatement.class::isInstance)
 				.map(VariableDeclarationStatement.class::cast)
 				.flatMap(decl -> ((List<VariableDeclarationFragment>)decl.fragments()).stream())
-				.map(VariableDeclarationFragment::resolveBinding)
-				.toList();
+					.map(VariableDeclarationFragment::resolveBinding).toList();
+			visibleBindings.addAll(bindings);
 		}
-		return List.of();
+		return visibleBindings;
 	}
 
 	private IJavaElement computeEnclosingElement() {
@@ -273,7 +287,7 @@ public class DOMCompletionEngine implements Runnable {
 			parent = parent.getParent();
 		}
 		while (current != null) {
-			scope.addAll(visibleBindings(current, this.offset));
+			scope.addAll(visibleBindings(current));
 			current = current.getParent();
 		}
 		scope.stream()
