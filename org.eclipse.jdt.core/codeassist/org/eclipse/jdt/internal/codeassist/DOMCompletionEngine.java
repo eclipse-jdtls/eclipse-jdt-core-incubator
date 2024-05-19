@@ -32,9 +32,11 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
@@ -46,6 +48,7 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.PrimitiveType;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -277,7 +280,48 @@ public class DOMCompletionEngine implements Runnable {
 						.map(name -> toProposal(binding, name)).forEach(this.requestor::accept);
 			}
 		}
-
+		if (context instanceof ExpressionStatement es) {
+			var binding = es.getExpression().resolveTypeBinding();
+			if (binding != null) {
+				processMembers(binding, scope);
+				scope.stream()
+						.filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
+						.map(this::toProposal).forEach(this.requestor::accept);
+				this.requestor.endReporting();
+				return;
+			}
+		}
+		if (context instanceof SimpleName sn) {
+			this.prefix = sn.getIdentifier();
+			if (sn.getParent() instanceof Assignment a && a.getLeftHandSide() instanceof FieldAccess fa) {
+				// handle expression like "StaticClass.staticMethod().is" which is represented as a assignment with
+				// FieldAccess::StaticClass.staticMethod().is = $missing$
+				// the field is not a actual field, so therefore it will not provide the correct type bindings, so we
+				// need to use the receiver expression of this field which is the correct expression which we should use
+				// to find the type bindings.
+				var binding = fa.getExpression().resolveTypeBinding();
+				if (binding != null) {
+					processMembers(binding, scope);
+					scope.stream()
+							.filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
+							.map(this::toProposal).forEach(this.requestor::accept);
+					this.requestor.endReporting();
+					return;
+				}
+			} else if (sn.getParent() instanceof QualifiedName qn) {
+				// handle expression like "StaticClass.cu"
+				// the qualified name is "StaticClass.cu" where
+				var binding = qn.getQualifier().resolveTypeBinding();
+				if (binding != null) {
+					processMembers(binding, scope);
+					scope.stream()
+							.filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
+							.map(this::toProposal).forEach(this.requestor::accept);
+					this.requestor.endReporting();
+					return;
+				}
+			}
+		}
 		ASTNode current = this.toComplete;
 		ASTNode parent = current;
 		while (parent != null) {
@@ -311,6 +355,17 @@ public class DOMCompletionEngine implements Runnable {
 			ILog.get().error(ex.getMessage(), ex);
 		}
 		this.requestor.endReporting();
+	}
+
+	private boolean processExpressionStatementMembers(ExpressionStatement es, Bindings scope) {
+		var binding = es.getExpression().resolveTypeBinding();
+		if (binding != null) {
+			processMembers(binding, scope);
+			scope.stream().filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
+					.map(this::toProposal).forEach(this.requestor::accept);
+			return true;
+		}
+		return false;
 	}
 
 	private Stream<IType> findTypes(String namePrefix, String packageName) {
@@ -369,9 +424,9 @@ public class DOMCompletionEngine implements Runnable {
 			completion += "()"; //$NON-NLS-1$
 		}
 		res.setCompletion(completion.toCharArray());
-		if (binding instanceof IMethodBinding m) {
-			res.setParameterNames(
-					Arrays.stream(m.getParameterNames()).map(String::toCharArray).toArray(i -> new char[i][]));
+		if (binding instanceof IMethodBinding mb) {
+			res.setParameterNames(DOMCompletionEngineMethodDeclHandler.findVariableNames(mb).stream()
+					.map(String::toCharArray).toArray(i -> new char[i][]));
 		}
 		res.setSignature(
 			binding instanceof IMethodBinding methodBinding ?
