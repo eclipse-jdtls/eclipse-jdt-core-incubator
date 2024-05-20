@@ -32,7 +32,6 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
-import org.eclipse.jdt.core.dom.Assignment;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
@@ -48,7 +47,6 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.PrimitiveType;
-import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
@@ -85,6 +83,7 @@ public class DOMCompletionEngine implements Runnable {
 	private String prefix;
 	private ASTNode toComplete;
 	private final DOMCompletionEngineVariableDeclHandler variableDeclHandler;
+	private DOMCompletionEngineRecoveredNodeScanner recoveredNodeScanner;
 
 	static class Bindings {
 		private HashSet<IMethodBinding> methods = new HashSet<>();
@@ -143,6 +142,7 @@ public class DOMCompletionEngine implements Runnable {
 		// ...
 		this.nestedEngine = new CompletionEngine(this.nameEnvironment, this.requestor, this.modelUnit.getOptions(true), this.modelUnit.getJavaProject(), workingCopyOwner, monitor);
 		this.variableDeclHandler = new DOMCompletionEngineVariableDeclHandler();
+		this.recoveredNodeScanner = new DOMCompletionEngineRecoveredNodeScanner();
 	}
 
 	private Collection<? extends IBinding> visibleBindings(ASTNode node) {
@@ -280,50 +280,23 @@ public class DOMCompletionEngine implements Runnable {
 						.map(name -> toProposal(binding, name)).forEach(this.requestor::accept);
 			}
 		}
-		if (context instanceof ExpressionStatement es) {
-			var binding = es.getExpression().resolveTypeBinding();
-			if (binding != null) {
-				processMembers(binding, scope);
-				scope.stream()
-						.filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
-						.map(this::toProposal).forEach(this.requestor::accept);
-				this.requestor.endReporting();
-				return;
-			}
-		}
-		if (context instanceof SimpleName sn) {
-			this.prefix = sn.getIdentifier();
-			if (sn.getParent() instanceof Assignment a && a.getLeftHandSide() instanceof FieldAccess fa) {
-				// handle expression like "StaticClass.staticMethod().is" which is represented as a assignment with
-				// FieldAccess::StaticClass.staticMethod().is = $missing$
-				// the field is not a actual field, so therefore it will not provide the correct type bindings, so we
-				// need to use the receiver expression of this field which is the correct expression which we should use
-				// to find the type bindings.
-				var binding = fa.getExpression().resolveTypeBinding();
-				if (binding != null) {
-					processMembers(binding, scope);
-					scope.stream()
-							.filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
-							.map(this::toProposal).forEach(this.requestor::accept);
-					this.requestor.endReporting();
-					return;
-				}
-			} else if (sn.getParent() instanceof QualifiedName qn) {
-				// handle expression like "StaticClass.cu"
-				// the qualified name is "StaticClass.cu" where
-				var binding = qn.getQualifier().resolveTypeBinding();
-				if (binding != null) {
-					processMembers(binding, scope);
-					scope.stream()
-							.filter(b -> this.pattern.matchesName(this.prefix.toCharArray(), b.getName().toCharArray()))
-							.map(this::toProposal).forEach(this.requestor::accept);
-					this.requestor.endReporting();
-					return;
-				}
-			}
-		}
 		ASTNode current = this.toComplete;
-		ASTNode parent = current;
+		while (current != null) {
+			scope.addAll(visibleBindings(current, this.offset));
+			current = current.getParent();
+		}
+		var suitableBinding = this.recoveredNodeScanner.findClosestSuitableBinding(context, scope);
+		if (suitableBinding != null) {
+			processMembers(suitableBinding, scope);
+			scope.stream()
+					.filter(binding -> this.pattern.matchesName(this.prefix.toCharArray(),
+							binding.getName().toCharArray()))
+					.map(binding -> toProposal(binding)).forEach(this.requestor::accept);
+			this.requestor.endReporting();
+			return;
+		}
+
+		ASTNode parent = this.toComplete;
 		while (parent != null) {
 			if (parent instanceof AbstractTypeDeclaration typeDecl) {
 				processMembers(typeDecl.resolveBinding(), scope);
@@ -506,6 +479,8 @@ public class DOMCompletionEngine implements Runnable {
 		}
 		res.completionEngine = this.nestedEngine;
 		res.nameLookup = this.nameEnvironment.nameLookup;
+		// set defaults for now to avoid error downstream
+		res.setRequiredProposals(new CompletionProposal[0]);
 		return res;
 	}
 
