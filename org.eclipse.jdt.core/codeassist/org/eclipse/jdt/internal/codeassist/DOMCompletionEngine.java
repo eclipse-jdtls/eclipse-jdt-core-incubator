@@ -83,7 +83,7 @@ public class DOMCompletionEngine implements Runnable {
 	private String prefix;
 	private ASTNode toComplete;
 	private final DOMCompletionEngineVariableDeclHandler variableDeclHandler;
-	private DOMCompletionEngineRecoveredNodeScanner recoveredNodeScanner;
+	private final DOMCompletionEngineRecoveredNodeScanner recoveredNodeScanner;
 
 	static class Bindings {
 		private HashSet<IMethodBinding> methods = new HashSet<>();
@@ -142,7 +142,7 @@ public class DOMCompletionEngine implements Runnable {
 		// ...
 		this.nestedEngine = new CompletionEngine(this.nameEnvironment, this.requestor, this.modelUnit.getOptions(true), this.modelUnit.getJavaProject(), workingCopyOwner, monitor);
 		this.variableDeclHandler = new DOMCompletionEngineVariableDeclHandler();
-		this.recoveredNodeScanner = new DOMCompletionEngineRecoveredNodeScanner();
+		this.recoveredNodeScanner = new DOMCompletionEngineRecoveredNodeScanner(modelUnit, offset);
 	}
 
 	private Collection<? extends IBinding> visibleBindings(ASTNode node) {
@@ -282,7 +282,7 @@ public class DOMCompletionEngine implements Runnable {
 		}
 		ASTNode current = this.toComplete;
 		while (current != null) {
-			scope.addAll(visibleBindings(current, this.offset));
+			scope.addAll(visibleBindings(current));
 			current = current.getParent();
 		}
 		var suitableBinding = this.recoveredNodeScanner.findClosestSuitableBinding(context, scope);

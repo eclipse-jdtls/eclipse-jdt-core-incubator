@@ -13,6 +13,15 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.codeassist;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.stream.Stream;
+
+import org.eclipse.core.runtime.ILog;
+import org.eclipse.jdt.core.ICompilationUnit;
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.ExpressionStatement;
@@ -20,9 +29,14 @@ import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 import org.eclipse.jdt.core.dom.StringTemplateExpression;
+import org.eclipse.jdt.core.search.IJavaSearchConstants;
+import org.eclipse.jdt.core.search.SearchEngine;
+import org.eclipse.jdt.core.search.SearchPattern;
+import org.eclipse.jdt.core.search.TypeNameMatchRequestor;
 import org.eclipse.jdt.internal.codeassist.DOMCompletionEngine.Bindings;
 
 /**
@@ -32,16 +46,25 @@ final class DOMCompletionEngineRecoveredNodeScanner {
     // this class might need to consider the offset when scanning for suitable nodes since some times we get the full
     // statement where we might find multiple suitable node, so to narrow down the perfect we must check the offset.
 
-    public DOMCompletionEngineRecoveredNodeScanner() {
+    private ICompilationUnit cu;
+    private int offset;
+
+    public DOMCompletionEngineRecoveredNodeScanner(ICompilationUnit cu, int offset) {
+        this.cu = cu;
+        this.offset = offset;
     }
 
     // todo: we might need to improve not to traverse already traversed node paths.
-    private static class SuitableNodeVisitor extends ASTVisitor {
+    private class SuitableNodeVisitor extends ASTVisitor {
         private ITypeBinding foundBinding = null;
         private Bindings scope;
+        private ICompilationUnit cu;
+        private int offset;
 
-        public SuitableNodeVisitor(Bindings scope) {
+        public SuitableNodeVisitor(Bindings scope, ICompilationUnit cu, int offset) {
             this.scope = scope;
+            this.cu = cu;
+            this.offset = offset;
         }
 
         public boolean foundNode() {
@@ -110,7 +133,36 @@ final class DOMCompletionEngineRecoveredNodeScanner {
         }
 
         @Override
+        public boolean visit(QualifiedName node) {
+            // this is part of a qualified expression such as "Thread.cu"
+            this.foundBinding = node.getQualifier().resolveTypeBinding();
+            if (this.foundBinding != null) {
+                return false;
+            }
+            return super.visit(node);
+        }
+
+        @Override
         public boolean visit(SimpleName node) {
+            // check if the node is just followed by a '.' before the offset.
+            try {
+                if (this.offset > 0) {
+                    char charAt = this.cu.getSource().charAt(this.offset - 1);
+                    if (charAt == '.' && (node.getStartPosition() + node.getLength()) == this.offset - 1) {
+                        var name = node.getIdentifier();
+                        // search for variables for bindings
+                        var result = this.scope.stream().filter(IVariableBinding.class::isInstance)
+                                .filter(b -> name.equals(b.getName())).map(IVariableBinding.class::cast)
+                                .map(v -> v.getType()).findFirst();
+                        if (result.isPresent()) {
+                            this.foundBinding = result.get();
+                            return false;
+                        }
+                    }
+                }
+            } catch (JavaModelException ex) {
+                ILog.get().error(ex.getMessage(), ex);
+            }
             this.foundBinding = null;
             return false;
         }
@@ -120,13 +172,33 @@ final class DOMCompletionEngineRecoveredNodeScanner {
         }
     }
 
+    static Stream<IType> findTypes(String name, String qualifier, ICompilationUnit unit) {
+        List<IType> types = new ArrayList<>();
+        var searchScope = SearchEngine.createJavaSearchScope(new IJavaElement[] { unit.getJavaProject() });
+        TypeNameMatchRequestor typeRequestor = new TypeNameMatchRequestor() {
+            @Override
+            public void acceptTypeNameMatch(org.eclipse.jdt.core.search.TypeNameMatch match) {
+                types.add(match.getType());
+            }
+        };
+        try {
+            new SearchEngine(unit.getOwner()).searchAllTypeNames(qualifier == null ? null : qualifier.toCharArray(),
+                    SearchPattern.R_EXACT_MATCH, name.toCharArray(), SearchPattern.R_EXACT_MATCH,
+                    IJavaSearchConstants.TYPE, searchScope, typeRequestor,
+                    IJavaSearchConstants.WAIT_UNTIL_READY_TO_SEARCH, null);
+        } catch (JavaModelException ex) {
+            ILog.get().error(ex.getMessage(), ex);
+        }
+        return types.stream();
+    }
+
     /**
      * Find the closest suitable node for completions from the recovered nodes at the given node.
      */
     public ITypeBinding findClosestSuitableBinding(ASTNode node, Bindings scope) {
         ASTNode parent = node;
-        var visitor = new SuitableNodeVisitor(scope);
-        while (parent != null) {
+        var visitor = new SuitableNodeVisitor(scope, this.cu, this.offset);
+        while (parent != null && withInOffset(parent)) {
             parent.accept(visitor);
             if (visitor.foundNode()) {
                 break;
@@ -134,5 +206,9 @@ final class DOMCompletionEngineRecoveredNodeScanner {
             parent = parent.getParent();
         }
         return visitor.foundTypeBinding();
+    }
+
+    private boolean withInOffset(ASTNode node) {
+        return node.getStartPosition() <= this.offset;
     }
 }
