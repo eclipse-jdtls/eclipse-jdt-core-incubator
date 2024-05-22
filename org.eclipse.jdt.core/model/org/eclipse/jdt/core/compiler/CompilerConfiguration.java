@@ -26,6 +26,10 @@ public class CompilerConfiguration {
 	List<String> modulepaths;
 	Map<File, File> sourceOutputMapping;
 	CompilerOptions options;
+	// Location to search for annotation processors.
+	List<String> annotationProcessorPaths;
+	// Locations to place generated source files.
+	List<String> generatedSourcePaths;
 
 	public List<String> getClasspaths() {
 		return this.classpaths;
@@ -73,5 +77,21 @@ public class CompilerConfiguration {
 
 	public void setOptions(CompilerOptions options) {
 		this.options = options;
+	}
+
+	public List<String> getAnnotationProcessorPaths() {
+		return this.annotationProcessorPaths;
+	}
+
+	public void setAnnotationProcessorPaths(List<String> annotationProcessorPaths) {
+		this.annotationProcessorPaths = annotationProcessorPaths;
+	}
+
+	public List<String> getGeneratedSourcePaths() {
+		return this.generatedSourcePaths;
+	}
+
+	public void setGeneratedSourcePaths(List<String> generatedSourcePaths) {
+		this.generatedSourcePaths = generatedSourcePaths;
 	}
 }
