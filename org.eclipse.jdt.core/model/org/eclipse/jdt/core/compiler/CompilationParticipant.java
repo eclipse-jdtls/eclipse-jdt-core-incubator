@@ -142,6 +142,31 @@ public boolean isAnnotationProcessor() {
 }
 
 /**
+ * Returns where to find annotation processors. If this is not specified,
+ * then the class path is searched for processors.
+ *
+ * @param project the project to participate in
+ * @param isTest whether the annotation processor path is for test code
+ * @return the annotation processor paths
+ * @since 3.38
+ */
+public String[] getAnnotationProcessorPaths(IJavaProject project, boolean isTest) {
+	return null;
+}
+
+/**
+ * Returns the locations to place the generated source files.
+ *
+ * @param project the project to participate in
+ * @param isTest whether the generated source paths are for test code
+ * @return the locations to place the generated source files
+ * @since 3.38
+ */
+public String[] getGeneratedSourcePaths(IJavaProject project, boolean isTest) {
+	return null;
+}
+
+/**
  * Notifies this participant that a compile operation has found source files using Annotations.
  * Only sent to participants interested in the current build project that answer true to {@link #isAnnotationProcessor()}.
  * Each BuildContext was informed whether its source file currently hasAnnotations().

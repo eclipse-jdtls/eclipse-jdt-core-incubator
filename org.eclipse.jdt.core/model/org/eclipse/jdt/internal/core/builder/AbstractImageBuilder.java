@@ -64,6 +64,7 @@ protected LinkedHashSet<SourceFile> problemSourceFiles;
 protected boolean compiledAllAtOnce;
 
 private boolean inCompiler;
+private boolean useDefaultCompiler = true;
 
 protected boolean keepStoringProblemMarkers;
 protected Map<SourceFile, AnnotationBinding[]> filesWithAnnotations = null;
@@ -591,6 +592,7 @@ protected Compiler newCompiler() {
 				prepareCompilerConfiguration(compilerOptions),
 				this,
 				ProblemFactory.getProblemFactory(Locale.getDefault()));
+			this.useDefaultCompiler = false;
 		} catch (ClassNotFoundException e) {
 			ILog.get().error("Could not load class " + compilerClassName, e); //$NON-NLS-1$
 		} catch (NoSuchMethodException e) {
@@ -627,7 +629,25 @@ protected Compiler newCompiler() {
 private CompilerConfiguration prepareCompilerConfiguration(CompilerOptions options) {
 	CompilerConfiguration configuration = new CompilerConfiguration();
 	configuration.setOptions(options);
-
+	List<String> annotationProcessorPaths = new ArrayList<>();
+	List<String> generatedSourcePaths = new ArrayList<>();
+	boolean isTest = this.compilationGroup == CompilationGroup.TEST;
+	if (this.javaBuilder.participants != null) {
+		for (CompilationParticipant participant : this.javaBuilder.participants) {
+			if (participant.isAnnotationProcessor()) {
+				String[] paths = participant.getAnnotationProcessorPaths(this.javaBuilder.javaProject, isTest);
+				if (paths != null) {
+					annotationProcessorPaths.addAll(Arrays.asList(paths));
+				}
+				String[] generatedSrc = participant.getGeneratedSourcePaths(this.javaBuilder.javaProject, isTest);
+				if (generatedSrc != null) {
+					generatedSourcePaths.addAll(Arrays.asList(generatedSrc));
+				}
+			}
+		}
+	}
+	configuration.setAnnotationProcessorPaths(annotationProcessorPaths);
+	configuration.setGeneratedSourcePaths(generatedSourcePaths);
 	ClasspathLocation[] classpathLocations = this.nameEnvironment.binaryLocations;
 	List<String> classpaths = new ArrayList<>();
 	List<String> modulepaths = new ArrayList<>();
@@ -744,7 +764,7 @@ protected void processAnnotations(CompilationParticipantResult[] results) {
 
 	// even if no files have annotations, must still tell every annotation processor in case the file used to have them
 	for (CompilationParticipant participant : this.javaBuilder.participants)
-		if (participant.isAnnotationProcessor())
+		if (this.useDefaultCompiler && participant.isAnnotationProcessor())
 			participant.processAnnotations(results);
 	processAnnotationResults(results);
 }

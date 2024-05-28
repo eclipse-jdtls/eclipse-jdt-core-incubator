@@ -15,20 +15,25 @@
 
 package org.eclipse.jdt.apt.core.internal;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import org.eclipse.core.resources.IFile;
+import org.eclipse.core.resources.IFolder;
 import org.eclipse.core.resources.IMarker;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.jdt.apt.core.internal.generatedfile.GeneratedSourceFolderManager;
 import org.eclipse.jdt.apt.core.internal.util.FactoryPath;
 import org.eclipse.jdt.apt.core.internal.util.TestCodeUtil;
+import org.eclipse.jdt.apt.core.internal.util.FactoryPathUtil;
 import org.eclipse.jdt.apt.core.util.AptConfig;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
@@ -206,6 +211,46 @@ public class AptCompilationParticipant extends CompilationParticipant
 		finally {
 			_buildRound ++;
 		}
+	}
+
+	
+	@Override
+	public String[] getAnnotationProcessorPaths(IJavaProject project, boolean isTest) {
+		List<String> processorPaths = new ArrayList<>();
+		FactoryPath factoryPath = FactoryPathUtil.getFactoryPath(project);
+		if (factoryPath == null) {
+			return super.getAnnotationProcessorPaths(project, isTest);
+		}
+
+		factoryPath.getEnabledContainers().keySet().forEach(container -> {
+			if (container instanceof JarFactoryContainer jarContainer) {
+				if (jarContainer.exists()) {
+					processorPaths.add(jarContainer.getJarFile().getAbsolutePath());
+				}
+			}
+		});
+
+		if (!processorPaths.isEmpty()) {
+			return processorPaths.toArray(new String[processorPaths.size()]);
+		}
+
+		return super.getAnnotationProcessorPaths(project, isTest);
+	}
+
+	@Override
+	public String[] getGeneratedSourcePaths(IJavaProject project, boolean isTest) {
+		AptProject aptProject = AptPlugin.getAptProject(project);
+		if (aptProject == null) {
+			return null;
+		}
+
+		GeneratedSourceFolderManager generatedSourceFolderManager = aptProject.getGeneratedSourceFolderManager(isTest);
+		if (generatedSourceFolderManager == null) {
+			return null;
+		}
+
+		IFolder folder = generatedSourceFolderManager.getFolder();
+		return folder == null ? null : new String[] { folder.getLocation().toOSString() };
 	}
 
 	@Override
