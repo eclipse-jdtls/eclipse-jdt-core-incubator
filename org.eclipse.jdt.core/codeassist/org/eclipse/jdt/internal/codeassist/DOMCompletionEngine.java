@@ -82,7 +82,6 @@ public class DOMCompletionEngine implements Runnable {
 	private String prefix;
 	private ASTNode toComplete;
 	private final DOMCompletionEngineVariableDeclHandler variableDeclHandler;
-	private final DOMCompletionEngineVisibleBindingsCollector visibleBindingsCollector;
 
 	static class Bindings {
 		private HashSet<IMethodBinding> methods = new HashSet<>();
@@ -141,18 +140,19 @@ public class DOMCompletionEngine implements Runnable {
 		// ...
 		this.nestedEngine = new CompletionEngine(this.nameEnvironment, this.requestor, this.modelUnit.getOptions(true), this.modelUnit.getJavaProject(), workingCopyOwner, monitor);
 		this.variableDeclHandler = new DOMCompletionEngineVariableDeclHandler();
-		this.visibleBindingsCollector = new DOMCompletionEngineVisibleBindingsCollector();
 	}
 
 	private Collection<? extends IBinding> visibleBindings(ASTNode node) {
 		List<IBinding> visibleBindings = new ArrayList<>();
 
 		if (node instanceof MethodDeclaration m) {
-			visibleBindings.addAll(this.visibleBindingsCollector.collectVisibleBindingsFrom(m));
+			visibleBindings.addAll(((List<VariableDeclaration>) m.parameters()).stream()
+					.map(VariableDeclaration::resolveBinding).toList());
 		}
 
 		if (node instanceof LambdaExpression le) {
-			visibleBindings.addAll(this.visibleBindingsCollector.collectVisibleBindingsFrom(le));
+			visibleBindings.addAll(((List<VariableDeclaration>) le.parameters()).stream()
+					.map(VariableDeclaration::resolveBinding).toList());
 		}
 
 		if (node instanceof Block block) {
