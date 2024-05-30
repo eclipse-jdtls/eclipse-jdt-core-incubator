@@ -185,6 +185,10 @@ public interface ClassFileConstants {
 	long JDK26 = ((long)ClassFileConstants.MAJOR_VERSION_26 << 16) + ClassFileConstants.MINOR_VERSION_0;
 	long JDK27 = ((long)ClassFileConstants.MAJOR_VERSION_27 << 16) + ClassFileConstants.MINOR_VERSION_0;
 
+	/**
+	 *
+	 * @return The latest JDK level supported by ECJ (can be different from the latest known JDK level)
+	 */
 	public static long getLatestJDKLevel() {
 		return ((long)ClassFileConstants.MAJOR_LATEST_VERSION << 16) + ClassFileConstants.MINOR_VERSION_0;
 	}
