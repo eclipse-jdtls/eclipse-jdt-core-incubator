@@ -14,8 +14,10 @@
 package org.eclipse.jdt.internal.javac;
 
 import java.io.IOException;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 import javax.tools.Diagnostic;
 import javax.tools.JavaFileObject;
@@ -49,6 +51,10 @@ public class JavacProblemConverter {
 	private final CompilerOptions compilerOptions;
 	private final Context context;
 
+	private final Set<FileAndPosition> existingProblems = new HashSet<>();
+
+	private final record FileAndPosition(String filePath, int position) {}
+
 	public JavacProblemConverter(Map<String, String> options, Context context) {
 		this(new CompilerOptions(options), context);
 	}
@@ -74,6 +80,11 @@ public class JavacProblemConverter {
 			return null;
 		}
 		org.eclipse.jface.text.Position diagnosticPosition = getDiagnosticPosition(diagnostic, context);
+		FileAndPosition fileAndPosition = new FileAndPosition(diagnostic.getSource().toUri().toString(), diagnosticPosition.getOffset());
+		if (existingProblems.contains(fileAndPosition)) {
+			return null;
+		}
+		existingProblems.add(fileAndPosition);
 		return new JavacProblem(
 				diagnostic.getSource().getName().toCharArray(),
 				diagnostic.getMessage(Locale.getDefault()),
