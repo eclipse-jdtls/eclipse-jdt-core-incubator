@@ -48,7 +48,6 @@ import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.NodeFinder;
 import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
@@ -58,9 +57,7 @@ import org.eclipse.jdt.core.search.SearchEngine;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeNameMatchRequestor;
 import org.eclipse.jdt.internal.codeassist.impl.AssistOptions;
-import org.eclipse.jdt.internal.codeassist.impl.Engine;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
-import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.SearchableEnvironment;
 
@@ -490,35 +487,6 @@ public class DOMCompletionEngine implements Runnable {
 		res.setCompletion(packageName.toCharArray());
 		res.setDeclarationSignature(packageName.toCharArray());
 		configureProposal(res, completing);
-		return res;
-	}
-
-	private CompletionProposal toVariableNameProposal(String name, VariableDeclaration variable, ASTNode completing) {
-		InternalCompletionProposal res = new InternalCompletionProposal(CompletionProposal.VARIABLE_DECLARATION,
-				this.offset);
-		res.setName(name.toCharArray());
-		res.setCompletion(name.toCharArray());
-
-		if (variable instanceof SingleVariableDeclaration sv) {
-			var binding = sv.resolveBinding();
-			if (binding == null) {
-				return res;
-			}
-			if (binding.getType().getPackage() != null) {
-				res.setPackageName(binding.getType().getPackage().getName().toCharArray());
-			}
-			if (binding.getType() instanceof TypeBinding tb) {
-				res.setSignature(Engine.getSignature(tb));
-				res.setRelevance(
-						CompletionEngine.computeBaseRelevance() + CompletionEngine.computeRelevanceForResolution()
-								+ this.nestedEngine.computeRelevanceForInterestingProposal()
-								+ CompletionEngine.computeRelevanceForCaseMatching(this.prefix.toCharArray(),
-										binding.getName().toCharArray(), this.assistOptions)
-								+ computeRelevanceForExpectingType((ITypeBinding) tb)
-								+ CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE)
-								+ RelevanceConstants.R_NON_INHERITED);
-			}
-		}
 		return res;
 	}
 
