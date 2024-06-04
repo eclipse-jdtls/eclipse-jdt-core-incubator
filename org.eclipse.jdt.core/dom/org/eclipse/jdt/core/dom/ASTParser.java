@@ -1120,7 +1120,7 @@ public class ASTParser {
 			if ((this.bits & CompilationUnitResolver.IGNORE_METHOD_BODIES) != 0) {
 				flags |= ICompilationUnit.IGNORE_METHOD_BODIES;
 			}
-			return this.unitResolver.resolve(elements, this.apiLevel, this.compilerOptions, this.project, this.workingCopyOwner, flags, monitor);
+			return CompilationUnitResolver.resolve(elements, this.apiLevel, this.compilerOptions, this.project, this.workingCopyOwner, flags, monitor);
 		} finally {
 			// reset to defaults to allow reuse (and avoid leaking)
 			initializeDefaults();

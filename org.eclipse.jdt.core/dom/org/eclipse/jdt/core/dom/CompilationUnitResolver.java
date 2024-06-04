@@ -112,12 +112,6 @@ class CompilationUnitResolver extends Compiler {
 		}
 
 		@Override
-		public IBinding[] resolve(IJavaElement[] elements, int apiLevel, Map<String, String> compilerOptions,
-				IJavaProject project, WorkingCopyOwner workingCopyOwner, int flags, IProgressMonitor monitor) {
-			return CompilationUnitResolver.resolve(elements, apiLevel, compilerOptions, project, workingCopyOwner, flags, monitor);
-		}
-
-		@Override
 		public CompilationUnit toCompilationUnit(org.eclipse.jdt.internal.compiler.env.ICompilationUnit sourceUnit, final boolean initialNeedsToResolveBinding, IJavaProject project, List<Classpath> classpaths, NodeSearcher nodeSearcher,
 			int apiLevel, Map<String, String> compilerOptions, WorkingCopyOwner parsedUnitWorkingCopyOwner, WorkingCopyOwner typeRootWorkingCopyOwner, int flags, IProgressMonitor monitor) {
 			// this -> astParser, pass as args

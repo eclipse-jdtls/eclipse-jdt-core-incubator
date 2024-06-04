@@ -36,15 +36,12 @@ import javax.tools.ToolProvider;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
-import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.JavaCore;
-import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
-import org.eclipse.jdt.core.dom.CompilationUnitResolver.IntArrayList;
 import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
@@ -56,14 +53,8 @@ import org.eclipse.jdt.internal.compiler.impl.ITypeRequestor;
 import org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding;
 import org.eclipse.jdt.internal.compiler.lookup.LookupEnvironment;
 import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
-import org.eclipse.jdt.internal.compiler.util.HashtableOfObjectToInt;
 import org.eclipse.jdt.internal.compiler.util.Util;
-import org.eclipse.jdt.internal.core.BinaryMember;
-import org.eclipse.jdt.internal.core.BinaryModule;
-import org.eclipse.jdt.internal.core.LocalVariable;
-import org.eclipse.jdt.internal.core.SourceRefElement;
 import org.eclipse.jdt.internal.core.util.BindingKeyParser;
-import org.eclipse.jdt.internal.core.util.DOMFinder;
 import org.eclipse.jdt.internal.javac.JavacProblemConverter;
 import org.eclipse.jdt.internal.javac.JavacUtils;
 
@@ -261,83 +252,6 @@ class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 	
-	@Override
-	public IBinding[] resolve(IJavaElement[] elements, int apiLevel, Map<String, String> compilerOptions,
-			IJavaProject javaProject, WorkingCopyOwner owner, int flags, IProgressMonitor monitor) {
-		// Logic copied entirely from ECJCompilationUnitResolver
-		final int length = elements.length;
-		final HashMap sourceElementPositions = new HashMap(); // a map from ICompilationUnit to int[] (positions in elements)
-		int cuNumber = 0;
-		final HashtableOfObjectToInt binaryElementPositions = new HashtableOfObjectToInt(); // a map from String (binding key) to int (position in elements)
-		for (int i = 0; i < length; i++) {
-			IJavaElement element = elements[i];
-			if (!(element instanceof SourceRefElement))
-				throw new IllegalStateException(element + " is not part of a compilation unit or class file"); //$NON-NLS-1$
-			Object cu = element.getAncestor(IJavaElement.COMPILATION_UNIT);
-			if (cu != null) {
-				// source member
-				IntArrayList intList = (IntArrayList) sourceElementPositions.get(cu);
-				if (intList == null) {
-					sourceElementPositions.put(cu, intList = new IntArrayList());
-					cuNumber++;
-				}
-				intList.add(i);
-			} else {
-				// binary member or method argument
-				try {
-					String key;
-					if (element instanceof BinaryMember)
-						key = ((BinaryMember) element).getKey(true/*open to get resolved info*/);
-					else if (element instanceof LocalVariable)
-						key = ((LocalVariable) element).getKey(true/*open to get resolved info*/);
-					else if (element instanceof org.eclipse.jdt.internal.core.TypeParameter)
-						key = ((org.eclipse.jdt.internal.core.TypeParameter) element).getKey(true/*open to get resolved info*/);
-					else if (element instanceof BinaryModule)
-						key = ((BinaryModule) element).getKey(true);
-					else
-						throw new IllegalArgumentException(element + " has an unexpected type"); //$NON-NLS-1$
-					binaryElementPositions.put(key, i);
-				} catch (JavaModelException e) {
-					throw new IllegalArgumentException(element + " does not exist", e); //$NON-NLS-1$
-				}
-			}
-		}
-		ICompilationUnit[] cus = new ICompilationUnit[cuNumber];
-		sourceElementPositions.keySet().toArray(cus);
-
-		int bindingKeyNumber = binaryElementPositions.size();
-		String[] bindingKeys = new String[bindingKeyNumber];
-		binaryElementPositions.keysToArray(bindingKeys);
-
-		class Requestor extends ASTRequestor {
-			IBinding[] bindings = new IBinding[length];
-			@Override
-			public void acceptAST(ICompilationUnit source, CompilationUnit ast) {
-				// TODO (jerome) optimize to visit the AST only once
-				IntArrayList intList = (IntArrayList) sourceElementPositions.get(source);
-				for (int i = 0; i < intList.length; i++) {
-					final int index = intList.list[i];
-					SourceRefElement element = (SourceRefElement) elements[index];
-					DOMFinder finder = new DOMFinder(ast, element, true/*resolve binding*/);
-					try {
-						finder.search();
-					} catch (JavaModelException e) {
-						throw new IllegalArgumentException(element + " does not exist", e); //$NON-NLS-1$
-					}
-					this.bindings[index] = finder.foundBinding;
-				}
-			}
-			@Override
-			public void acceptBinding(String bindingKey, IBinding binding) {
-				int index = binaryElementPositions.get(bindingKey);
-				this.bindings[index] = binding;
-			}
-		}
-		Requestor requestor = new Requestor();
-		resolve(cus, bindingKeys, requestor, apiLevel, compilerOptions, javaProject, owner, flags, monitor);
-		return requestor.bindings;
-	}
-
 	@Override
 	public void parse(ICompilationUnit[] compilationUnits, ASTRequestor requestor, int apiLevel,
 			Map<String, String> compilerOptions, int flags, IProgressMonitor monitor) {
