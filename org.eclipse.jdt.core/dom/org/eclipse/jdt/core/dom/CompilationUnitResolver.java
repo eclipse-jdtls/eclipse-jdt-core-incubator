@@ -82,7 +82,7 @@ import org.eclipse.jdt.internal.core.util.CommentRecorderParser;
 import org.eclipse.jdt.internal.core.util.DOMFinder;
 
 @SuppressWarnings({ "rawtypes", "unchecked" })
-class CompilationUnitResolver extends Compiler {
+class CompilationUnitResolver extends Compiler implements AdditionalBindingCreator {
 
 	private static final class ECJCompilationUnitResolver implements ICompilationUnitResolver {
 
@@ -316,7 +316,8 @@ class CompilationUnitResolver extends Compiler {
 		this.lookupEnvironment.completeTypeBindings();
 	}
 
-	IBinding createBinding(String key) {
+	@Override
+	public IBinding createBinding(String key) {
 		if (this.bindingTables == null)
 			throw new RuntimeException("Cannot be called outside ASTParser#createASTs(...)"); //$NON-NLS-1$
 		BindingKeyResolver keyResolver = new BindingKeyResolver(key, this, this.lookupEnvironment);
@@ -1004,7 +1005,7 @@ class CompilationUnitResolver extends Compiler {
 			int flags) {
 
 		// temporarily connect ourselves to the ASTResolver - must disconnect when done
-		astRequestor.compilationUnitResolver = this;
+		astRequestor.additionalBindingCreator = this;
 		this.bindingTables = new DefaultBindingResolver.BindingTables();
 		CompilationUnitDeclaration unit = null;
 		try {
@@ -1107,7 +1108,7 @@ class CompilationUnitResolver extends Compiler {
 			throw e; // rethrow
 		} finally {
 			// disconnect ourselves from ast requestor
-			astRequestor.compilationUnitResolver = null;
+			astRequestor.additionalBindingCreator = null;
 		}
 	}
 

@@ -41,7 +41,7 @@ public abstract class ASTRequestor {
 	 * only within the dynamic scope of a call to
 	 * <code>ASTParser.createASTs</code>.
 	 */
-	CompilationUnitResolver compilationUnitResolver = null;
+	AdditionalBindingCreator additionalBindingCreator = null;
 
 	/**
 	 * Creates a new instance.
@@ -111,8 +111,8 @@ public abstract class ASTRequestor {
 		IBinding[] result = new IBinding[length];
 		for (int i = 0; i < length; i++) {
 			result[i] = null;
-			if (this.compilationUnitResolver != null) {
-				result[i] = this.compilationUnitResolver.createBinding(bindingKeys[i]);
+			if (this.additionalBindingCreator != null) {
+				result[i] = this.additionalBindingCreator.createBinding(bindingKeys[i]);
 			}
 		}
 		return result;
