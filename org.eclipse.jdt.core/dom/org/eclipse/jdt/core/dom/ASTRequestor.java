@@ -13,6 +13,8 @@
  *******************************************************************************/
 package org.eclipse.jdt.core.dom;
 
+import java.util.function.Function;
+
 import org.eclipse.jdt.core.ICompilationUnit;
 
 /**
@@ -36,12 +38,13 @@ import org.eclipse.jdt.core.ICompilationUnit;
 public abstract class ASTRequestor {
 
 	/**
-	 * The compilation unit resolver used to resolve bindings, or
-	 * <code>null</code> if none. Note that this field is non-null
+	 * The function used to resolve additional bindings by binding key,
+	 * or <code>null</code> if none.
+	 * Note that this field is non-null
 	 * only within the dynamic scope of a call to
 	 * <code>ASTParser.createASTs</code>.
 	 */
-	AdditionalBindingCreator additionalBindingCreator = null;
+	Function<String, IBinding> additionalBindingCreator = null;
 
 	/**
 	 * Creates a new instance.
@@ -112,7 +115,7 @@ public abstract class ASTRequestor {
 		for (int i = 0; i < length; i++) {
 			result[i] = null;
 			if (this.additionalBindingCreator != null) {
-				result[i] = this.additionalBindingCreator.createBinding(bindingKeys[i]);
+				result[i] = this.additionalBindingCreator.apply(bindingKeys[i]);
 			}
 		}
 		return result;

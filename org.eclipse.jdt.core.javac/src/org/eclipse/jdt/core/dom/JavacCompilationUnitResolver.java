@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import javax.tools.Diagnostic;
@@ -184,7 +185,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 
 				}, new CompilerOptions(compilerOptions), null, environment);
 
-				requestor.additionalBindingCreator = new JavacAdditionalBindingCreator(bindingMap, environment, lu, bindingResolver);
+				requestor.additionalBindingCreator = javacAdditionalBindingCreator(bindingMap, environment, lu, bindingResolver);
 			}
 
 			units.forEach((a,b) -> {
@@ -721,10 +722,9 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 	}
 
-	private static record JavacAdditionalBindingCreator(Map<String, IBinding> bindingMap, INameEnvironment environment, LookupEnvironment lu, BindingResolver[] bindingResolverPointer) implements AdditionalBindingCreator {
+	private static Function<String, IBinding> javacAdditionalBindingCreator(Map<String, IBinding> bindingMap, INameEnvironment environment, LookupEnvironment lu, BindingResolver[] bindingResolverPointer) {
 
-		@Override
-		public IBinding createBinding(String key) {
+		return key -> {
 
 			{
 				// check parsed files
@@ -759,7 +759,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			}
 
 			return null;
-		}
+		};
 
 	}
 
