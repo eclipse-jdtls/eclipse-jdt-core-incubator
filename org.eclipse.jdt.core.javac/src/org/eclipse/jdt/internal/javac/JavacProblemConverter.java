@@ -41,6 +41,7 @@ import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
+import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.JCDiagnostic;
@@ -102,8 +103,7 @@ public class JavacProblemConverter {
 				case JCMethodDecl jcMethodDecl: return getDiagnosticPosition(jcDiagnostic, jcMethodDecl);
 				case JCFieldAccess jcFieldAccess:
 					if (getDiagnosticArgumentByType(jcDiagnostic, KindName.class) != KindName.PACKAGE) {
-						// TODO here, instead of recomputing a position, get the JDT DOM node and call the Name (which has a position)
-						return new org.eclipse.jface.text.Position(jcFieldAccess.getPreferredPosition() + 1, jcFieldAccess.getIdentifier().length());
+						return getDiagnosticPosition(jcDiagnostic, jcFieldAccess);
 					}
 					// else: fail-through
 				default:
@@ -276,6 +276,20 @@ public class JavacProblemConverter {
 		return getDefaultPosition(jcDiagnostic);
 	}
 
+	private static org.eclipse.jface.text.Position getDiagnosticPosition(JCDiagnostic jcDiagnostic, JCFieldAccess jcFieldAccess) {
+		int startPosition = (int) jcDiagnostic.getPosition();
+		if (startPosition != Position.NOPOS) {
+			try {
+				// TODO here, instead of recomputing a position, get the JDT DOM node and call the Name (which has a position)
+				String name = jcFieldAccess.name.toString();
+				return getDiagnosticPosition(name, startPosition, jcDiagnostic);
+			} catch (IOException ex) {
+				ILog.get().error(ex.getMessage(), ex);
+			}
+		}
+		return getDefaultPosition(jcDiagnostic);
+	}
+
 	private static org.eclipse.jface.text.Position getDiagnosticPosition(String name, int startPosition, JCDiagnostic jcDiagnostic)
 			throws IOException {
 		if (name != null && !name.isEmpty()) {
@@ -343,7 +357,7 @@ public class JavacProblemConverter {
 			case "compiler.err.cant.resolve" -> convertUnresolvedVariable(diagnostic);
 			case "compiler.err.cant.resolve.args" -> convertUndefinedMethod(diagnostic);
 			case "compiler.err.cant.resolve.args.params" -> IProblem.UndefinedMethod;
-			case "compiler.err.cant.apply.symbols", "compiler.err.cant.apply.symbol" -> 
+			case "compiler.err.cant.apply.symbols", "compiler.err.cant.apply.symbol" ->
 				switch (getDiagnosticArgumentByType(diagnostic, Kinds.KindName.class)) {
 					case CONSTRUCTOR -> IProblem.UndefinedConstructor;
 					case METHOD -> IProblem.ParameterMismatch;
