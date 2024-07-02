@@ -265,7 +265,8 @@ public class JavacProblemConverter {
 	private static org.eclipse.jface.text.Position getDiagnosticPosition(JCDiagnostic jcDiagnostic, JCClassDecl jcClassDecl) {
 		int startPosition = (int) jcDiagnostic.getPosition();
 		if (startPosition != Position.NOPOS &&
-			!jcClassDecl.getMembers().isEmpty() && jcClassDecl.getStartPosition() != jcClassDecl.getMembers().get(0).getStartPosition()) {
+			(jcClassDecl.getMembers().isEmpty()
+					|| (!jcClassDecl.getMembers().isEmpty() && jcClassDecl.getStartPosition() != jcClassDecl.getMembers().get(0).getStartPosition()))) {
 			try {
 				String name = jcClassDecl.getSimpleName().toString();
 				return getDiagnosticPosition(name, startPosition, jcDiagnostic);
@@ -343,7 +344,7 @@ public class JavacProblemConverter {
 			case "compiler.err.cant.resolve" -> convertUnresolvedVariable(diagnostic);
 			case "compiler.err.cant.resolve.args" -> convertUndefinedMethod(diagnostic);
 			case "compiler.err.cant.resolve.args.params" -> IProblem.UndefinedMethod;
-			case "compiler.err.cant.apply.symbols", "compiler.err.cant.apply.symbol" -> 
+			case "compiler.err.cant.apply.symbols", "compiler.err.cant.apply.symbol" ->
 				switch (getDiagnosticArgumentByType(diagnostic, Kinds.KindName.class)) {
 					case CONSTRUCTOR -> IProblem.UndefinedConstructor;
 					case METHOD -> IProblem.ParameterMismatch;
@@ -408,6 +409,9 @@ public class JavacProblemConverter {
 			case "compiler.err.dc.unterminated.signature" -> IProblem.JavadocUnexpectedText;
 			case "compiler.err.dc.unterminated.string" -> IProblem.JavadocUnexpectedText;
 			case "compiler.err.dc.ref.annotations.not.allowed" -> IProblem.JavadocUnexpectedText;
+			case "compiler.warn.strictfp" -> IProblem.StrictfpNotRequired;
+			case "compiler.err.mod.not.allowed.here" -> convertInvalidSingleModifier(diagnostic);
+			case "compiler.err.illegal.combination.of.modifiers" -> convertInvalidModifierCombo(diagnostic);
 			case "compiler.warn.proc.messager", "compiler.err.proc.messager" -> {
 				// probably some javadoc comment, we didn't find a good way to get javadoc
 				// code/ids: there are lost in the diagnostic when going through
@@ -463,6 +467,56 @@ public class JavacProblemConverter {
 
 		return IProblem.UndefinedMethod;
 	}
+
+	private static int convertInvalidSingleModifier(Diagnostic<?> diagnostic) {
+		if (diagnostic instanceof JCDiagnostic jcDiagnostic) {
+			try {
+				int startPosition = (int) jcDiagnostic.getPosition();
+				DiagnosticSource source = jcDiagnostic.getDiagnosticSource();
+				JavaFileObject fileObject = source.getFile();
+				CharSequence charContent = fileObject.getCharContent(true);
+				if (jcDiagnostic.getDiagnosticPosition() instanceof JCTree.JCClassDecl) {
+					if ("enum".equals(charContent.subSequence(startPosition, startPosition + "enum".length()).toString())) {
+						return IProblem.IllegalModifierForEnum;
+					}
+					if ("record".equals(charContent.subSequence(startPosition, startPosition + "record".length()).toString())) {
+						return IProblem.RecordIllegalModifierForRecord;
+					}
+					return IProblem.IllegalModifierForClass;
+				} else if (jcDiagnostic.getDiagnosticPosition() instanceof JCTree.JCVariableDecl) {
+					return IProblem.IllegalModifierForField;
+				} else if (jcDiagnostic.getDiagnosticPosition() instanceof JCDiagnostic.SimpleDiagnosticPosition) {
+					if ("module".equals(charContent.subSequence(startPosition, startPosition + "module".length()).toString())) {
+						return IProblem.IllegalModifierForModule;
+					}
+					return IProblem.IllegalModifierForArgument;
+				}
+			} catch (Exception e) {
+				// do nothing
+			}
+
+		}
+
+		throw new IllegalStateException("don't know what to make of this diagnostic message");
+	}
+
+	private static int convertInvalidModifierCombo(Diagnostic<?> diagnostic) {
+		if (diagnostic instanceof JCDiagnostic jcDiagnostic) {
+			try {
+				if (jcDiagnostic.getDiagnosticPosition() instanceof JCTree.JCClassDecl classDecl) {
+					if ((classDecl.mods.flags & com.sun.tools.javac.code.Flags.FINAL) != 0 && (classDecl.mods.flags & com.sun.tools.javac.code.Flags.ABSTRACT) != 0) {
+						return IProblem.IllegalModifierCombinationFinalAbstractForClass;
+					}
+				}
+				return IProblem.IllegalModifiers;
+			} catch (Exception e) {
+				// do nothing
+			}
+		}
+
+		throw new IllegalStateException("don't know what to make of this diagnostic message");
+	}
+
 
 	private <T> T getDiagnosticArgumentByType(Diagnostic<?> diagnostic, Class<T> type) {
 		if (!(diagnostic instanceof JCDiagnostic jcDiagnostic)) {
