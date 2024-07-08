@@ -79,6 +79,7 @@ public class AbstractCompilerTest extends TestCase {
 	protected static boolean isJRE20Plus = false;
 	protected static boolean isJRE21Plus = false;
 	protected static boolean isJRE22Plus = false;
+	protected static boolean isJRE23Plus = false;
 	protected static boolean reflectNestedClassUseDollar;
 
 	public static int[][] complianceTestLevelMapping = new int[][] {
@@ -348,7 +349,8 @@ public class AbstractCompilerTest extends TestCase {
 			if (spec > Integer.parseInt(CompilerOptions.getLatestVersion())) {
 				specVersion = CompilerOptions.getLatestVersion();
 			}
-			isJRE22Plus = CompilerOptions.VERSION_22.equals(specVersion);
+			isJRE23Plus = CompilerOptions.VERSION_23.equals(specVersion);
+			isJRE22Plus = isJRE23Plus ||CompilerOptions.VERSION_22.equals(specVersion);
 			isJRE21Plus = isJRE22Plus || CompilerOptions.VERSION_21.equals(specVersion);
 			isJRE20Plus = isJRE21Plus || CompilerOptions.VERSION_20.equals(specVersion);
 			isJRE19Plus = isJRE20Plus || CompilerOptions.VERSION_19.equals(specVersion);
