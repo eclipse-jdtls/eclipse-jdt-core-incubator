@@ -243,7 +243,7 @@ public class DOMCodeSelector {
 			return new IJavaElement[] { importBinding.getJavaElement() };
 		} else if (findTypeDeclaration(node) == null) {
 			IBinding binding = resolveBinding(node);
-			if (binding != null) {
+			if (binding != null && !binding.isRecovered()) {
 				if (node instanceof SuperMethodInvocation && // on `super`
 					binding instanceof IMethodBinding methodBinding &&
 					methodBinding.getDeclaringClass() instanceof ITypeBinding typeBinding &&
