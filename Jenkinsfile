@@ -32,11 +32,11 @@ pipeline {
 
 					# Build and test without DOM-first to ensure no regression takes place
 					mvn -U clean verify --batch-mode --fail-at-end -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-						-Ptest-on-javase-22 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
+						-Ptest-on-javase-23 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
 						-Dmaven.test.failure.ignore=true \
 						-Dcompare-version-with-baselines.skip=false \
 						-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,21,22 -Djdt.performance.asserts=disabled" \
+						-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,21,23 -Djdt.performance.asserts=disabled" \
 						-DDetectVMInstallationsJob.disabled=true \
 						-Dtycho.apitools.debug \
 						-Dtycho.debug.artifactcomparator \
@@ -73,7 +73,7 @@ pipeline {
 						-pl org.eclipse.jdt.core,org.eclipse.jdt.core.javac,repository
 
 					mvn verify --batch-mode -f org.eclipse.jdt.core.tests.javac \
-						--fail-at-end -Ptest-on-javase-22 -Pbree-libs \
+						--fail-at-end -Ptest-on-javase-23 -Pbree-libs \
 						-Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
 						-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true  
 """
