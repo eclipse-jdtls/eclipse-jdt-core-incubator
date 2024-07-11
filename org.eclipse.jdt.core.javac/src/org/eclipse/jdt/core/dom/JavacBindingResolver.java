@@ -490,7 +490,7 @@ public class JavacBindingResolver extends BindingResolver {
 	IMethodBinding resolveMethod(MethodDeclaration method) {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(method);
-		if (javacElement instanceof JCMethodDecl methodDecl) {
+		if (javacElement instanceof JCMethodDecl methodDecl && methodDecl.type != null) {
 			return this.bindings.getMethodBinding(methodDecl.type.asMethodType(), methodDecl.sym);
 		}
 		return null;
@@ -758,6 +758,7 @@ public class JavacBindingResolver extends BindingResolver {
 	IMethodBinding resolveConstructor(ClassInstanceCreation expression) {
 		resolve();
 		return this.converter.domToJavac.get(expression) instanceof JCNewClass jcExpr
+				&& jcExpr.constructor != null
 				&& !jcExpr.constructor.type.isErroneous()?
 						this.bindings.getMethodBinding(jcExpr.constructor.type.asMethodType(), (MethodSymbol)jcExpr.constructor) :
 				null;
