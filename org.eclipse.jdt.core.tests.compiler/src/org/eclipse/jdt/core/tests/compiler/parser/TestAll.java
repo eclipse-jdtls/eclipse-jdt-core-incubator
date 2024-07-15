@@ -280,6 +280,19 @@ public static TestSuite getTestSuite(boolean addComplianceDiagnoseTest) {
 		TestCase.RUN_ONLY_ID = null;
 		all.addTest(AbstractCompilerTest.buildComplianceTestSuite(ClassFileConstants.getComplianceLevelForJavaVersion(ClassFileConstants.MAJOR_VERSION_22), tests_22));
 	}
+	if ((possibleComplianceLevels & AbstractCompilerTest.F_23) != 0) {
+        ArrayList tests_23 = (ArrayList)testClasses.clone();
+        tests_23.addAll(TEST_CLASSES_1_5);
+        addJava16Tests(tests_23);
+//      tests_22.add(SuperAfterStatementsTest.class);
+        // Reset forgotten subsets tests
+        TestCase.TESTS_PREFIX = null;
+        TestCase.TESTS_NAMES = null;
+        TestCase.TESTS_NUMBERS= null;
+        TestCase.TESTS_RANGE = null;
+        TestCase.RUN_ONLY_ID = null;
+        all.addTest(AbstractCompilerTest.buildComplianceTestSuite(ClassFileConstants.getComplianceLevelForJavaVersion(ClassFileConstants.MAJOR_VERSION_23), tests_23));
+    }
 	return all;
 }
 
