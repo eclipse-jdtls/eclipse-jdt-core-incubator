@@ -34,6 +34,8 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.Tree;
 import com.sun.tools.javac.code.Symbol.ClassSymbol;
+import com.sun.tools.javac.code.Symbol.MethodSymbol;
+import com.sun.tools.javac.code.Symbol.VarSymbol;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCImport;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
@@ -160,13 +162,19 @@ public class UnusedProblemFactory {
 				int problemId = IProblem.LocalVariableIsNeverUsed;
 				String[] arguments = null;
 				String name = variableDecl.name.toString();
-				if (variableDecl.sym.owner instanceof ClassSymbol) {
+				VarSymbol varSymbol = variableDecl.sym;
+				if (varSymbol.owner instanceof ClassSymbol) {
 					problemId = IProblem.UnusedPrivateField;
-					String typeName = variableDecl.sym.owner.name.toString();
+					String typeName = varSymbol.owner.name.toString();
 					arguments = new String[] {
 						typeName, name
 					};
-				} else {
+				} else if (varSymbol.owner instanceof MethodSymbol methodSymbol) {
+					if (methodSymbol.params().indexOf(varSymbol) >= 0) {
+						problemId = IProblem.ArgumentIsNeverUsed;
+					} else {
+						problemId = IProblem.LocalVariableIsNeverUsed;
+					}
 					arguments = new String[] { name };
 				}
 
