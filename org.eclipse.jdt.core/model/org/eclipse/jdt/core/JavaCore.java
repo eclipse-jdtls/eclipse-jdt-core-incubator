@@ -6501,7 +6501,8 @@ public final class JavaCore extends Plugin {
 	 * @return the latest Java version support by Java Model
 	 */
 	public static String latestSupportedJavaVersion() {
-		return allVersions.get(allVersions.size() - 1);
+		return System.getProperty(JavaCore.class.getSimpleName() + ".latestSupportedJavaVersion" //$NON-NLS-1$
+				, allVersions.get(allVersions.size() - 1));
 	}
 
 	/**
