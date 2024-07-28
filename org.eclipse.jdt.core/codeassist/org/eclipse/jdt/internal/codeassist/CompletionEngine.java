@@ -4972,7 +4972,7 @@ public final class CompletionEngine
 		return 0;
 	}
 
-	private int computeRelevanceForJavaLibrary(char[] packageName) {
+	static int computeRelevanceForJavaLibrary(char[] packageName) {
 		if (new String(packageName).startsWith("java.")) { //$NON-NLS-1$
 			return R_JAVA_LIBRARY;
 		}

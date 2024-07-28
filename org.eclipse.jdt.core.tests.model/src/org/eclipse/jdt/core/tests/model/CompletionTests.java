@@ -43,7 +43,7 @@ import junit.framework.Test;
 public class CompletionTests extends AbstractJavaModelCompletionTests {
 
 static {
-//	TESTS_NAMES = new String[] { "testCompletionMethodDeclaration17"};
+	TESTS_NAMES = new String[] { "testAbortCompletion1"};
 }
 public static Test suite() {
 	return buildModelTestSuite(CompletionTests.class, ALPHABETICAL_SORT);

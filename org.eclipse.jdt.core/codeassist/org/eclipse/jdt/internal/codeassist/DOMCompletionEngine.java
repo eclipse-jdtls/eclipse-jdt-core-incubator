@@ -35,7 +35,9 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.ASTParser;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.Block;
@@ -57,6 +59,7 @@ import org.eclipse.jdt.core.dom.PrimitiveType;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
@@ -533,10 +536,11 @@ public class DOMCompletionEngine implements Runnable {
 		InternalCompletionProposal res = new InternalCompletionProposal(CompletionProposal.TYPE_REF, this.offset);
 		char[] simpleName = type.getElementName().toCharArray();
 		char[] signature = Signature.createTypeSignature(type.getFullyQualifiedName(), true).toCharArray();
+		char[] packageName = type.getPackageFragment().getElementName().toCharArray();
 
-		res.setName(simpleName);
-		res.setCompletion(type.getElementName().toCharArray());
+		res.setCompletion(simpleName);
 		res.setSignature(signature);
+		res.setDeclarationSignature(packageName);
 		res.setReplaceRange(!(this.toComplete instanceof FieldAccess) ? this.toComplete.getStartPosition() : this.offset, this.offset);
 		try {
 			res.setFlags(type.getFlags());
@@ -550,6 +554,21 @@ public class DOMCompletionEngine implements Runnable {
 		res.nameLookup = this.nameEnvironment.nameLookup;
 		// set defaults for now to avoid error downstream
 		res.setRequiredProposals(new CompletionProposal[] { toImportProposal(simpleName, signature) });
+
+		ITypeBinding typeBinding = resolveBindings(type);
+		int relevance = CompletionEngine.computeBaseRelevance();
+		relevance += CompletionEngine.computeRelevanceForResolution();
+		
+		relevance += this.nestedEngine.computeRelevanceForCaseMatching(this.prefix.toCharArray(), simpleName);
+		if(typeBinding != null) {
+			relevance += this.computeRelevanceForInterestingProposal(typeBinding);			
+			relevance += computeRelevanceForExpectingType(typeBinding);
+		}
+		relevance += this.nestedEngine.computeRelevanceForQualification(false);
+		relevance += CompletionEngine.computeRelevanceForJavaLibrary(packageName);
+		relevance += CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE); // no access restriction for type in the current unit
+		res.setRelevance(relevance);
+
 		return res;
 	}
 
@@ -687,4 +706,20 @@ public class DOMCompletionEngine implements Runnable {
 		proposal.setRequiredProposals(new CompletionProposal[0]);
 		return proposal;
 	}
+
+	public ITypeBinding resolveBindings(IType type) {
+		ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+		parser.setSource(type.getTypeRoot());
+		parser.setBindingsRecovery(true);
+		parser.setResolveBindings(true);
+		parser.setStatementsRecovery(false);
+		CompilationUnit cu = (CompilationUnit) parser.createAST(null);
+		TypeDeclaration typeDecl = (TypeDeclaration) cu.findDeclaringNode(type.getKey());	
+		return typeDecl.resolveBinding();		
+	}
+
+	private int computeRelevanceForInterestingProposal(IBinding binding){
+		return RelevanceConstants.R_INTERESTING;
+	}
+
 }
