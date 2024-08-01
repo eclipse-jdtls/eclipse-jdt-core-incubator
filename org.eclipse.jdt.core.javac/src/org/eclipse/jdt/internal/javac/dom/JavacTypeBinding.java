@@ -176,7 +176,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					return type.getType("", 1);
 				}
 			}
-			
+
 			JavaFileObject jfo = classSymbol == null ? null : classSymbol.sourcefile;
 			ICompilationUnit tmp = jfo == null ? null : getCompilationUnit(jfo.getName().toCharArray(), this.resolver.getWorkingCopyOwner());
 			if( tmp != null ) {
@@ -191,9 +191,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					if( ret == null )
 						done = true;
 				}
-				if( ret != null ) 
+				if( ret != null )
 					return ret;
-			} 
+			}
 			try {
 				IType ret = this.resolver.javaProject.findType(cleanedUpName(classSymbol), this.resolver.getWorkingCopyOwner(), new NullProgressMonitor());
 				return ret;
@@ -622,7 +622,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		}
 		StringBuilder res = new StringBuilder();
 		if( owner instanceof RootPackageSymbol rps ) {
-			return type.tsym.name.toString();
+			return type.tsym == null ? "" : type.tsym.name.toString();
 		} else if( owner instanceof TypeSymbol tss) {
 			Type parentType = (type instanceof ClassType ct && ct.getEnclosingType() != Type.noType ? ct.getEnclosingType() : tss.type);
 			String parentName = getQualifiedNameImpl(parentType, tss, tss.owner);
@@ -708,7 +708,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	public ITypeBinding[] getTypeArguments() {
 		return getTypeArguments(this.type, this.typeSymbol);
 	}
-	
+
 	private ITypeBinding[] getTypeArguments(Type t, TypeSymbol ts) {
 		if (t.getTypeArguments().isEmpty() || t == ts.type || isTargettingPreGenerics()) {
 			return NO_TYPE_ARGUMENTS;
