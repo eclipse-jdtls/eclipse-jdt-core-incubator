@@ -113,12 +113,12 @@ public class JavacBindingResolver extends BindingResolver {
 		//
 		private Map<String, JavacMethodBinding> methodBindings = new HashMap<>();
 		public JavacMethodBinding getMethodBinding(MethodType methodType, MethodSymbol methodSymbol, com.sun.tools.javac.code.Type parentType) {
-			JavacMethodBinding newInstance = new JavacMethodBinding(methodType, methodSymbol, parentType, JavacBindingResolver.this) { };
+			JavacMethodBinding newInstance = new JavacMethodBinding(methodType, methodSymbol, parentType instanceof com.sun.tools.javac.code.Type.ClassType parentClassType ? parentClassType : null, JavacBindingResolver.this) { };
 			methodBindings.putIfAbsent(newInstance.getKey(), newInstance);
 			return methodBindings.get(newInstance.getKey());
 		}
 		public JavacMethodBinding getErrorMethodBinding(MethodType methodType, Symbol originatingSymbol) {
-			JavacMethodBinding newInstance = new JavacErrorMethodBinding(originatingSymbol, methodType, originatingSymbol.owner.type, JavacBindingResolver.this) { };
+			JavacMethodBinding newInstance = new JavacErrorMethodBinding(originatingSymbol, methodType, originatingSymbol.owner.type instanceof com.sun.tools.javac.code.Type.ClassType parentClassType ? parentClassType : null, JavacBindingResolver.this) { };
 			methodBindings.putIfAbsent(newInstance.getKey(), newInstance);
 			return methodBindings.get(newInstance.getKey());
 		}

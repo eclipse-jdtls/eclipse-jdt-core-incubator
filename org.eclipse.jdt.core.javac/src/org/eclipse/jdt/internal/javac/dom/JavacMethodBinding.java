@@ -61,11 +61,11 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	private static final ITypeBinding[] NO_TYPE_PARAMS = new ITypeBinding[0];
 
 	public final MethodSymbol methodSymbol;
-	final Type parentType;
+	final Type.ClassType parentType;
 	final MethodType methodType;
 	final JavacBindingResolver resolver;
 
-	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver) {
+	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, Type.ClassType parentType, JavacBindingResolver resolver) {
 		this.methodType = methodType;
 		this.methodSymbol = methodSymbol;
 		this.parentType = parentType;
@@ -259,19 +259,23 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	@Override
 	public String getKey() {
 		StringBuilder builder = new StringBuilder();
-		getKey(builder, this.methodSymbol, this.methodType, this.resolver);
+		getKey(builder, this.methodSymbol, this.methodType, this.parentType, this.resolver);
 		return builder.toString();
 	}
 
-	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, MethodType methodType, JavacBindingResolver resolver) {
-		Symbol ownerSymbol = methodSymbol.owner;
-		while (ownerSymbol != null && !(ownerSymbol instanceof TypeSymbol)) {
-			ownerSymbol = ownerSymbol.owner;
-		}
-		if (ownerSymbol instanceof TypeSymbol ownerTypeSymbol) {
-			JavacTypeBinding.getKey(builder, resolver.getTypes().erasure(ownerTypeSymbol.type), false);
+	static void getKey(StringBuilder builder, MethodSymbol methodSymbol, MethodType methodType, Type parentType, JavacBindingResolver resolver) {
+		if (parentType != null) {
+			JavacTypeBinding.getKey(builder, parentType, false);
 		} else {
-			throw new IllegalArgumentException("Method has no owning class");
+			Symbol ownerSymbol = methodSymbol.owner;
+			while (ownerSymbol != null && !(ownerSymbol instanceof TypeSymbol)) {
+				ownerSymbol = ownerSymbol.owner;
+			}
+			if (ownerSymbol instanceof TypeSymbol ownerTypeSymbol) {
+				JavacTypeBinding.getKey(builder, resolver.getTypes().erasure(ownerTypeSymbol.type), false);
+			} else {
+				throw new IllegalArgumentException("Method has no owning class");
+			}
 		}
 		builder.append('.');
 		if (!methodSymbol.isConstructor()) {
@@ -302,7 +306,9 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 				}
 			}
 			builder.append(')');
-			if (!(methodSymbol.getReturnType() instanceof JCNoType)) {
+			if (methodType != null && !(methodType.getReturnType() instanceof JCNoType)) {
+				JavacTypeBinding.getKey(builder, methodType.getReturnType(), false);
+			} else if (!(methodSymbol.getReturnType() instanceof JCNoType)) {
 				JavacTypeBinding.getKey(builder, methodSymbol.getReturnType(), false);
 			}
 			if (
@@ -347,6 +353,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	@Override
 	public String getName() {
 		if (Objects.equals(Names.instance(this.resolver.context).init, this.methodSymbol.getSimpleName())) {
+			// declaring class might contain type arguments,
+			// but type arguments are not expected in the name
 			return this.getDeclaringClass().getName();
 		}
 		return this.methodSymbol.getSimpleName().toString();
@@ -498,7 +506,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		// This method intentionally converts the type to its generic type,
 		// i.e. drops the type arguments
 		// i.e. <code>this.<String>getValue(12);</code> will be converted back to <code><T> T getValue(int i) {</code>
-		return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol, methodSymbol.owner.type);
+		return this.resolver.bindings.getMethodBinding((MethodType)methodSymbol.type, methodSymbol, methodSymbol.owner.type);
 	}
 
 	@Override
