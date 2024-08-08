@@ -158,7 +158,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				return ownerType.getTypeParameter(this.getName());
 			} else if (this.typeSymbol.owner instanceof MethodSymbol ownerSymbol
 					&& ownerSymbol.type != null
-					&& this.resolver.bindings.getMethodBinding(ownerSymbol.type.asMethodType(), ownerSymbol).getJavaElement() instanceof IMethod ownerMethod
+					&& this.resolver.bindings.getMethodBinding(ownerSymbol.type.asMethodType(), ownerSymbol, this.type).getJavaElement() instanceof IMethod ownerMethod
 					&& ownerMethod.getTypeParameter(this.getName()) != null) {
 				return ownerMethod.getTypeParameter(this.getName());
 			}
@@ -427,7 +427,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			.map(MethodSymbol.class::cast)
 			.map(sym -> {
 				Type.MethodType methodType = this.types.memberType(this.type, sym).asMethodType();
-				return this.resolver.bindings.getMethodBinding(methodType, sym);
+				return this.resolver.bindings.getMethodBinding(methodType, sym, this.type);
 			})
 			.toArray(IMethodBinding[]::new);
 	}
@@ -470,10 +470,10 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		do {
 			if (parentSymbol instanceof final MethodSymbol method) {
 				if (method.type instanceof Type.MethodType methodType) {
-					return this.resolver.bindings.getMethodBinding(methodType, method);
+					return this.resolver.bindings.getMethodBinding(methodType, method, method.owner.type);
 				}
 				if( method.type instanceof Type.ForAll faType && faType.qtype instanceof MethodType mtt) {
-					IMethodBinding found = this.resolver.bindings.getMethodBinding(mtt, method);
+					IMethodBinding found = this.resolver.bindings.getMethodBinding(mtt, method, method.owner.type);
 					return found;
 				}
 				return null;
@@ -518,7 +518,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		try {
 			Symbol symbol = types.findDescriptorSymbol(this.typeSymbol);
 			if (symbol instanceof MethodSymbol methodSymbol) {
-				return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol);
+				return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol, this.type);
 			}
 		} catch (FunctionDescriptorLookupError ignore) {
 		}

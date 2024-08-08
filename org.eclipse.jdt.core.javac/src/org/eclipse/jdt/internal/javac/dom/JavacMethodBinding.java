@@ -61,12 +61,14 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 	private static final ITypeBinding[] NO_TYPE_PARAMS = new ITypeBinding[0];
 
 	public final MethodSymbol methodSymbol;
+	final Type parentType;
 	final MethodType methodType;
 	final JavacBindingResolver resolver;
 
-	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, JavacBindingResolver resolver) {
+	public JavacMethodBinding(MethodType methodType, MethodSymbol methodSymbol, Type parentType, JavacBindingResolver resolver) {
 		this.methodType = methodType;
 		this.methodSymbol = methodSymbol;
+		this.parentType = parentType;
 		this.resolver = resolver;
 	}
 
@@ -151,6 +153,8 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		if (this.methodSymbol == null) {
 			return null;
 		}
+
+		// TODO: use this.parentType
 		// This can be invalid: it looks like it's possible to get some methodSymbol
 		// for a method that doesn't exist (eg `Runnable.equals()`). So we may be
 		// constructing incorrect bindings.
@@ -350,15 +354,16 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 
 	@Override
 	public ITypeBinding getDeclaringClass() {
+		return this.resolver.bindings.getTypeBinding(parentType);
 		// probably incorrect as it may not return the actual declaring type, see getJavaElement()
-		Symbol parentSymbol = this.methodSymbol.owner;
-		do {
-			if (parentSymbol instanceof ClassSymbol clazz) {
-				return this.resolver.bindings.getTypeBinding(clazz.type);
-			}
-			parentSymbol = parentSymbol.owner;
-		} while (parentSymbol != null);
-		return null;
+//		Symbol parentSymbol = this.methodSymbol.owner;
+//		do {
+//			if (parentSymbol instanceof ClassSymbol clazz) {
+//				return this.resolver.bindings.getTypeBinding(clazz.type);
+//			}
+//			parentSymbol = parentSymbol.owner;
+//		} while (parentSymbol != null);
+//		return null;
 	}
 
 	@Override
@@ -367,7 +372,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			return null;
 		}
 		if (this.methodSymbol.owner instanceof MethodSymbol methodSymbol) {
-			return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol);
+			return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol, methodSymbol.owner.type);
 		} else if (this.methodSymbol.owner instanceof VarSymbol variableSymbol) {
 			return this.resolver.bindings.getVariableBinding(variableSymbol);
 		}
@@ -493,7 +498,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 		// This method intentionally converts the type to its generic type,
 		// i.e. drops the type arguments
 		// i.e. <code>this.<String>getValue(12);</code> will be converted back to <code><T> T getValue(int i) {</code>
-		return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol);
+		return this.resolver.bindings.getMethodBinding(methodSymbol.type.asMethodType(), methodSymbol, methodSymbol.owner.type);
 	}
 
 	@Override

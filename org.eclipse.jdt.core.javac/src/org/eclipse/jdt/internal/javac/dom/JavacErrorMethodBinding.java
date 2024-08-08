@@ -28,8 +28,8 @@ public abstract class JavacErrorMethodBinding extends JavacMethodBinding {
 
 	private Symbol originatingSymbol;
 
-	public JavacErrorMethodBinding(Symbol originatingSymbol, MethodType methodType, JavacBindingResolver resolver) {
-		super(methodType, null, resolver);
+	public JavacErrorMethodBinding(Symbol originatingSymbol, MethodType methodType, Type parentType, JavacBindingResolver resolver) {
+		super(methodType, null, parentType, resolver);
 		this.originatingSymbol = originatingSymbol;
 	}
 
