@@ -178,7 +178,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					return type.getType("", 1);
 				}
 			}
-			
+
 			JavaFileObject jfo = classSymbol == null ? null : classSymbol.sourcefile;
 			ICompilationUnit tmp = jfo == null ? null : getCompilationUnit(jfo.getName().toCharArray(), this.resolver.getWorkingCopyOwner());
 			if( tmp != null ) {
@@ -193,9 +193,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					if( ret == null )
 						done = true;
 				}
-				if( ret != null ) 
+				if( ret != null )
 					return ret;
-			} 
+			}
 			try {
 				IType ret = this.resolver.javaProject.findType(cleanedUpName(this.type), this.resolver.getWorkingCopyOwner(), new NullProgressMonitor());
 				return ret;
@@ -565,6 +565,19 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			}
 			return builder.toString();
 		}
+		if (type instanceof WildcardType wt) {
+			if (wt.type == null || this.resolver.resolveWellKnownType("java.lang.Object").equals(this.resolver.bindings.getTypeBinding(wt.type))) {
+				return "?";
+			}
+			StringBuilder builder = new StringBuilder("? ");
+			if (wt.isExtendsBound()) {
+				builder.append("extends ");
+			} else if (wt.isSuperBound()) {
+				builder.append("super ");
+			}
+			builder.append(this.resolver.bindings.getTypeBinding(wt.type).getName());
+			return builder.toString();
+		}
 		StringBuilder builder = new StringBuilder(this.typeSymbol.getSimpleName().toString());
 		if (this.getTypeArguments().length > 0) {
 			builder.append("<");
@@ -713,7 +726,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	public ITypeBinding[] getTypeArguments() {
 		return getTypeArguments(this.type, this.typeSymbol);
 	}
-	
+
 	private ITypeBinding[] getTypeArguments(Type t, TypeSymbol ts) {
 		if (t.getTypeArguments().isEmpty() || t == ts.type || isTargettingPreGenerics()) {
 			return NO_TYPE_ARGUMENTS;
