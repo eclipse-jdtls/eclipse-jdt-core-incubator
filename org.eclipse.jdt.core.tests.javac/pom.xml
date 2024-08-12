@@ -43,6 +43,7 @@
 						<configuration>
 							<includes>
 								<include>org/eclipse/jdt/core/tests/javac/RunConverterTestsJavac.class</include>
+								<include>org/eclipse/jdt/core/tests/javac/RunModelTestsJavac.class</include>
 							</includes>
 							<argLine>${tycho.surefire.argLine}</argLine>
 						</configuration>
