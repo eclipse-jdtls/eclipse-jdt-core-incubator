@@ -1098,6 +1098,9 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 	@Override
 	public IModuleBinding getModule() {
 		Symbol o = this.type.tsym.owner;
+		if( o instanceof ClassSymbol cs) {
+			o = cs.owner;
+		}
 		if( o instanceof PackageSymbol ps) {
 			return this.resolver.bindings.getModuleBinding(ps.modle);
 		}
