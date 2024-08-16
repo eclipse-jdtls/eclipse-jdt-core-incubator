@@ -605,6 +605,9 @@ public class DOMCodeSelector {
 	}
 
 	private IJavaElement[] findTypeInIndex(String packageName, String simpleName) throws JavaModelException {
+		if (simpleName == null) {
+			return new IJavaElement[0];
+		}
 		List<IType> indexMatch = new ArrayList<>();
 		TypeNameMatchRequestor requestor = new TypeNameMatchRequestor() {
 			@Override
