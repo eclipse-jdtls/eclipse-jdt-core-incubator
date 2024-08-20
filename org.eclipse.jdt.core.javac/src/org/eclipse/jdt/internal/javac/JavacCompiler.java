@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import javax.tools.DiagnosticListener;
+import javax.tools.JavaFileManager;
 import javax.tools.JavaFileObject;
 import javax.tools.JavaFileObject.Kind;
 
@@ -42,8 +43,10 @@ import org.eclipse.jdt.internal.compiler.IErrorHandlingPolicy;
 import org.eclipse.jdt.internal.compiler.IProblemFactory;
 import org.eclipse.jdt.internal.compiler.env.ICompilationUnit;
 import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
+import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.core.JavaProject;
 import org.eclipse.jdt.internal.core.builder.SourceFile;
+import org.eclipse.jdt.internal.core.jdom.CompilationUnit;
 
 import com.sun.tools.javac.api.MultiTaskListener;
 import com.sun.tools.javac.comp.*;
@@ -52,10 +55,13 @@ import com.sun.tools.javac.main.JavaCompiler;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Pair;
+import com.sun.tools.javac.file.JavacFileManager;
 
 public class JavacCompiler extends Compiler {
 	JavacConfig compilerConfig;
 	IProblemFactory problemFactory;
+
+	Map<JavaFileObject, ICompilationUnit> fileObjectToCUMap = new HashMap<>();
 
 	public JavacCompiler(INameEnvironment environment, IErrorHandlingPolicy policy, CompilerConfiguration compilerConfig,
 			ICompilerRequestor requestor, IProblemFactory problemFactory) {
@@ -70,13 +76,14 @@ public class JavacCompiler extends Compiler {
 		Map<ICompilationUnit, List<IProblem>> javacProblems = new HashMap<>();
 		JavacProblemConverter problemConverter = new JavacProblemConverter(this.compilerConfig.compilerOptions(), javacContext);
 		javacContext.put(DiagnosticListener.class, diagnostic -> {
-			if (diagnostic.getSource() instanceof JavacFileObject fileObject) {
+			if (diagnostic.getSource() instanceof JavaFileObject fileObject) {
 				JavacProblem javacProblem = problemConverter.createJavacProblem(diagnostic);
 				if (javacProblem != null) {
-					List<IProblem> previous = javacProblems.get(fileObject.getOriginalUnit());
+					ICompilationUnit originalUnit = this.fileObjectToCUMap.get(fileObject);
+					List<IProblem> previous = javacProblems.get(originalUnit);
 					if (previous == null) {
 						previous = new ArrayList<>();
-						javacProblems.put(fileObject.getOriginalUnit(), previous);
+						javacProblems.put(originalUnit, previous);
 					}
 					previous.add(javacProblem);
 				}
@@ -114,8 +121,7 @@ public class JavacCompiler extends Compiler {
 		mtl.add(javacListener);
 
 		for (Entry<IContainer, List<ICompilationUnit>> outputSourceSet : outputSourceMapping.entrySet()) {
-			// Configure Javac to generate the class files in a mapped temporary location
-			var outputDir = JavacClassFile.getMappedTempOutput(outputSourceSet.getKey()).toFile();
+			var outputDir = javaProject.getProject().getParent().findMember(outputSourceSet.getKey().getFullPath()).getLocation().toFile();
 			JavacUtils.configureJavacContext(javacContext, this.compilerConfig, javaProject, outputDir, true);
 			JavaCompiler javac = new JavaCompiler(javacContext) {
 				boolean isInGeneration = false;
@@ -158,25 +164,23 @@ public class JavacCompiler extends Compiler {
 			};
 			javacContext.put(JavaCompiler.compilerKey, javac);
 			javac.shouldStopPolicyIfError = CompileState.GENERATE;
+			JavacFileManager fileManager = (JavacFileManager)javacContext.get(JavaFileManager.class);
 			try {
 				javac.compile(com.sun.tools.javac.util.List.from(outputSourceSet.getValue().stream()
 						.filter(SourceFile.class::isInstance).map(SourceFile.class::cast).map(source -> {
 							File unitFile;
-							if (javaProject != null) {
-								// path is relative to the workspace, make it absolute
-								IResource asResource = javaProject.getProject().getParent()
-										.findMember(new String(source.getFileName()));
-								if (asResource != null) {
-									unitFile = asResource.getLocation().toFile();
-								} else {
-									unitFile = new File(new String(source.getFileName()));
-								}
+							// path is relative to the workspace, make it absolute
+							IResource asResource = javaProject.getProject().getParent()
+									.findMember(new String(source.getFileName()));
+							if (asResource != null) {
+								unitFile = asResource.getLocation().toFile();
 							} else {
 								unitFile = new File(new String(source.getFileName()));
 							}
-							return new JavacFileObject(source, null, unitFile.toURI(), Kind.SOURCE,
-									Charset.defaultCharset());
-						}).map(JavaFileObject.class::cast).toList()));
+							JavaFileObject jfo = fileManager.getJavaFileObject(unitFile.getAbsolutePath());
+							fileObjectToCUMap.put(jfo, source);
+							return jfo;
+						}).toList()));
 			} catch (Throwable e) {
 				// TODO fail
 				ILog.get().error("compilation failed", e);
@@ -206,8 +210,6 @@ public class JavacCompiler extends Compiler {
 				if (result.compiledTypes != null) {
 					for (Object type : result.compiledTypes.values()) {
 						if (type instanceof JavacClassFile classFile) {
-							// Delete the temporary class file generated by Javac
-							classFile.deleteTempClassFile();
 							/**
 							 * Javac does not generate class files for files with errors.
 							 * However, we return 0 bytes to the CompilationResult to
