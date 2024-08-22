@@ -2227,30 +2227,34 @@ class JavacConverter {
 			return res;
 		}
 		if (javac instanceof JCForLoop jcForLoop) {
-			ForStatement res = this.ast.newForStatement();
-			commonSettings(res, javac);
-			Statement stmt = convertStatement(jcForLoop.getStatement(), res);
-			if( stmt != null )
-				res.setBody(stmt);
-			var initializerIt = jcForLoop.getInitializer().iterator();
-			while(initializerIt.hasNext()) {
-				Expression expr = convertStatementToExpression((JCStatement)initializerIt.next(), res);
-				if( expr != null )
-					res.initializers().add(expr);
+			if ((jcForLoop.getStatement() instanceof JCBlock jcBlock && !jcBlock.getStatements().isEmpty()) ) {
+				ForStatement res = this.ast.newForStatement();
+				commonSettings(res, javac);
+				Statement stmt = convertStatement(jcForLoop.getStatement(), res);
+				if( stmt != null )
+					res.setBody(stmt);
+				var initializerIt = jcForLoop.getInitializer().iterator();
+				while(initializerIt.hasNext()) {
+					Expression expr = convertStatementToExpression((JCStatement)initializerIt.next(), res);
+					if( expr != null )
+						res.initializers().add(expr);
+				}
+				if (jcForLoop.getCondition() != null) {
+					Expression expr = convertExpression(jcForLoop.getCondition());
+					if( expr != null )
+						res.setExpression(expr);
+				}
+	
+				Iterator updateIt = jcForLoop.getUpdate().iterator();
+				while(updateIt.hasNext()) {
+					Expression expr = convertStatementToExpression((JCStatement)updateIt.next(), res);
+					if( expr != null )
+						res.updaters().add(expr);
+				}
+				return res;
 			}
-			if (jcForLoop.getCondition() != null) {
-				Expression expr = convertExpression(jcForLoop.getCondition());
-				if( expr != null )
-					res.setExpression(expr);
-			}
-
-			Iterator updateIt = jcForLoop.getUpdate().iterator();
-			while(updateIt.hasNext()) {
-				Expression expr = convertStatementToExpression((JCStatement)updateIt.next(), res);
-				if( expr != null )
-					res.updaters().add(expr);
-			}
-			return res;
+			//return null if for loop body is empty
+			return null;
 		}
 		if (javac instanceof JCEnhancedForLoop jcEnhancedForLoop) {
 			if( this.ast.apiLevel != AST.JLS2_INTERNAL) {
