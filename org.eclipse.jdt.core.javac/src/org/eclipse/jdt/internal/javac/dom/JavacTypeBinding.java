@@ -30,6 +30,7 @@ import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IWorkspaceRoot;
 import org.eclipse.core.resources.ResourcesPlugin;
 import org.eclipse.core.runtime.ILog;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.Path;
 import org.eclipse.jdt.core.ICompilationUnit;
@@ -192,7 +193,32 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			}
 
 			JavaFileObject jfo = classSymbol == null ? null : classSymbol.sourcefile;
-			ICompilationUnit tmp = jfo == null ? null : getCompilationUnit(jfo.getName().toCharArray(), this.resolver.getWorkingCopyOwner());
+			ICompilationUnit tmp = null;
+			if (jfo != null) {
+				try {
+					// If the file is not actually a source file,
+					// then this will throw
+					jfo.getLastModified();
+					// translate from jfo path,
+					// which must be an absolute path in order to get accurate diagnostics,
+					// to the o.e.c.IPath format,
+					// which is relative to the parent of the project folder,
+					// but starts with `/`
+					// (on *nix at least)
+					IPath parentOfProjectFolder = this.resolver.javaProject.getProject().getLocation().removeLastSegments(1);
+					IPath jfoAbsPath = new Path(jfo.getName());
+					if (!parentOfProjectFolder.isPrefixOf(jfoAbsPath)) {
+						ILog.get().error("compilation unit outside workspace");
+					}
+					IPath jfoRelPath = jfoAbsPath.makeRelativeTo(parentOfProjectFolder);
+					// the paths believe themselves to be absolute
+					jfoRelPath = jfoRelPath.makeAbsolute();
+					tmp = getCompilationUnit(jfoRelPath.toOSString().toCharArray(), this.resolver.getWorkingCopyOwner());
+				} catch (UnsupportedOperationException e) {
+					// expectation: the file is not a real source file.
+					// as an example, javac has an internal "/Object.java" which it pretends exists
+				}
+			}
 			if( tmp != null ) {
 				String[] cleaned = cleanedUpName(this.type).split("\\$");
 				if( cleaned.length > 0 ) {
@@ -440,12 +466,12 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				protected void append(char ch) {
 					res.append(ch);
 				}
-	
+
 				@Override
 				protected void append(byte[] ba) {
 					res.append(new String(ba));
 				}
-	
+
 				@Override
 				protected void append(Name name) {
 					res.append(name.toString());

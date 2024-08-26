@@ -37,6 +37,7 @@ import javax.tools.ToolProvider;
 
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.ILog;
+import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaProject;
@@ -569,10 +570,13 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		for (var sourceUnit : sourceUnits) {
 			File unitFile;
 			if (javaProject != null) {
-				// path is relative to the workspace, make it absolute
+				// path is relative to the parent of the project, make it absolute
 				IResource asResource = javaProject.getProject().getParent().findMember(new String(sourceUnit.getFileName()));
 				if (asResource != null) {
 					unitFile = asResource.getLocation().toFile();
+				} else if (javaProject.getProject().getLocation() != null) {
+					IPath absFilePath = javaProject.getProject().getLocation().removeLastSegments(1).append(new org.eclipse.core.runtime.Path(new String(sourceUnit.getFileName())));
+					unitFile = absFilePath.toFile();
 				} else {
 					unitFile = new File(new String(sourceUnit.getFileName()));
 				}
