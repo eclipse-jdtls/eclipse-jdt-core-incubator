@@ -21,6 +21,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javax.lang.model.element.ElementKind;
+
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 
 import com.sun.source.tree.ClassTree;
@@ -166,6 +168,10 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			if (owner instanceof ClassSymbol) {
 				return !isSerialVersionConstant(variable) && (variable.getModifiers().flags & Flags.PRIVATE) != 0;
 			} else if (owner instanceof MethodSymbol) {
+				if (variable.sym.getKind() == ElementKind.EXCEPTION_PARAMETER) {
+					return false;
+				}
+
 				return true;
 			}
 		}
