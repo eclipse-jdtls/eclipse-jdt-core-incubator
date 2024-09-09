@@ -478,12 +478,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (sourceUnits.length == 0) {
 			return Collections.emptyMap();
 		}
-		var compiler = ToolProvider.getSystemJavaCompiler();
 		Context context = new Context();
-		TolerantJavaCompiler.configureCompilerInstance(context);
-		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result = new HashMap<>(sourceUnits.length, 1.f);
 		Map<JavaFileObject, CompilationUnit> filesToUnits = new HashMap<>();
-		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
 		var problemConverter = new JavacProblemConverter(compilerOptions, context);
 		DiagnosticListener<JavaFileObject> diagnosticListener = diagnostic -> {
 			findTargetDOM(filesToUnits, diagnostic).ifPresent(dom -> {
@@ -496,6 +492,14 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 			});
 		};
+		// must be 1st thing added to context
+		// also, needs to be added before javac's Log class instance is created
+		context.put(DiagnosticListener.class, diagnosticListener);
+		TolerantJavaCompiler.configureCompilerInstance(context);
+		var compiler = ToolProvider.getSystemJavaCompiler();
+		Map<org.eclipse.jdt.internal.compiler.env.ICompilationUnit, CompilationUnit> result = new HashMap<>(sourceUnits.length, 1.f);
+		final UnusedProblemFactory unusedProblemFactory = new UnusedProblemFactory(new DefaultProblemFactory(), compilerOptions);
+
 		MultiTaskListener.instance(context).add(new TaskListener() {
 			@Override
 			public void finished(TaskEvent e) {
@@ -561,8 +565,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				}
 			}
 		});
-		// must be 1st thing added to context
-		context.put(DiagnosticListener.class, diagnosticListener);
 		boolean docEnabled = JavaCore.ENABLED.equals(compilerOptions.get(JavaCore.COMPILER_DOC_COMMENT_SUPPORT));
 		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits));
 		var fileManager = (JavacFileManager)context.get(JavaFileManager.class);
