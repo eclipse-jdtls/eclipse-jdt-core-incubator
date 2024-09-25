@@ -35,6 +35,9 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.dom.*;
+import org.eclipse.jdt.core.tests.javac.JavacFailReason;
+import org.junit.Ignore;
+import org.junit.experimental.categories.Category;
 
 @SuppressWarnings("rawtypes")
 public class ASTConverterBugsTest extends ConverterTestSetup {
@@ -420,6 +423,9 @@ public void testBug212857a() throws CoreException, IOException {
 	);
 }
 // tests with recovery
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
+@JavacFailReason(cause=JavacFailReason.JAVAC_DEFICIENCY)
 public void testBug212857b() throws CoreException, IOException {
 	this.workingCopies = new ICompilationUnit[1];
 	String source = "package test;\n" +
@@ -438,6 +444,9 @@ public void testBug212857b() throws CoreException, IOException {
 		source
 	);
 }
+
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
 public void testBug212857c() throws CoreException, IOException {
 	this.workingCopies = new ICompilationUnit[1];
 	String source = "package test;\n" +
@@ -454,6 +463,8 @@ public void testBug212857c() throws CoreException, IOException {
 		source
 	);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
 public void testBug212857d() throws CoreException, IOException {
 	this.workingCopies = new ICompilationUnit[1];
 	String source = "package test;\n" +
@@ -472,6 +483,8 @@ public void testBug212857d() throws CoreException, IOException {
 		source
 	);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
 public void testBug212857e() throws CoreException, IOException {
 	this.workingCopies = new ICompilationUnit[1];
 	String source = "package test;\n" +
@@ -699,6 +712,9 @@ public void testBug214647b() throws CoreException, IOException {
  * test these tests test the new DOM AST test framework
  * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=215759"
  */
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
+@JavacFailReason(cause=JavacFailReason.TESTS_SPECIFIC_RESULT_FOR_UNDEFINED_BEHAVIOR)
 public void testBug215759a() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 
@@ -752,7 +768,9 @@ public void testBug215759a() throws CoreException {
 			"Syntax error on token \"Invalid Character\", delete this token\n",
 			result);
 }
-
+@JavacFailReason(cause=JavacFailReason.BINDING_KEY)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
 public void testBug215759b() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 
@@ -813,6 +831,9 @@ public void testBug215759b() throws CoreException {
  * bug 218824: [DOM/AST] incorrect code leads to IllegalArgumentException during AST creation
  * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=218824"
  */
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
+@JavacFailReason(cause=JavacFailReason.TESTS_SPECIFIC_RESULT_FOR_UNDEFINED_BEHAVIOR)
 public void testBug218824a() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -902,6 +923,9 @@ public void testBug218824a() throws JavaModelException {
  * bug 215137: [AST]Some malformed MethodDeclaration, their Block is null, but they actually have Block
  * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=215137"
  */
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
 public void testBug215137a() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -929,6 +953,9 @@ public void testBug215137a() throws JavaModelException {
 			"String literal is not properly closed by a double-quote\n",
 			result);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
 public void testBug215137b() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -956,6 +983,9 @@ public void testBug215137b() throws JavaModelException {
 			"Invalid character constant\n",
 			result);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
 public void testBug215137c() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -983,6 +1013,9 @@ public void testBug215137c() throws JavaModelException {
 			"Invalid character constant\n",
 			result);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
 public void testBug215137d() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -1098,6 +1131,10 @@ public void testBug226357() throws CoreException, IOException {
 	);
 }
 
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_SRC_RANGE)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_STMTS_RECOVERED)
 public void testBug274898a() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -1131,6 +1168,10 @@ public void testBug274898a() throws JavaModelException {
 			"Syntax error on token \"new\", delete this token\n",
 			result);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_SRC_RANGE)
+@JavacFailReason(cause=JavacFailReason.JAVAC_DEFICIENCY)
 public void testBug274898b() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -1164,7 +1205,7 @@ public void testBug274898b() throws JavaModelException {
 			"Syntax error on tokens, delete these tokens\n",
 			result);
 }
-
+@JavacFailReason(cause=JavacFailReason.BINDING_KEY)
 public void testBug277204a() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -1198,6 +1239,9 @@ public void testBug277204a() throws JavaModelException {
 			"No problem",
 			result);
 }
+@JavacFailReason(cause=JavacFailReason.BINDING_KEY)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_SRC_RANGE)
 public void testBug277204b() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -1259,6 +1303,10 @@ public void testBug277204c() throws JavaModelException {
 			"No problem",
 			result);
 }
+
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_SRC_RANGE)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
 public void testBug277204d() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
@@ -1287,6 +1335,9 @@ public void testBug277204d() throws JavaModelException {
 			"Syntax error, insert \";\" to complete ClassBodyDeclarations\n",
 			result);
 }
+@Category(Ignore.class)
+@JavacFailReason(cause=JavacFailReason.JAVAC_TREE_NOT_IDENTICAL_SRC_RANGE)
+@JavacFailReason(cause=JavacFailReason.JAVAC_PROBLEM_MAPPING)
 public void testBug277204e() throws JavaModelException {
 	ASTResult result = this.buildMarkedAST(
 			"/Converter15/src/a/X.java",
