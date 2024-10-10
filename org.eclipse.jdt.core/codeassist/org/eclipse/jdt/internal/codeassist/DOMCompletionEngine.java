@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.CompletionProposal;
 import org.eclipse.jdt.core.CompletionRequestor;
 import org.eclipse.jdt.core.Flags;
@@ -44,6 +45,7 @@ import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.Block;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.ExpressionStatement;
 import org.eclipse.jdt.core.dom.FieldAccess;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -107,6 +109,7 @@ public class DOMCompletionEngine implements Runnable {
 	private ASTNode toComplete;
 	private final DOMCompletionEngineVariableDeclHandler variableDeclHandler;
 	private final DOMCompletionEngineRecoveredNodeScanner recoveredNodeScanner;
+	private final IProgressMonitor monitor;
 
 	static class Bindings {
 		private HashSet<IMethodBinding> methods = new HashSet<>();
@@ -166,6 +169,7 @@ public class DOMCompletionEngine implements Runnable {
 		this.nestedEngine = new CompletionEngine(this.nameEnvironment, this.requestor, this.modelUnit.getOptions(true), this.modelUnit.getJavaProject(), workingCopyOwner, monitor);
 		this.variableDeclHandler = new DOMCompletionEngineVariableDeclHandler();
 		this.recoveredNodeScanner = new DOMCompletionEngineRecoveredNodeScanner(modelUnit, offset);
+		this.monitor = monitor;
 	}
 
 	private Collection<? extends IBinding> visibleBindings(ASTNode node) {
@@ -232,8 +236,11 @@ public class DOMCompletionEngine implements Runnable {
 		boolean suggestPackageCompletions = true;
 		boolean suggestDefaultCompletions = true;
 
+		checkCancelled();
+
 		if (context instanceof FieldAccess fieldAccess) {
 			computeSuitableBindingFromContext = false;
+			statementLikeKeywords();
 			processMembers(fieldAccess.getExpression().resolveTypeBinding(), scope, true, isNodeInStaticContext(fieldAccess));
 			if (scope.stream().findAny().isPresent()) {
 				scope.stream()
@@ -403,6 +410,7 @@ public class DOMCompletionEngine implements Runnable {
 				}
 				current = current.getParent();
 			}
+			statementLikeKeywords();
 			publishFromScope(scope);
 			if (!completeAfter.isBlank()) {
 				final int typeMatchRule = this.toComplete.getParent() instanceof Annotation
@@ -414,7 +422,7 @@ public class DOMCompletionEngine implements Runnable {
 						.map(this::toProposal).forEach(this.requestor::accept);
 			}
 		}
-
+		checkCancelled();
 		// this handle where we complete inside a expressions like
 		// Type type = new Type(); where complete after "Typ", since completion should support all type completions
 		// we should not return from this block at the end.
@@ -438,7 +446,57 @@ public class DOMCompletionEngine implements Runnable {
 		} catch (JavaModelException ex) {
 			ILog.get().error(ex.getMessage(), ex);
 		}
+		checkCancelled();
 		this.requestor.endReporting();
+	}
+
+	private void checkCancelled() {
+		if (this.monitor != null && this.monitor.isCanceled()) {
+			throw new OperationCanceledException();
+		}
+	}
+
+	private void statementLikeKeywords() {
+		List<char[]> keywords = new ArrayList<>();
+		keywords.add(Keywords.ASSERT);
+		keywords.add(Keywords.RETURN);
+		if (findParent(this.toComplete,
+				new int[] { ASTNode.WHILE_STATEMENT, ASTNode.DO_STATEMENT, ASTNode.FOR_STATEMENT }) != null) {
+			keywords.add(Keywords.BREAK);
+			keywords.add(Keywords.CONTINUE);
+		}
+		ExpressionStatement exprStatement = (ExpressionStatement) findParent(this.toComplete, new int[] {ASTNode.EXPRESSION_STATEMENT});
+		if (exprStatement != null) {
+
+			ASTNode statementParent = exprStatement.getParent();
+			if (statementParent instanceof Block block) {
+				int exprIndex = block.statements().indexOf(exprStatement);
+				if (exprIndex > 0) {
+					ASTNode prevStatement = (ASTNode)block.statements().get(exprIndex - 1);
+					if (prevStatement.getNodeType() == ASTNode.IF_STATEMENT) {
+						keywords.add(Keywords.ELSE);
+					}
+				}
+			}
+		}
+		for (char[] keyword : keywords) {
+			if (!isFailedMatch(this.toComplete.toString().toCharArray(), keyword)) {
+				this.requestor.accept(createKeywordProposal(keyword, this.toComplete.getStartPosition(), this.offset));
+			}
+		}
+	}
+
+	private static ASTNode findParent(ASTNode nodeToSearch, int[] kindsToFind) {
+		ASTNode cursor = nodeToSearch;
+		while (cursor != null) {
+			for (int kindToFind : kindsToFind) {
+				if (cursor.getNodeType() == kindToFind) {
+					return cursor;
+				}
+			}
+			cursor = cursor.getParent();
+		}
+		return null;
 	}
 
 	private void completeMarkerAnnotation(String completeAfter) {
@@ -507,9 +565,9 @@ public class DOMCompletionEngine implements Runnable {
 			proposal.setTypeName(method.getReturnType().getName().toCharArray());
 			proposal.setDeclarationPackageName(typeBinding.getPackage().getName().toCharArray());
 			proposal.setDeclarationTypeName(typeBinding.getQualifiedName().toCharArray());
-			proposal.setDeclarationSignature(DOMCompletionEngineBuilder.getSignature(method.getDeclaringClass()).toCharArray());
+			proposal.setDeclarationSignature(DOMCompletionEngineBuilder.getSignature(method.getDeclaringClass()));
 			proposal.setKey(method.getKey().toCharArray());
-			proposal.setSignature(DOMCompletionEngineBuilder.getSignature(method).toCharArray());
+			proposal.setSignature(DOMCompletionEngineBuilder.getSignature(method));
 			proposal.setParameterNames(Stream.of(method.getParameterNames()).map(name -> name.toCharArray()).toArray(char[][]::new));
 
 			int relevance = RelevanceConstants.R_DEFAULT
@@ -624,10 +682,7 @@ public class DOMCompletionEngine implements Runnable {
 				res.setParameterNames(paramNames.stream().map(String::toCharArray).toArray(i -> new char[i][]));
 			}
 			res.setParameterTypeNames(Stream.of(methodBinding.getParameterNames()).map(String::toCharArray).toArray(char[][]::new));
-			res.setSignature(methodBinding.getKey().replace('/', '.').toCharArray());
-			res.setReceiverSignature(Signature
-					.createTypeSignature(methodBinding.getDeclaringClass().getQualifiedName().toCharArray(), true)
-					.toCharArray());
+			res.setSignature(DOMCompletionEngineBuilder.getSignature(methodBinding));
 			res.setDeclarationSignature(Signature
 					.createTypeSignature(methodBinding.getDeclaringClass().getQualifiedName().toCharArray(), true)
 					.toCharArray());
@@ -697,8 +752,10 @@ public class DOMCompletionEngine implements Runnable {
 					binding instanceof IMethodBinding methodBinding ? methodBinding.getReturnType() :
 					binding instanceof IVariableBinding variableBinding ? variableBinding.getType() :
 					this.toComplete.getAST().resolveWellKnownType(Object.class.getName())) +
-				CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE) + //no access restriction for class field
-				CompletionEngine.R_NON_INHERITED);
+				RelevanceConstants.R_UNQUALIFIED + // TODO: add logic
+				CompletionEngine.computeRelevanceForRestrictions(IAccessRule.K_ACCESSIBLE) //no access restriction for class field
+				//RelevanceConstants.R_NON_INHERITED // TODO: when is this active?
+				);
 		return res;
 	}
 
@@ -786,7 +843,7 @@ public class DOMCompletionEngine implements Runnable {
 			int relevance = 0;
 			// https://bugs.eclipse.org/bugs/show_bug.cgi?id=271296
 			// If there is at least one expected type, then void proposal types attract a degraded relevance.
-			if (PrimitiveType.VOID.toString().equals(proposalType.getName())) {
+			if (!this.expectedTypes.getExpectedTypes().isEmpty() && PrimitiveType.VOID.toString().equals(proposalType.getName())) {
 				return RelevanceConstants.R_VOID;
 			}
 			for (ITypeBinding expectedType : this.expectedTypes.getExpectedTypes()) {
@@ -948,10 +1005,8 @@ public class DOMCompletionEngine implements Runnable {
 		int relevance = RelevanceConstants.R_DEFAULT
 				+ RelevanceConstants.R_RESOLVED
 				+ RelevanceConstants.R_INTERESTING
-				+ RelevanceConstants.R_NON_RESTRICTED;
-		if (!isFailedMatch(this.prefix.toCharArray(), keyword)) {
-			relevance += RelevanceConstants.R_SUBSTRING;
-		}
+				+ RelevanceConstants.R_NON_RESTRICTED
+				+ CompletionEngine.computeRelevanceForCaseMatching(this.prefix.toCharArray(), keyword, this.assistOptions);
 		CompletionProposal keywordProposal = createProposal(CompletionProposal.KEYWORD);
 		keywordProposal.setCompletion(keyword);
 		keywordProposal.setName(keyword);
