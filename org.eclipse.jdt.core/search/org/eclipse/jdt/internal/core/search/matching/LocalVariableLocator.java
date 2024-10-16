@@ -13,8 +13,18 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import java.util.Objects;
+
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.dom.ChildPropertyDescriptor;
+import org.eclipse.jdt.core.dom.Expression;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.ast.CompactConstructorDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.FieldReference;
@@ -46,6 +56,23 @@ public int match(LocalDeclaration node, MatchingNodeSet nodeSet) {
 	if (this.pattern.findDeclarations)
 		if (matchesName(this.pattern.name, node.name))
 			if (node.declarationSourceStart == getLocalVariable().declarationSourceStart)
+				declarationsLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+
+	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
+}
+@Override
+public int match(VariableDeclaration node, MatchingNodeSet nodeSet) {
+	int referencesLevel = IMPOSSIBLE_MATCH;
+	if (this.pattern.findReferences)
+		// must be a write only access with an initializer
+		if (this.pattern.writeAccess && !this.pattern.readAccess && node.getInitializer() != null)
+			if (matchesName(this.pattern.name, node.getName().getIdentifier().toCharArray()))
+				referencesLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+
+	int declarationsLevel = IMPOSSIBLE_MATCH;
+	if (this.pattern.findDeclarations)
+		if (matchesName(this.pattern.name, node.getName().getIdentifier().toCharArray()))
+			if (node.getStartPosition() == getLocalVariable().declarationSourceStart)
 				declarationsLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
 
 	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
@@ -86,6 +113,17 @@ protected void matchReportReference(ASTNode reference, IJavaElement element, Bin
 		this.match = locator.newLocalVariableReferenceMatch(element, accuracy, offset, length, reference);
 		locator.report(this.match);
 	}
+}
+@Override
+public int match(Name node, MatchingNodeSet nodeSet) {
+	if (node.getLocationInParent() instanceof ChildPropertyDescriptor descriptor
+		&& (descriptor.getChildType() == Expression.class // local variable refs are either expressions as children
+			|| descriptor == QualifiedName.QUALIFIER_PROPERTY) // or dereferenced names
+		&& node instanceof SimpleName simple // local variables cannot be qualified
+		&& getLocalVariable().getElementName().equals(simple.getIdentifier())) {
+		return POSSIBLE_MATCH;
+	}
+	return IMPOSSIBLE_MATCH;
 }
 @Override
 protected int matchContainer() {
@@ -137,6 +175,16 @@ public int resolveLevel(Binding binding) {
 	if (!(binding instanceof LocalVariableBinding)) return IMPOSSIBLE_MATCH;
 
 	return matchLocalVariable((LocalVariableBinding) binding, true);
+}
+@Override
+public int resolveLevel(IBinding binding) {
+	if (!(binding instanceof IVariableBinding)) {
+		return IMPOSSIBLE_MATCH;
+	}
+	if (Objects.equals(binding.getJavaElement(), getLocalVariable())) {
+		return ACCURATE_MATCH;
+	}
+	return INACCURATE_MATCH;
 }
 private int matchField(Binding binding, boolean matchName) {
 	if (binding == null) return INACCURATE_MATCH;

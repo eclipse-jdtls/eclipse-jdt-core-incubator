@@ -17,6 +17,7 @@
 package org.eclipse.jdt.internal.core.search.matching;
 
 import static org.eclipse.jdt.internal.core.JavaModelManager.trace;
+import static org.eclipse.jdt.internal.core.search.matching.DOMASTNodeUtils.insideDocComment;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,23 +30,107 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.zip.ZipFile;
+
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
+import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
-import org.eclipse.jdt.core.*;
+import org.eclipse.jdt.core.Flags;
+import org.eclipse.jdt.core.IAnnotatable;
+import org.eclipse.jdt.core.IAnnotation;
+import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaModelStatusConstants;
+import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMember;
+import org.eclipse.jdt.core.IMethod;
+import org.eclipse.jdt.core.IModuleDescription;
+import org.eclipse.jdt.core.IOpenable;
+import org.eclipse.jdt.core.IOrdinaryClassFile;
+import org.eclipse.jdt.core.IPackageFragment;
+import org.eclipse.jdt.core.IPackageFragmentRoot;
+import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.IType;
+import org.eclipse.jdt.core.ITypeRoot;
+import org.eclipse.jdt.core.JavaCore;
+import org.eclipse.jdt.core.JavaModelException;
+import org.eclipse.jdt.core.Signature;
+import org.eclipse.jdt.core.SourceRange;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
-import org.eclipse.jdt.core.search.*;
+import org.eclipse.jdt.core.dom.AST;
+import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ASTRequestor;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CreationReference;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.IPackageBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.MethodInvocation;
+import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
+import org.eclipse.jdt.core.dom.SuperMethodInvocation;
+import org.eclipse.jdt.core.dom.Type;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.core.search.FieldDeclarationMatch;
+import org.eclipse.jdt.core.search.FieldReferenceMatch;
+import org.eclipse.jdt.core.search.IJavaSearchScope;
+import org.eclipse.jdt.core.search.LocalVariableDeclarationMatch;
+import org.eclipse.jdt.core.search.LocalVariableReferenceMatch;
+import org.eclipse.jdt.core.search.MethodDeclarationMatch;
+import org.eclipse.jdt.core.search.MethodReferenceMatch;
+import org.eclipse.jdt.core.search.ModuleDeclarationMatch;
+import org.eclipse.jdt.core.search.ModuleReferenceMatch;
+import org.eclipse.jdt.core.search.PackageDeclarationMatch;
+import org.eclipse.jdt.core.search.PackageReferenceMatch;
+import org.eclipse.jdt.core.search.ReferenceMatch;
+import org.eclipse.jdt.core.search.SearchDocument;
+import org.eclipse.jdt.core.search.SearchMatch;
+import org.eclipse.jdt.core.search.SearchParticipant;
+import org.eclipse.jdt.core.search.SearchPattern;
+import org.eclipse.jdt.core.search.SearchRequestor;
+import org.eclipse.jdt.core.search.TypeDeclarationMatch;
+import org.eclipse.jdt.core.search.TypeParameterDeclarationMatch;
+import org.eclipse.jdt.core.search.TypeParameterReferenceMatch;
+import org.eclipse.jdt.core.search.TypeReferenceMatch;
 import org.eclipse.jdt.internal.compiler.CompilationResult;
 import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
-import org.eclipse.jdt.internal.compiler.ast.*;
+import org.eclipse.jdt.internal.compiler.ast.ASTNode;
+import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.AbstractVariableDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
 import org.eclipse.jdt.internal.compiler.ast.Annotation;
+import org.eclipse.jdt.internal.compiler.ast.Argument;
+import org.eclipse.jdt.internal.compiler.ast.ArrayTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.CompilationUnitDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.ImportReference;
 import org.eclipse.jdt.internal.compiler.ast.LambdaExpression;
 import org.eclipse.jdt.internal.compiler.ast.MemberValuePair;
+import org.eclipse.jdt.internal.compiler.ast.ModuleDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.ModuleReference;
+import org.eclipse.jdt.internal.compiler.ast.PackageVisibilityStatement;
+import org.eclipse.jdt.internal.compiler.ast.ParameterizedQualifiedTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.ParameterizedSingleTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.ProvidesStatement;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedAllocationExpression;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.RequiresStatement;
+import org.eclipse.jdt.internal.compiler.ast.SingleMemberAnnotation;
+import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
 import org.eclipse.jdt.internal.compiler.ast.TypeParameter;
+import org.eclipse.jdt.internal.compiler.ast.TypeReference;
+import org.eclipse.jdt.internal.compiler.ast.UsesStatement;
+import org.eclipse.jdt.internal.compiler.ast.Wildcard;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileReader;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFormatException;
@@ -58,7 +143,24 @@ import org.eclipse.jdt.internal.compiler.env.INameEnvironment;
 import org.eclipse.jdt.internal.compiler.env.ISourceType;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.compiler.impl.ITypeRequestor;
-import org.eclipse.jdt.internal.compiler.lookup.*;
+import org.eclipse.jdt.internal.compiler.lookup.BinaryTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.Binding;
+import org.eclipse.jdt.internal.compiler.lookup.BlockScope;
+import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+import org.eclipse.jdt.internal.compiler.lookup.CompilationUnitScope;
+import org.eclipse.jdt.internal.compiler.lookup.LookupEnvironment;
+import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+import org.eclipse.jdt.internal.compiler.lookup.MethodScope;
+import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemMethodBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemReasons;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TagBits;
+import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeConstants;
+import org.eclipse.jdt.internal.compiler.lookup.TypeVariableBinding;
 import org.eclipse.jdt.internal.compiler.parser.Parser;
 import org.eclipse.jdt.internal.compiler.parser.Scanner;
 import org.eclipse.jdt.internal.compiler.parser.SourceTypeConverter;
@@ -72,7 +174,29 @@ import org.eclipse.jdt.internal.compiler.util.Messages;
 import org.eclipse.jdt.internal.compiler.util.SimpleLookupTable;
 import org.eclipse.jdt.internal.compiler.util.SimpleSet;
 import org.eclipse.jdt.internal.compiler.util.SuffixConstants;
-import org.eclipse.jdt.internal.core.*;
+import org.eclipse.jdt.internal.core.AbstractModule;
+import org.eclipse.jdt.internal.core.BinaryMember;
+import org.eclipse.jdt.internal.core.BinaryMethod;
+import org.eclipse.jdt.internal.core.BinaryType;
+import org.eclipse.jdt.internal.core.ClassFile;
+import org.eclipse.jdt.internal.core.CompilationUnit;
+import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
+import org.eclipse.jdt.internal.core.JavaElement;
+import org.eclipse.jdt.internal.core.JavaModelManager;
+import org.eclipse.jdt.internal.core.JavaProject;
+import org.eclipse.jdt.internal.core.LambdaFactory;
+import org.eclipse.jdt.internal.core.LocalVariable;
+import org.eclipse.jdt.internal.core.ModularClassFile;
+import org.eclipse.jdt.internal.core.NameLookup;
+import org.eclipse.jdt.internal.core.NamedMember;
+import org.eclipse.jdt.internal.core.Openable;
+import org.eclipse.jdt.internal.core.PackageFragment;
+import org.eclipse.jdt.internal.core.PackageFragmentRoot;
+import org.eclipse.jdt.internal.core.SearchableEnvironment;
+import org.eclipse.jdt.internal.core.SourceMapper;
+import org.eclipse.jdt.internal.core.SourceMethod;
+import org.eclipse.jdt.internal.core.SourceType;
+import org.eclipse.jdt.internal.core.SourceTypeElementInfo;
 import org.eclipse.jdt.internal.core.hierarchy.HierarchyResolver;
 import org.eclipse.jdt.internal.core.index.Index;
 import org.eclipse.jdt.internal.core.search.BasicSearchEngine;
@@ -88,6 +212,8 @@ import org.eclipse.jdt.internal.core.util.HandleFactory;
 import org.eclipse.jdt.internal.core.util.Util;
 
 public class MatchLocator implements ITypeRequestor {
+
+private static final boolean DOM_BASED_MATCH = Boolean.getBoolean(MatchLocator.class.getSimpleName() + ".DOM_BASED_MATCH"); //$NON-NLS-1$
 
 public static final int MAX_AT_ONCE;
 static {
@@ -1007,6 +1133,57 @@ public MethodBinding getMethodBinding(MethodPattern methodPattern) {
     }
 	return null;
 }
+public IMethodBinding getDOMASTMethodBinding(MethodPattern methodPattern) {
+	return null; //TODO
+//	if (methodPattern.declaringType != null && this.parsedUnits != null) {
+//		Optional<IType> type = this.parsedUnits.stream().map(unit -> unit.findDeclaringNode(declaringType.getSignature()))
+//			.filter(AbstractTypeDeclaration.class)
+//			.map
+//			.findFirst();
+//	}
+//	this.unitScopeTypeBinding = null;
+//    MethodBinding methodBinding = getMethodBinding0(methodPattern);
+//    if (methodBinding != null)
+//    	return methodBinding; // known to be valid.
+//    // special handling for methods of anonymous/local types. Since these cannot be looked up in the environment the usual way ...
+//    if (methodPattern.focus instanceof SourceMethod sourceMethod) {
+//    	MethodBinding binding = getClosestMatchMethodBinding(methodPattern);
+//    	if (binding != null) {
+//    		return binding;
+//    	}
+//    	char[] typeName = PatternLocator.qualifiedPattern(methodPattern.declaringSimpleName, methodPattern.declaringQualification);
+//    	if (typeName != null) {
+//    		IType type = methodPattern.declaringType;
+//    		IType enclosingType = type.getDeclaringType();
+//    		while (enclosingType != null) {
+//    			type = enclosingType;
+//    			enclosingType = type.getDeclaringType();
+//    		}
+//    		typeName = type.getFullyQualifiedName().toCharArray();
+//    		TypeBinding declaringTypeBinding = getType(typeName, typeName);
+//    		if (declaringTypeBinding instanceof SourceTypeBinding) {
+//    			SourceTypeBinding sourceTypeBinding = ((SourceTypeBinding) declaringTypeBinding);
+//    			ClassScope skope = sourceTypeBinding.scope;
+//    			if (skope != null) {
+//    				CompilationUnitDeclaration unit = skope.referenceCompilationUnit();
+//    				if (unit != null) {
+//    					AbstractMethodDeclaration amd = new ASTNodeFinder(unit).findMethod((IMethod) methodPattern.focus);
+//    					if (amd != null && amd.binding != null && amd.binding.isValidBinding()) {
+//    						this.bindings.put(methodPattern, amd.binding);
+//    						return amd.binding;
+//    					}
+//    				}
+//    			}
+//    		}
+//    	}
+//    } else if (methodPattern.focus instanceof BinaryMethod &&
+//    		methodPattern.declaringType instanceof BinaryType &&
+//    		this.unitScopeTypeBinding instanceof ProblemReferenceBinding) {//Get binding from unit scope for non-visible member of binary type
+//    	return getClosestMatchMethodBinding(methodPattern);
+//    }
+//	return null;
+}
+
 
 private MethodBinding getClosestMatchMethodBinding(MethodPattern methodPattern) {
 	TypeBinding typeBinding = this.unitScopeTypeBinding;
@@ -1263,6 +1440,7 @@ public void initialize(JavaProject project, int possibleMatchSize) throws JavaMo
 
 	this.lookupEnvironment.addResolutionListener(this.patternLocator);
 }
+
 private boolean skipMatch(JavaProject javaProject, PossibleMatch possibleMatch) {
 	if (this.options.sourceLevel >= ClassFileConstants.JDK9) {
 		char[] pModuleName = possibleMatch.getModuleName();
@@ -1271,7 +1449,115 @@ private boolean skipMatch(JavaProject javaProject, PossibleMatch possibleMatch) 
 	}
 	return false;
 }
+protected void locateMatchesWithASTParser(JavaProject javaProject, PossibleMatch[] possibleMatches, int start, int length) throws CoreException {
+	Map<String, String> map = javaProject.getOptions(true);
+	map.put(CompilerOptions.OPTION_TaskTags, org.eclipse.jdt.internal.compiler.util.Util.EMPTY_STRING);
+	this.options = new CompilerOptions(map);
+
+	var units = Arrays.stream(possibleMatches, start, start + length)
+			.filter(match -> !skipMatch(javaProject, match))
+			.map(match -> match.openable)
+			.filter(org.eclipse.jdt.core.ICompilationUnit.class::isInstance)
+			.map(org.eclipse.jdt.core.ICompilationUnit.class::cast)
+			.toArray(org.eclipse.jdt.core.ICompilationUnit[]::new);
+	if (units.length == 0) {
+		return;
+	}
+
+	ASTParser astParser = ASTParser.newParser(AST.getJLSLatest());
+	astParser.setCompilerOptions(javaProject.getOptions(true));
+	astParser.setProject(javaProject);
+	astParser.setResolveBindings(true);
+	Map<PossibleMatch, org.eclipse.jdt.core.dom.CompilationUnit> asts = new HashMap<>();
+	astParser.createASTs(units, new String[0], new ASTRequestor() {
+		@Override
+		public void acceptAST(org.eclipse.jdt.core.ICompilationUnit source, org.eclipse.jdt.core.dom.CompilationUnit ast) {
+			Arrays.stream(possibleMatches, start, start + length)
+				.filter(match -> match.openable.equals(source))
+				.findAny()
+				.ifPresent(match -> asts.put(match, ast));
+		}
+	}, this.progressMonitor); // todo, use a subprogressmonitor or slice it
+	asts.forEach((possibleMatch, ast) -> ast.accept(new PatternLocatorVisitor(this.patternLocator, possibleMatch.nodeSet)));
+	asts.keySet().forEach(possibleMatch -> {
+		this.currentPossibleMatch = possibleMatch;
+		possibleMatch.nodeSet.trustedASTNodeLevels.forEach((node, level) -> {
+			SearchMatch match = toMatch(node, level, possibleMatch.resource);
+			try {
+				this.report(match);
+			} catch (CoreException ex) {
+				ILog.get().error(ex.getMessage(), ex);
+			}
+		});
+	});
+}
+private SearchMatch toMatch(org.eclipse.jdt.core.dom.ASTNode node, int accuracy, IResource resource) {
+	if (node instanceof MethodDeclaration || node instanceof AbstractTypeDeclaration || node instanceof VariableDeclaration) {
+		IJavaElement javaElement = DOMASTNodeUtils.getDeclaringJavaElement(node);
+		if (javaElement != null) {
+			ISourceRange range = new SourceRange(node.getStartPosition(), node.getLength());
+			if (javaElement instanceof NamedMember named) {
+				try {
+					range = named.getNameRange();
+				} catch (JavaModelException ex) {
+					ILog.get().error(ex.getMessage(), ex);
+				}
+			}
+			return newDeclarationMatch(javaElement, null, accuracy, range.getOffset(), range.getLength());
+		}
+	}
+	if (node instanceof MethodInvocation method) {
+		return new MethodReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node.getParent()), accuracy, method.getName().getStartPosition(), method.getStartPosition() + method.getLength() - method.getName().getStartPosition(), false, method.resolveMethodBinding().isSynthetic(), false, insideDocComment(node), getParticipant(), resource);
+	}
+	if (node instanceof SuperMethodInvocation method) {
+		return new MethodReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node.getParent()), accuracy, method.getName().getStartPosition(), method.getStartPosition() + method.getLength() - method.getName().getStartPosition(), false, method.resolveMethodBinding().isSynthetic(), true, insideDocComment(node), getParticipant(), resource);
+	}
+	if (node instanceof ClassInstanceCreation newInstance) {
+		return new MethodReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node.getParent().getParent()) /* we don't want the variable decl */, accuracy, newInstance.getStartPosition(), newInstance.getLength(), true, newInstance.resolveConstructorBinding().isSynthetic(), false, insideDocComment(node), getParticipant(), resource);
+	}
+	if (node instanceof SuperConstructorInvocation newInstance) {
+		return new MethodReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node), accuracy, newInstance.getStartPosition(), newInstance.getLength(), true, newInstance.resolveConstructorBinding().isSynthetic(), false, insideDocComment(node), getParticipant(), resource);
+	}
+	if (node instanceof CreationReference constructorRef) {
+		return new MethodReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node), accuracy, constructorRef.getStartPosition(), constructorRef.getLength(), true, constructorRef.resolveMethodBinding().isSynthetic(), true, insideDocComment(node), getParticipant(), resource);
+	}
+	if (node instanceof EnumConstantDeclaration enumConstantDeclaration) {
+		return new FieldDeclarationMatch(DOMASTNodeUtils.getDeclaringJavaElement(node), accuracy, enumConstantDeclaration.getStartPosition(), enumConstantDeclaration.getLength(), getParticipant(), resource);
+	}
+	if (node instanceof Type) {
+		IJavaElement element = DOMASTNodeUtils.getEnclosingJavaElement(node);
+		if (element instanceof LocalVariable) {
+			element = element.getParent();
+		}
+		return new TypeReferenceMatch(element, accuracy, node.getStartPosition(), node.getLength(), DOMASTNodeUtils.insideDocComment(node), getParticipant(), resource);
+	}
+	if (node instanceof Name name) {
+		if (name.resolveBinding() instanceof ITypeBinding) {
+			return new TypeReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node), accuracy, node.getStartPosition(), node.getLength(), insideDocComment(node), getParticipant(), resource);
+		}
+		if (name.resolveBinding() instanceof IVariableBinding variable) {
+			if (variable.isField()) {
+				return new FieldReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node), accuracy, node.getStartPosition(), node.getLength(), true, true, insideDocComment(node), getParticipant(), resource);
+			}
+			return new LocalVariableReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(node), accuracy, node.getStartPosition(), node.getLength(), true, true, insideDocComment(node), getParticipant(), resource);
+		}
+		if (name.resolveBinding() instanceof IPackageBinding) {
+			return new PackageReferenceMatch(DOMASTNodeUtils.getEnclosingJavaElement(name), accuracy, name.getStartPosition(), name.getLength(), insideDocComment(name), getParticipant(), resource);
+		}
+		// more...?
+	}
+	if (node.getLocationInParent() == SimpleType.NAME_PROPERTY
+		|| node.getLocationInParent() == QualifiedName.NAME_PROPERTY) {
+		// more...?
+		return toMatch(node.getParent(), accuracy, resource);
+	}
+	return null;
+}
 protected void locateMatches(JavaProject javaProject, PossibleMatch[] possibleMatches, int start, int length) throws CoreException {
+	if (DOM_BASED_MATCH) {
+		locateMatchesWithASTParser(javaProject, possibleMatches, start, length);
+		return;
+	}
 	initialize(javaProject, length);
 
 	// create and resolve binding (equivalent to beginCompilation() in Compiler)
@@ -1322,6 +1608,7 @@ protected void locateMatches(JavaProject javaProject, PossibleMatch[] possibleMa
 					possibleMatch.cleanUp();
 			}
 		}
+
 		if (mustResolve)
 			this.lookupEnvironment.completeTypeBindings();
 
@@ -1714,6 +2001,14 @@ public SearchMatch newDeclarationMatch(
 		int offset,
 		int length) {
 	SearchParticipant participant = getParticipant();
+	if (element instanceof IMethod method) {
+		try {
+			offset = method.getNameRange().getOffset();
+			length = method.getNameRange().getLength();
+		} catch (JavaModelException e) {
+			ILog.get().error(e.getMessage(), e);
+		}
+	}
 	IResource resource = this.currentPossibleMatch.resource;
 	return newDeclarationMatch(element, binding, accuracy, offset, length, participant, resource);
 }

@@ -14,7 +14,12 @@
 package org.eclipse.jdt.internal.core.search.matching;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
@@ -50,6 +55,8 @@ public boolean mustResolve;
 SimpleSet possibleMatchingNodesSet = new SimpleSet(7);
 private final HashtableOfLong possibleMatchingNodesKeys = new HashtableOfLong(7);
 
+private Set<org.eclipse.jdt.core.dom.ASTNode> possibleASTNodes = new LinkedHashSet<>();
+public final Map<org.eclipse.jdt.core.dom.ASTNode, Integer> trustedASTNodeLevels = new LinkedHashMap<>();
 
 public MatchingNodeSet(boolean mustResolvePattern) {
 	super();
@@ -86,6 +93,39 @@ public int addMatch(ASTNode node, int matchLevel) {
 	}
 	return matchLevel;
 }
+public int addMatch(org.eclipse.jdt.core.dom.ASTNode node, int matchLevel) {
+	int maskedLevel = matchLevel & PatternLocator.MATCH_LEVEL_MASK;
+	switch (maskedLevel) {
+		case PatternLocator.INACCURATE_MATCH:
+			if (matchLevel != maskedLevel) {
+				addTrustedMatch(node, Integer.valueOf(SearchMatch.A_INACCURATE+(matchLevel & PatternLocator.FLAVORS_MASK)));
+			} else {
+				addTrustedMatch(node, POTENTIAL_MATCH);
+			}
+			break;
+		case PatternLocator.POSSIBLE_MATCH:
+			addPossibleMatch(node);
+			break;
+		case PatternLocator.ERASURE_MATCH:
+			if (matchLevel != maskedLevel) {
+				addTrustedMatch(node, Integer.valueOf(SearchPattern.R_ERASURE_MATCH+(matchLevel & PatternLocator.FLAVORS_MASK)));
+			} else {
+				addTrustedMatch(node, ERASURE_MATCH);
+			}
+			break;
+		case PatternLocator.ACCURATE_MATCH:
+			if (matchLevel != maskedLevel) {
+				addTrustedMatch(node, Integer.valueOf(SearchMatch.A_ACCURATE+(matchLevel & PatternLocator.FLAVORS_MASK)));
+			} else {
+				addTrustedMatch(node, EXACT_MATCH);
+			}
+			break;
+	}
+	return matchLevel;
+}
+public void addPossibleMatch(org.eclipse.jdt.core.dom.ASTNode node) {
+	this.possibleASTNodes.add(node);
+}
 public void addPossibleMatch(ASTNode node) {
 	// remove existing node at same position from set
 	// (case of recovery that created the same node several time
@@ -101,7 +141,9 @@ public void addPossibleMatch(ASTNode node) {
 }
 public void addTrustedMatch(ASTNode node, boolean isExact) {
 	addTrustedMatch(node, isExact ? EXACT_MATCH : POTENTIAL_MATCH);
-
+}
+public void addTrustedMatch(org.eclipse.jdt.core.dom.ASTNode node, boolean isExact) {
+	addTrustedMatch(node, isExact ? EXACT_MATCH : POTENTIAL_MATCH);
 }
 void addTrustedMatch(ASTNode node, Integer level) {
 	// remove existing node at same position from set
@@ -116,6 +158,9 @@ void addTrustedMatch(ASTNode node, Integer level) {
 	this.matchingNodes.put(node, level);
 	this.matchingNodesKeys.put(key, node);
 }
+void addTrustedMatch(org.eclipse.jdt.core.dom.ASTNode node, Integer level) {
+	this.trustedASTNodeLevels.put(node, level);
+}
 protected boolean hasPossibleNodes(int start, int end) {
 	Object[] nodes = this.possibleMatchingNodesSet.values;
 	for (Object n : nodes) {
@@ -129,7 +174,9 @@ protected boolean hasPossibleNodes(int start, int end) {
 		if (node != null && start <= node.sourceStart && node.sourceEnd <= end)
 			return true;
 	}
-	return false;
+	return
+		this.possibleASTNodes.stream().anyMatch(node -> start <= node.getStartPosition() && node.getStartPosition() + node.getLength() <= end) ||
+		this.trustedASTNodeLevels.keySet().stream().anyMatch(node -> start <= node.getStartPosition() && node.getStartPosition() + node.getLength() <= end);
 }
 /**
  * Returns the matching nodes that are in the given range in the source order.

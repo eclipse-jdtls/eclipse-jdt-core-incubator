@@ -15,6 +15,13 @@ package org.eclipse.jdt.internal.core.search.matching;
 
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.QualifiedType;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
 import org.eclipse.jdt.internal.compiler.ast.LambdaExpression;
 import org.eclipse.jdt.internal.compiler.ast.QualifiedTypeReference;
@@ -48,6 +55,13 @@ public int match(LambdaExpression node, MatchingNodeSet nodeSet) {
 	nodeSet.mustResolve = true;
 	return nodeSet.addMatch(node, POSSIBLE_MATCH);
 }
+@Override
+public int match(org.eclipse.jdt.core.dom.LambdaExpression node, MatchingNodeSet nodeSet) {
+	if (this.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_INTERFACES)
+		return IMPOSSIBLE_MATCH;
+	nodeSet.mustResolve = true;
+	return nodeSet.addMatch(node, POSSIBLE_MATCH);
+}
 //public int match(MethodDeclaration node, MatchingNodeSet nodeSet) - SKIP IT
 //public int match(MessageSend node, MatchingNodeSet nodeSet) - SKIP IT
 //public int match(Reference node, MatchingNodeSet nodeSet) - SKIP IT
@@ -64,6 +78,28 @@ public int match(TypeReference node, MatchingNodeSet nodeSet) {
 	} else { // QualifiedTypeReference
 		char[][] tokens = ((QualifiedTypeReference) node).tokens;
 		typeRefSimpleName = tokens[tokens.length-1];
+	}
+	if (matchesName(this.pattern.superSimpleName, typeRefSimpleName))
+		return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+
+	return IMPOSSIBLE_MATCH;
+}
+@Override
+public int match(Type node, MatchingNodeSet nodeSet) {
+	if (this.flavors != SUPERTYPE_REF_FLAVOR) return IMPOSSIBLE_MATCH;
+	if (this.pattern.superSimpleName == null)
+		return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+
+	char[] typeRefSimpleName = null;
+	if (node instanceof SimpleType simple) {
+		if (simple.getName() instanceof SimpleName name) {
+			typeRefSimpleName = name.getIdentifier().toCharArray();
+		}
+		if (simple.getName() instanceof QualifiedName name) {
+			typeRefSimpleName = name.getName().getIdentifier().toCharArray();
+		}
+	} else if (node instanceof QualifiedType qualified) {
+		typeRefSimpleName = qualified.getName().getIdentifier().toCharArray();
 	}
 	if (matchesName(this.pattern.superSimpleName, typeRefSimpleName))
 		return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
@@ -130,6 +166,29 @@ public int resolveLevel(Binding binding) {
 	if (this.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_CLASSES) {
 		ReferenceBinding[] superInterfaces = type.superInterfaces();
 		for (ReferenceBinding superInterface : superInterfaces) {
+			int newLevel = resolveLevelForType(this.pattern.superSimpleName, this.pattern.superQualification, superInterface);
+			if (newLevel > level) {
+				if (newLevel == ACCURATE_MATCH) return ACCURATE_MATCH;
+				level = newLevel;
+			}
+		}
+	}
+	return level;
+}
+@Override
+public int resolveLevel(IBinding binding) {
+	if (binding == null) return INACCURATE_MATCH;
+	if (!(binding instanceof ITypeBinding)) return IMPOSSIBLE_MATCH;
+
+	var type = (ITypeBinding) binding;
+	int level = IMPOSSIBLE_MATCH;
+	if (this.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_INTERFACES) {
+		level = resolveLevelForType(this.pattern.superSimpleName, this.pattern.superQualification, type.getSuperclass());
+		if (level == ACCURATE_MATCH) return ACCURATE_MATCH;
+	}
+
+	if (this.pattern.superRefKind != SuperTypeReferencePattern.ONLY_SUPER_CLASSES) {
+		for (ITypeBinding superInterface : type.getInterfaces()) {
 			int newLevel = resolveLevelForType(this.pattern.superSimpleName, this.pattern.superQualification, superInterface);
 			if (newLevel > level) {
 				if (newLevel == ACCURATE_MATCH) return ACCURATE_MATCH;

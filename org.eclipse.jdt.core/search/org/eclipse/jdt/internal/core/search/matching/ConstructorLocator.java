@@ -13,13 +13,37 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import java.util.List;
+
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CreationReference;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IMethodBinding;
+import org.eclipse.jdt.core.dom.MethodDeclaration;
+import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
-import org.eclipse.jdt.internal.compiler.ast.*;
+import org.eclipse.jdt.internal.compiler.ast.ASTNode;
+import org.eclipse.jdt.internal.compiler.ast.AbstractMethodDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.AllocationExpression;
+import org.eclipse.jdt.internal.compiler.ast.Argument;
+import org.eclipse.jdt.internal.compiler.ast.ConstructorDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.ExplicitConstructorCall;
+import org.eclipse.jdt.internal.compiler.ast.Expression;
+import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.JavadocMessageSend;
+import org.eclipse.jdt.internal.compiler.ast.MessageSend;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedAllocationExpression;
+import org.eclipse.jdt.internal.compiler.ast.ReferenceExpression;
+import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
 import org.eclipse.jdt.internal.compiler.lookup.Binding;
 import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
 import org.eclipse.jdt.internal.compiler.lookup.ParameterizedGenericMethodBinding;
@@ -58,6 +82,17 @@ public int match(ConstructorDeclaration node, MatchingNodeSet nodeSet) {
 	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
 }
 @Override
+public int match(MethodDeclaration node, MatchingNodeSet nodeSet) {
+	if (!node.isConstructor()) {
+		return IMPOSSIBLE_MATCH;
+	}
+	if (this.pattern.fineGrain != 0 && !this.pattern.findDeclarations) return IMPOSSIBLE_MATCH;
+	int referencesLevel = /* this.pattern.findReferences ? matchLevelForReferences(node) : */IMPOSSIBLE_MATCH;
+	int declarationsLevel = this.pattern.findDeclarations ? matchLevelForDeclarations(node) : IMPOSSIBLE_MATCH;
+
+	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
+}
+@Override
 public int match(Expression node, MatchingNodeSet nodeSet) { // interested in AllocationExpression
 	if (!this.pattern.findReferences) return IMPOSSIBLE_MATCH;
 	if (!(node instanceof AllocationExpression)) return IMPOSSIBLE_MATCH;
@@ -71,6 +106,52 @@ public int match(Expression node, MatchingNodeSet nodeSet) { // interested in Al
 	if (!matchParametersCount(node, allocation.arguments)) return IMPOSSIBLE_MATCH;
 
 	return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+}
+@Override
+public int match(org.eclipse.jdt.core.dom.Expression node, MatchingNodeSet nodeSet) { // interested in AllocationExpression
+	if (!this.pattern.findReferences) return IMPOSSIBLE_MATCH;
+	if (node instanceof CreationReference creationRef && (this.pattern.declaringSimpleName == null || matchesTypeReference(this.pattern.declaringSimpleName, creationRef.getType()))) {
+		return this.pattern.mustResolve ? POSSIBLE_MATCH : INACCURATE_MATCH;
+	}
+	if (node instanceof ClassInstanceCreation newInstance) {
+		return (this.pattern.declaringSimpleName == null || matchesTypeReference(this.pattern.declaringSimpleName, newInstance.getType()))
+				&& matchParametersCount(node, newInstance.arguments()) ?
+			POSSIBLE_MATCH : IMPOSSIBLE_MATCH;
+	}
+	return IMPOSSIBLE_MATCH;
+}
+@Override
+public int match(org.eclipse.jdt.core.dom.ASTNode node, MatchingNodeSet nodeSet) {
+	if (!this.pattern.findReferences) return IMPOSSIBLE_MATCH;
+	if (node instanceof SuperConstructorInvocation superRef) {
+		if (!matchParametersCount(node, superRef.arguments())) {
+			return IMPOSSIBLE_MATCH;
+		}
+		if (this.pattern.declaringSimpleName != null) {
+			Type superType = null;
+			var current = superRef.getParent();
+			while (current != null && !(current instanceof AbstractTypeDeclaration) && !(current instanceof CreationReference)) {
+				current = current.getParent();
+			}
+			if (current instanceof org.eclipse.jdt.core.dom.TypeDeclaration typeDecl) {
+				superType = typeDecl.getSuperclassType();
+			}
+			if (current instanceof CreationReference newInstance) {
+				superType = newInstance.getType();
+			}
+			if (!matchesTypeReference(this.pattern.declaringSimpleName, superType)) {
+				return IMPOSSIBLE_MATCH;
+			}
+		}
+		return this.pattern.mustResolve ? POSSIBLE_MATCH : INACCURATE_MATCH;
+	}
+	if (node instanceof EnumConstantDeclaration enumConstantDecl
+		&& node.getParent() instanceof EnumDeclaration enumDeclaration
+		&& matchesName(this.pattern.declaringSimpleName, enumDeclaration.getName().getIdentifier().toCharArray())
+		&& matchParametersCount(enumConstantDecl, enumConstantDecl.arguments())) {
+		return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+	}
+	return IMPOSSIBLE_MATCH;
 }
 @Override
 public int match(FieldDeclaration field, MatchingNodeSet nodeSet) {
@@ -151,6 +232,34 @@ protected int matchConstructor(MethodBinding constructor) {
 	}
 	return level;
 }
+protected int matchConstructor(IMethodBinding constructor) {
+	if (!constructor.isConstructor()) return IMPOSSIBLE_MATCH;
+
+	// declaring type, simple name has already been matched by matchIndexEntry()
+	int level = resolveLevelForType(this.pattern.declaringSimpleName, this.pattern.declaringQualification, constructor.getDeclaringClass());
+	if (level == IMPOSSIBLE_MATCH) return IMPOSSIBLE_MATCH;
+
+	// parameter types
+	int parameterCount = this.pattern.parameterCount;
+	if (parameterCount > -1) {
+		if (parameterCount != constructor.getParameterTypes().length) return IMPOSSIBLE_MATCH;
+		for (int i = 0; i < parameterCount; i++) {
+			// TODO (frederic) use this call to refine accuracy on parameter types
+//			int newLevel = resolveLevelForType(this.pattern.parameterSimpleNames[i], this.pattern.parameterQualifications[i], this.pattern.parametersTypeArguments[i], 0, constructor.parameters[i]);
+			int newLevel = resolveLevelForType(this.pattern.parameterSimpleNames[i], this.pattern.parameterQualifications[i], constructor.getParameterTypes()[i]);
+			if (level > newLevel) {
+				if (newLevel == IMPOSSIBLE_MATCH) {
+//					if (isErasureMatch) {
+//						return ERASURE_MATCH;
+//					}
+					return IMPOSSIBLE_MATCH;
+				}
+				level = newLevel; // can only be downgraded
+			}
+		}
+	}
+	return level;
+}
 @Override
 protected int matchContainer() {
 	if (this.pattern.findReferences) return ALL_CONTAINER; // handles both declarations + references & just references
@@ -194,11 +303,41 @@ protected int matchLevelForDeclarations(ConstructorDeclaration constructor) {
 
 	return this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
 }
+protected int matchLevelForDeclarations(MethodDeclaration constructor) {
+	// constructor name is stored in selector field
+	if (this.pattern.declaringSimpleName != null && !matchesName(this.pattern.declaringSimpleName, constructor.getName().toString().toCharArray()))
+		return IMPOSSIBLE_MATCH;
+
+	if (this.pattern.parameterSimpleNames != null) {
+		int length = this.pattern.parameterSimpleNames.length;
+		var args = constructor.parameters();
+		int argsLength = args == null ? 0 : args.size();
+		if (length != argsLength) return IMPOSSIBLE_MATCH;
+	}
+
+	// Verify type arguments (do not reject if pattern has no argument as it can be an erasure match)
+	if (this.pattern.hasConstructorArguments()) {
+		if (constructor.typeParameters() == null || constructor.typeParameters().size() != this.pattern.constructorArguments.length) return IMPOSSIBLE_MATCH;
+	}
+
+	return this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+}
 boolean matchParametersCount(ASTNode node, Expression[] args) {
 	if (this.pattern.parameterSimpleNames != null && (!this.pattern.varargs || ((node.bits & ASTNode.InsideJavadoc) != 0))) {
 		int length = this.pattern.parameterCount;
 		if (length < 0) length = this.pattern.parameterSimpleNames.length;
 		int argsLength = args == null ? 0 : args.length;
+		if (length != argsLength) {
+			return false;
+		}
+	}
+	return true;
+}
+boolean matchParametersCount(org.eclipse.jdt.core.dom.ASTNode node, List<org.eclipse.jdt.core.dom.Expression> args) {
+	if (this.pattern.parameterSimpleNames != null && (!this.pattern.varargs || DOMASTNodeUtils.insideDocComment(node))) {
+		int length = this.pattern.parameterCount;
+		if (length < 0) length = this.pattern.parameterSimpleNames.length;
+		int argsLength = args == null ? 0 : args.size();
 		if (length != argsLength) {
 			return false;
 		}
@@ -373,6 +512,19 @@ public int resolveLevel(Binding binding) {
 		}
 	}
 	return level;
+}
+@Override
+public int resolveLevel(IBinding binding) {
+	if (binding instanceof IMethodBinding constructor) {
+		int level= matchConstructor(constructor);
+		if (level== IMPOSSIBLE_MATCH) {
+			if (constructor != constructor.getMethodDeclaration()) {
+				level= matchConstructor(constructor.getMethodDeclaration());
+			}
+		}
+		return level;
+	}
+	return IMPOSSIBLE_MATCH;
 }
 protected int resolveLevel(ConstructorDeclaration constructor, boolean checkDeclarations) {
 	int referencesLevel = IMPOSSIBLE_MATCH;

@@ -13,12 +13,20 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.core.search.matching;
 
+import java.util.Arrays;
+
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.IPackageFragmentRoot;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IPackageBinding;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.search.PackageReferenceMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.internal.compiler.ast.ASTNode;
@@ -30,7 +38,18 @@ import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference;
 import org.eclipse.jdt.internal.compiler.ast.QualifiedTypeReference;
 import org.eclipse.jdt.internal.compiler.ast.Reference;
 import org.eclipse.jdt.internal.compiler.ast.TypeReference;
-import org.eclipse.jdt.internal.compiler.lookup.*;
+import org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
+import org.eclipse.jdt.internal.compiler.lookup.Binding;
+import org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ImportBinding;
+import org.eclipse.jdt.internal.compiler.lookup.MemberTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemFieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 import org.eclipse.jdt.internal.compiler.util.Util;
 
 public class PackageReferenceLocator extends PatternLocator {
@@ -80,10 +99,21 @@ public int match(Annotation node, MatchingNodeSet nodeSet) {
 	return match(node.type, nodeSet);
 }
 @Override
+public int match(org.eclipse.jdt.core.dom.Annotation node, MatchingNodeSet nodeSet) {
+	return match(node.getTypeName(), nodeSet);
+}
+@Override
 public int match(ASTNode node, MatchingNodeSet nodeSet) { // interested in ImportReference
 	if (!(node instanceof ImportReference)) return IMPOSSIBLE_MATCH;
 
 	return nodeSet.addMatch(node, matchLevel((ImportReference) node));
+}
+@Override
+public int match(org.eclipse.jdt.core.dom.ASTNode node, MatchingNodeSet nodeSet) { // interested in ImportReference
+	if (node instanceof ImportDeclaration decl) {
+		return match(decl.getName(), nodeSet);
+	}
+	return IMPOSSIBLE_MATCH;
 }
 //public int match(ConstructorDeclaration node, MatchingNodeSet nodeSet) - SKIP IT
 //public int match(Expression node, MatchingNodeSet nodeSet) - SKIP IT
@@ -96,6 +126,10 @@ public int match(Reference node, MatchingNodeSet nodeSet) { // interested in Qua
 
 	return nodeSet.addMatch(node, matchLevelForTokens(((QualifiedNameReference) node).tokens));
 }
+@Override
+public int match(Name node, MatchingNodeSet nodeSet) { // interested in QualifiedNameReference
+	return nodeSet.addMatch(node, matchLevelForTokens(Arrays.stream(node.getFullyQualifiedName().split("\\.")).map(String::toCharArray).toArray(char[][]::new))); //$NON-NLS-1$
+}
 //public int match(TypeDeclaration node, MatchingNodeSet nodeSet) - SKIP IT
 @Override
 public int match(TypeReference node, MatchingNodeSet nodeSet) { // interested in QualifiedTypeReference only
@@ -106,6 +140,17 @@ public int match(TypeReference node, MatchingNodeSet nodeSet) { // interested in
 	if (!(node instanceof QualifiedTypeReference)) return IMPOSSIBLE_MATCH;
 	return nodeSet.addMatch(node, matchLevelForTokens(((QualifiedTypeReference) node).tokens));
 }
+@Override
+public int match(Type node, MatchingNodeSet nodeSet) { // interested in QualifiedTypeReference only
+	return node instanceof SimpleType type ? match(type.getName(), nodeSet) : IMPOSSIBLE_MATCH;
+//	if (node instanceof JavadocSingleTypeReference) {
+//		char[][] tokens = new char[][] { ((JavadocSingleTypeReference) node).token };
+//		return nodeSet.addMatch(node, matchLevelForTokens(tokens));
+//	}
+//	if (!(node instanceof QualifiedTypeReference)) return IMPOSSIBLE_MATCH;
+//	return nodeSet.addMatch(node, matchLevelForTokens(((QualifiedTypeReference) node).tokens));
+}
+
 
 @Override
 protected int matchLevel(ImportReference importRef) {
@@ -340,6 +385,11 @@ public int resolveLevel(Binding binding) {
 		return ACCURATE_MATCH;
 	}
 	return IMPOSSIBLE_MATCH;
+}
+@Override
+public int resolveLevel(IBinding binding) {
+	return binding instanceof IPackageBinding ?
+		ACCURATE_MATCH : IMPOSSIBLE_MATCH;
 }
 protected int resolveLevel(QualifiedNameReference qNameRef) {
 	TypeBinding typeBinding = null;

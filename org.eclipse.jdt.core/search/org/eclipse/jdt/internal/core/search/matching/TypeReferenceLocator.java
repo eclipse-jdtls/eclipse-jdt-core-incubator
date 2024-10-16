@@ -17,20 +17,62 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.QualifiedType;
+import org.eclipse.jdt.core.dom.SimpleName;
+import org.eclipse.jdt.core.dom.SimpleType;
+import org.eclipse.jdt.core.dom.Type;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeDeclarationMatch;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
-import org.eclipse.jdt.internal.compiler.ast.*;
+import org.eclipse.jdt.internal.compiler.ast.ASTNode;
+import org.eclipse.jdt.internal.compiler.ast.Annotation;
+import org.eclipse.jdt.internal.compiler.ast.ArrayTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.Expression;
+import org.eclipse.jdt.internal.compiler.ast.ImportReference;
+import org.eclipse.jdt.internal.compiler.ast.NameReference;
+import org.eclipse.jdt.internal.compiler.ast.ParameterizedQualifiedTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.ParameterizedSingleTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.Reference;
+import org.eclipse.jdt.internal.compiler.ast.SingleNameReference;
+import org.eclipse.jdt.internal.compiler.ast.SingleTypeReference;
+import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.TypeReference;
 import org.eclipse.jdt.internal.compiler.env.IBinaryType;
-import org.eclipse.jdt.internal.compiler.lookup.*;
+import org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
+import org.eclipse.jdt.internal.compiler.lookup.BaseTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.Binding;
+import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+import org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.LocalTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.MemberTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.MethodBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemFieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ProblemReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeVariableBinding;
+import org.eclipse.jdt.internal.compiler.lookup.VariableBinding;
 import org.eclipse.jdt.internal.compiler.util.SimpleSet;
 import org.eclipse.jdt.internal.core.JavaElement;
 
@@ -73,6 +115,10 @@ public int match(Annotation node, MatchingNodeSet nodeSet) {
 	return match(node.type, nodeSet);
 }
 @Override
+public int match(org.eclipse.jdt.core.dom.Annotation node, MatchingNodeSet nodeSet) {
+	return match(node.getTypeName(), nodeSet);
+}
+@Override
 public int match(ASTNode node, MatchingNodeSet nodeSet) { // interested in ImportReference
 	if (!(node instanceof ImportReference)) return IMPOSSIBLE_MATCH;
 
@@ -102,6 +148,20 @@ public int match(Reference node, MatchingNodeSet nodeSet) { // interested in Nam
 
 	return IMPOSSIBLE_MATCH;
 }
+@Override
+public int match(Name name, MatchingNodeSet nodeSet) {
+	if (name.getParent() instanceof AbstractTypeDeclaration) {
+		return IMPOSSIBLE_MATCH;
+	}
+	if (this.pattern.simpleName == null) {
+		return nodeSet.addMatch(name, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+	}
+	String simpleName = name instanceof SimpleName sname ? sname.getIdentifier() :
+		name instanceof QualifiedName qname ? qname.getName().getIdentifier() :
+		null;
+	return simpleName != null && matchesName(this.pattern.simpleName, simpleName.toCharArray()) ?
+		POSSIBLE_MATCH : IMPOSSIBLE_MATCH;
+}
 //public int match(TypeDeclaration node, MatchingNodeSet nodeSet) - SKIP IT
 @Override
 public int match(TypeReference node, MatchingNodeSet nodeSet) {
@@ -118,6 +178,41 @@ public int match(TypeReference node, MatchingNodeSet nodeSet) {
 				return nodeSet.addMatch(node, POSSIBLE_MATCH); // resolution is needed to find out if it is a type ref
 	}
 
+	return IMPOSSIBLE_MATCH;
+}
+@Override
+public int match(org.eclipse.jdt.core.dom.ASTNode node, MatchingNodeSet nodeSet) {
+	if (node instanceof EnumConstantDeclaration enumConstantDecl
+		&& node.getParent() instanceof EnumDeclaration enumDeclaration
+		&& enumConstantDecl.getAnonymousClassDeclaration() != null) {
+		if (this.pattern.simpleName == null) {
+			return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+		}
+		if (matchesName(this.pattern.simpleName, enumDeclaration.getName().getIdentifier().toCharArray())) {
+			return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+		}
+	}
+	return IMPOSSIBLE_MATCH;
+}
+@Override
+public int match(Type node, MatchingNodeSet nodeSet) {
+	if (this.pattern.simpleName == null)
+		return nodeSet.addMatch(node, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+
+	String simpleName = null;
+	if (node instanceof SimpleType simple) {
+		if (simple.getName() instanceof SimpleName name) {
+			simpleName = name.getIdentifier();
+		}
+		if (simple.getName() instanceof QualifiedName name) {
+			simpleName = name.getName().getIdentifier();
+		}
+	} else if (node instanceof QualifiedType qualified) {
+		simpleName = qualified.getName().getIdentifier();
+	}
+	if (simpleName != null && matchesName(this.pattern.simpleName, simpleName.toCharArray())) {
+		return nodeSet.addMatch(node, this.pattern.mustResolve || this.pattern.qualification == null ? POSSIBLE_MATCH : ACCURATE_MATCH);
+	}
 	return IMPOSSIBLE_MATCH;
 }
 
@@ -806,6 +901,39 @@ protected int resolveLevelForType(TypeBinding typeBinding) {
 						0,
 						typeBinding);
 }
+protected int resolveLevelForType(ITypeBinding typeBinding) {
+	if (typeBinding == null) {
+		if (this.pattern.typeSuffix != TYPE_SUFFIX) return INACCURATE_MATCH;
+	} else {
+		switch (this.pattern.typeSuffix) {
+			case CLASS_SUFFIX:
+				if (!typeBinding.isClass()) return IMPOSSIBLE_MATCH;
+				break;
+			case CLASS_AND_INTERFACE_SUFFIX:
+				if (!(typeBinding.isClass() || (typeBinding.isInterface() && !typeBinding.isAnnotation()))) return IMPOSSIBLE_MATCH;
+				break;
+			case CLASS_AND_ENUM_SUFFIX:
+				if (!(typeBinding.isClass() || typeBinding.isEnum())) return IMPOSSIBLE_MATCH;
+				break;
+			case INTERFACE_SUFFIX:
+				if (!typeBinding.isInterface() || typeBinding.isAnnotation()) return IMPOSSIBLE_MATCH;
+				break;
+			case INTERFACE_AND_ANNOTATION_SUFFIX:
+				if (!(typeBinding.isInterface() || typeBinding.isAnnotation())) return IMPOSSIBLE_MATCH;
+				break;
+			case ENUM_SUFFIX:
+				if (!typeBinding.isEnum()) return IMPOSSIBLE_MATCH;
+				break;
+			case ANNOTATION_TYPE_SUFFIX:
+				if (!typeBinding.isAnnotation()) return IMPOSSIBLE_MATCH;
+				break;
+			case TYPE_SUFFIX : // nothing
+		}
+	}
+	return resolveLevelForType(this.pattern.simpleName,
+						this.pattern.qualification,
+						typeBinding);
+}
 /**
  * Returns whether the given type binding or one of its enclosing types
  * matches the given simple name pattern and qualification pattern.
@@ -851,5 +979,15 @@ public void recordResolution(QualifiedTypeReference typeReference, TypeBinding r
 @Override
 public String toString() {
 	return "Locator for " + this.pattern.toString(); //$NON-NLS-1$
+}
+@Override
+public int resolveLevel(IBinding binding) {
+	if (binding == null) {
+		return INACCURATE_MATCH;
+	}
+	if (binding instanceof ITypeBinding typeBinding) {
+		return resolveLevelForType(this.pattern.simpleName, this.pattern.qualification, typeBinding);
+	}
+	return IMPOSSIBLE_MATCH;
 }
 }

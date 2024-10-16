@@ -19,11 +19,38 @@ import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.compiler.CharOperation;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
+import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.ITypeBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.ImportDeclaration;
+import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.search.FieldDeclarationMatch;
 import org.eclipse.jdt.core.search.SearchMatch;
-import org.eclipse.jdt.internal.compiler.ast.*;
+import org.eclipse.jdt.internal.compiler.ast.ASTNode;
+import org.eclipse.jdt.internal.compiler.ast.AbstractVariableDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.CompactConstructorDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.FieldDeclaration;
+import org.eclipse.jdt.internal.compiler.ast.FieldReference;
+import org.eclipse.jdt.internal.compiler.ast.ImportReference;
+import org.eclipse.jdt.internal.compiler.ast.NameReference;
+import org.eclipse.jdt.internal.compiler.ast.QualifiedNameReference;
+import org.eclipse.jdt.internal.compiler.ast.Reference;
+import org.eclipse.jdt.internal.compiler.ast.SingleNameReference;
+import org.eclipse.jdt.internal.compiler.ast.TypeDeclaration;
 import org.eclipse.jdt.internal.compiler.env.IBinaryType;
-import org.eclipse.jdt.internal.compiler.lookup.*;
+import org.eclipse.jdt.internal.compiler.lookup.ArrayBinding;
+import org.eclipse.jdt.internal.compiler.lookup.Binding;
+import org.eclipse.jdt.internal.compiler.lookup.ClassScope;
+import org.eclipse.jdt.internal.compiler.lookup.FieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.LocalVariableBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ParameterizedFieldBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ParameterizedTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.ReferenceBinding;
+import org.eclipse.jdt.internal.compiler.lookup.SourceTypeBinding;
+import org.eclipse.jdt.internal.compiler.lookup.TypeBinding;
 import org.eclipse.jdt.internal.compiler.util.SimpleSet;
 import org.eclipse.jdt.internal.core.JavaElement;
 
@@ -61,6 +88,26 @@ public int match(ASTNode node, MatchingNodeSet nodeSet) {
 	}
 	return nodeSet.addMatch(node, declarationsLevel);
 }
+@Override
+public int match(org.eclipse.jdt.core.dom.ASTNode node, MatchingNodeSet nodeSet) {
+	int declarationsLevel = IMPOSSIBLE_MATCH;
+	if (node instanceof EnumConstantDeclaration enumConstant) {
+		return match(enumConstant, nodeSet);
+	}
+	if (this.pattern.findReferences) {
+		if (node instanceof ImportDeclaration importRef) {
+			// With static import, we can have static field reference in import reference
+			if (importRef.isStatic() && !importRef.isOnDemand() && matchesName(this.pattern.name, importRef.getName().toString().toCharArray())
+					&& this.pattern instanceof FieldPattern fieldPattern) {
+				char[] declaringType = CharOperation.concat(fieldPattern.declaringQualification, fieldPattern.declaringSimpleName, '.');
+				if (matchesName(declaringType, importRef.getName().toString().toCharArray())) {
+					declarationsLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+				}
+			}
+		}
+	}
+	return nodeSet.addMatch(node, declarationsLevel);
+}
 //public int match(ConstructorDeclaration node, MatchingNodeSet nodeSet) - SKIP IT
 @Override
 public int match(FieldDeclaration node, MatchingNodeSet nodeSet) {
@@ -81,6 +128,47 @@ public int match(FieldDeclaration node, MatchingNodeSet nodeSet) {
 						declarationsLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
 				break;
 		}
+	}
+	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
+}
+@Override
+public int match(VariableDeclaration node, MatchingNodeSet nodeSet) {
+	if (!this.pattern.findDeclarations) {
+		return IMPOSSIBLE_MATCH;
+	}
+	if (node.getLocationInParent() != org.eclipse.jdt.core.dom.FieldDeclaration.FRAGMENTS_PROPERTY) {
+		return IMPOSSIBLE_MATCH;
+	}
+	int referencesLevel = IMPOSSIBLE_MATCH;
+	if (this.pattern.findReferences)
+		// must be a write only access with an initializer
+		if (this.pattern.writeAccess && !this.pattern.readAccess && node.getInitializer() != null)
+			if (matchesName(this.pattern.name, node.getName().getIdentifier().toCharArray()))
+				referencesLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+
+	int declarationsLevel = IMPOSSIBLE_MATCH;
+	if (this.pattern.findDeclarations &&
+		matchesName(this.pattern.name, node.getName().getIdentifier().toCharArray()) &&
+		this.pattern instanceof FieldPattern fieldPattern &&
+		matchesTypeReference(fieldPattern.typeSimpleName, ((org.eclipse.jdt.core.dom.FieldDeclaration)node.getParent()).getType())) {
+		declarationsLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+	}
+	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
+}
+private int match(EnumConstantDeclaration node, MatchingNodeSet nodeSet) {
+	int referencesLevel = IMPOSSIBLE_MATCH;
+	if (this.pattern.findReferences)
+		// must be a write only access with an initializer
+		if (this.pattern.writeAccess && !this.pattern.readAccess)
+			if (matchesName(this.pattern.name, node.getName().getIdentifier().toCharArray()))
+				referencesLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
+
+	int declarationsLevel = IMPOSSIBLE_MATCH;
+	if (this.pattern.findDeclarations &&
+		matchesName(this.pattern.name, node.getName().getIdentifier().toCharArray()) &&
+		this.pattern instanceof FieldPattern fieldPattern &&
+		matchesName(fieldPattern.typeSimpleName, ((EnumDeclaration)node.getParent()).getName().getIdentifier().toCharArray())) {
+		declarationsLevel = this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH;
 	}
 	return nodeSet.addMatch(node, referencesLevel >= declarationsLevel ? referencesLevel : declarationsLevel); // use the stronger match
 }
@@ -137,6 +225,40 @@ protected int matchField(FieldBinding field, boolean matchName) {
 	int typeLevel = resolveLevelForType(fieldBinding.type);
 	return declaringLevel > typeLevel ? typeLevel : declaringLevel; // return the weaker match
 }
+protected int matchField(IVariableBinding field, boolean matchName) {
+	if (field == null) return INACCURATE_MATCH;
+	if (!field.isField()) return IMPOSSIBLE_MATCH;
+
+	if (matchName && !matchesName(this.pattern.name, field.getName().toCharArray())) return IMPOSSIBLE_MATCH;
+
+	FieldPattern fieldPattern = (FieldPattern)this.pattern;
+	ITypeBinding receiverBinding = field.getDeclaringClass();
+	if (receiverBinding == null) {
+		if (field == ArrayBinding.ArrayLength)
+			// optimized case for length field of an array
+			return fieldPattern.declaringQualification == null && fieldPattern.declaringSimpleName == null
+				? ACCURATE_MATCH
+				: IMPOSSIBLE_MATCH;
+		return INACCURATE_MATCH;
+	}
+
+	// Note there is no dynamic lookup for field access
+	int declaringLevel = resolveLevelForType(fieldPattern.declaringSimpleName, fieldPattern.declaringQualification, receiverBinding);
+	if (declaringLevel == IMPOSSIBLE_MATCH) return IMPOSSIBLE_MATCH;
+
+	// look at field type only if declaring type is not specified
+	if (fieldPattern.declaringSimpleName == null) return declaringLevel;
+
+	// get real field binding
+	// TODO what is a ParameterizedFieldBinding?
+//	FieldBinding fieldBinding = field;
+//	if (field instanceof ParameterizedFieldBinding) {
+//		fieldBinding = ((ParameterizedFieldBinding) field).originalField;
+//	}
+
+	int typeLevel = resolveLevelForType(field.getType());
+	return declaringLevel > typeLevel ? typeLevel : declaringLevel; // return the weaker match
+}
 /* (non-Javadoc)
  * @see org.eclipse.jdt.internal.core.search.matching.PatternLocator#matchLevelAndReportImportRef(org.eclipse.jdt.internal.compiler.ast.ImportReference, org.eclipse.jdt.internal.compiler.lookup.Binding, org.eclipse.jdt.internal.core.search.matching.MatchLocator)
  * Accept to report match of static field on static import
@@ -159,6 +281,16 @@ protected int matchReference(Reference node, MatchingNodeSet nodeSet, boolean wr
 @Override
 protected void matchReportReference(ASTNode reference, IJavaElement element, Binding elementBinding, int accuracy, MatchLocator locator) throws CoreException {
 	matchReportReference(reference, element, null, null, elementBinding, accuracy, locator);
+}
+@Override
+public int match(Name name, MatchingNodeSet nodeSet) {
+	if (this.pattern.findDeclarations) {
+		return IMPOSSIBLE_MATCH; // already caught by match(VariableDeclaration)
+	}
+	if (matchesName(this.pattern.name, name.toString().toCharArray())) {
+		return nodeSet.addMatch(name, this.pattern.mustResolve ? POSSIBLE_MATCH : ACCURATE_MATCH);
+	}
+	return IMPOSSIBLE_MATCH;
 }
 @Override
 protected void matchReportReference(ASTNode reference, IJavaElement element, IJavaElement localElement, IJavaElement[] otherElements,Binding elementBinding, int accuracy, MatchLocator locator) throws CoreException {
@@ -346,6 +478,22 @@ public int resolveLevel(Binding binding) {
 
 	return matchField((FieldBinding) binding, true);
 }
+@Override
+public int resolveLevel(IBinding binding) {
+	if (binding == null) return INACCURATE_MATCH;
+	if(binding instanceof IVariableBinding variableBinding) {
+		if (variableBinding.isRecordComponent()) {
+			// for matching the component in constructor of a record
+			if (!matchesName(this.pattern.name, variableBinding.getName().toCharArray())) return IMPOSSIBLE_MATCH;
+			FieldPattern fieldPattern = (FieldPattern)this.pattern;
+			return resolveLevelForType(fieldPattern.declaringSimpleName, fieldPattern.declaringQualification,variableBinding.getDeclaringMethod().getDeclaringClass());
+		}
+		if (variableBinding.isField()) {
+			return matchField(variableBinding, true);
+		}
+	}
+	return IMPOSSIBLE_MATCH;
+}
 protected int resolveLevel(NameReference nameRef) {
 	if (nameRef instanceof SingleNameReference)
 		return resolveLevel(nameRef.binding);
@@ -389,6 +537,19 @@ protected int resolveLevelForType(TypeBinding typeBinding) {
 			fieldPattern.typeQualification,
 			fieldPattern.getTypeArguments(),
 			0,
+			fieldTypeBinding);
+}
+protected int resolveLevelForType(ITypeBinding typeBinding) {
+	FieldPattern fieldPattern = (FieldPattern) this.pattern;
+	ITypeBinding fieldTypeBinding = typeBinding;
+	if (fieldTypeBinding != null && fieldTypeBinding.isParameterizedType()) {
+		fieldTypeBinding = typeBinding.getErasure();
+	}
+	return resolveLevelForType(
+			fieldPattern.typeSimpleName,
+			fieldPattern.typeQualification,
+		//	fieldPattern.getTypeArguments(),
+		//	0,
 			fieldTypeBinding);
 }
 }
