@@ -767,6 +767,7 @@ public class JavacProblemConverter {
 			case "compiler.err.cant.ref.before.ctor.called" -> IProblem.InstanceFieldDuringConstructorInvocation; // TODO different according to target node
 			case "compiler.err.not.def.public.cant.access" -> IProblem.NotVisibleType; // TODO different according to target node
 			case "compiler.err.already.defined" -> IProblem.DuplicateMethod; // TODO different according to target node
+			case "compiler.warn.underscore.as.identifier" -> IProblem.ErrorUseOfUnderscoreAsAnIdentifier; //?
 			case "compiler.err.var.might.not.have.been.initialized" -> {
 				VarSymbol symbol = getDiagnosticArgumentByType(diagnostic, VarSymbol.class);
 				yield symbol.owner instanceof ClassSymbol ?
