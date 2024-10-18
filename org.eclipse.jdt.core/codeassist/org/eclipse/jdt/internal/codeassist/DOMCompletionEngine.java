@@ -10,15 +10,7 @@
  *******************************************************************************/
 package org.eclipse.jdt.internal.codeassist;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Objects;
-import java.util.Queue;
-import java.util.Set;
+import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -347,12 +339,41 @@ public class DOMCompletionEngine implements Runnable {
 					this.requestor.accept(createClassKeywordProposal(qualifierTypeBinding, startPos, endPos));
 
 					suggestDefaultCompletions = false;
-				} else if (qualifiedNameBinding instanceof IPackageBinding qualifierPackageBinding && !qualifierPackageBinding.isRecovered()) {
-					// start of a known package
-					suggestPackages();
-					// suggests types in the package
-					suggestTypesInPackage(qualifierPackageBinding.getName());
-					suggestDefaultCompletions = false;
+				} else if (qualifiedNameBinding instanceof IPackageBinding qualifierPackageBinding) {
+					if (!qualifierPackageBinding.isRecovered()) {
+						// start of a known package
+						suggestPackages();
+						// suggests types in the package
+						suggestTypesInPackage(qualifierPackageBinding.getName());
+						suggestDefaultCompletions = false;
+					} else {
+						// likely the start of an incomplete field/method access
+						Bindings tempScope = new Bindings();
+						scrapeAccessibleBindings(tempScope);
+						Optional<ITypeBinding> potentialBinding = tempScope.stream() //
+								.filter(binding -> {
+									IJavaElement elt = binding.getJavaElement();
+									if (elt == null) {
+										return false;
+									}
+									return elt.getElementName().equals(qualifiedName.getQualifier().toString());
+								}) //
+								.map(binding -> {
+									if (binding instanceof IVariableBinding variableBinding) {
+										return variableBinding.getType();
+									} else if (binding instanceof ITypeBinding typeBinding) {
+										return typeBinding;
+									}
+									throw new IllegalStateException("method, type var, etc. are likely not interpreted as a package"); //$NON-NLS-1$
+								})
+								.map(ITypeBinding.class::cast)
+								.findFirst();
+						if (potentialBinding.isPresent()) {
+							processMembers(qualifiedName, potentialBinding.get(), specificCompletionBindings, false);
+							publishFromScope(specificCompletionBindings);
+							suggestDefaultCompletions = false;
+						}
+					}
 				} else if (qualifiedNameBinding instanceof IVariableBinding variableBinding) {
 					ITypeBinding typeBinding = variableBinding.getType();
 					processMembers(qualifiedName, typeBinding, specificCompletionBindings, false);
@@ -396,21 +417,7 @@ public class DOMCompletionEngine implements Runnable {
 			// check for accessible bindings to potentially turn into completions.
 			// currently, this is always run, even when not using the default completion,
 			// because method argument guessing uses it.
-			ASTNode current = this.toComplete;
-			while (current != null) {
-				Collection<? extends IBinding> gottenVisibleBindings = visibleBindings(current);
-				defaultCompletionBindings.addAll(gottenVisibleBindings);
-				// break if following conditions match, otherwise we get all visible symbols which is unwanted in this
-				// completion context.
-				if (current instanceof NormalAnnotation normalAnnotation) {
-					completeNormalAnnotationParams(normalAnnotation, specificCompletionBindings);
-					break;
-				}
-				if (current instanceof AbstractTypeDeclaration typeDecl) {
-					processMembers(this.toComplete, typeDecl.resolveBinding(), specificCompletionBindings, false);
-				}
-				current = current.getParent();
-			}
+			scrapeAccessibleBindings(defaultCompletionBindings);
 
 			if (suggestDefaultCompletions) {
 				statementLikeKeywords();
@@ -434,6 +441,24 @@ public class DOMCompletionEngine implements Runnable {
 			if (this.monitor != null) {
 				this.monitor.done();
 			}
+		}
+	}
+
+	private void scrapeAccessibleBindings(Bindings scope) {
+		ASTNode current = this.toComplete;
+		while (current != null) {
+			Collection<? extends IBinding> gottenVisibleBindings = visibleBindings(current);
+			scope.addAll(gottenVisibleBindings);
+			// break if following conditions match, otherwise we get all visible symbols which is unwanted in this
+			// completion context.
+			if (current instanceof NormalAnnotation normalAnnotation) {
+				completeNormalAnnotationParams(normalAnnotation, scope);
+				break;
+			}
+			if (current instanceof AbstractTypeDeclaration typeDecl) {
+				processMembers(this.toComplete, typeDecl.resolveBinding(), scope, false);
+			}
+			current = current.getParent();
 		}
 	}
 
