@@ -14,9 +14,12 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
+import java.util.Queue;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.eclipse.core.runtime.ILog;
@@ -141,6 +144,19 @@ public class DOMCompletionEngine implements Runnable {
 					.map(VariableDeclaration::resolveBinding).toList());
 		}
 
+		if (node instanceof AbstractTypeDeclaration typeDecl) {
+			visibleBindings.addAll(typeDecl.bodyDeclarations().stream()
+					.flatMap(bodyDecl -> {
+						if (bodyDecl instanceof FieldDeclaration fieldDecl) {
+							return ((List<VariableDeclarationFragment>)fieldDecl.fragments()).stream().map(fragment -> fragment.resolveBinding());
+						}
+						if (bodyDecl instanceof MethodDeclaration methodDecl) {
+							return Stream.of(methodDecl.resolveBinding());
+						}
+						return Stream.of();
+					}).toList());
+		}
+
 		if (node instanceof Block block) {
 			var bindings = ((List<Statement>) block.statements()).stream()
 					.filter(statement -> statement.getStartPosition() < this.offset)
@@ -218,9 +234,10 @@ public class DOMCompletionEngine implements Runnable {
 			} else if (this.toComplete != null && this.toComplete.getParent () instanceof QualifiedName qualifiedName) {
 				this.qualifiedPrefix = qualifiedName.getQualifier().toString();
 			}
-			Bindings scope = new Bindings();
+			Bindings defaultCompletionBindings = new Bindings();
+			Bindings specificCompletionBindings = new Bindings();
 			var completionContext = new DOMCompletionContext(this.offset, completeAfter.toCharArray(),
-					computeEnclosingElement(), scope::stream);
+					computeEnclosingElement(), defaultCompletionBindings::stream);
 			this.requestor.acceptContext(completionContext);
 
 			// some flags to controls different applicable completion search strategies
@@ -230,9 +247,9 @@ public class DOMCompletionEngine implements Runnable {
 
 			if (context instanceof FieldAccess fieldAccess) {
 				statementLikeKeywords();
-				processMembers(fieldAccess.getExpression().resolveTypeBinding(), scope, true, isNodeInStaticContext(fieldAccess));
-				if (scope.stream().findAny().isPresent()) {
-					scope.stream()
+				processMembers(fieldAccess, fieldAccess.getExpression().resolveTypeBinding(), specificCompletionBindings, false);
+				if (specificCompletionBindings.stream().findAny().isPresent()) {
+					specificCompletionBindings.stream()
 						.filter(binding -> this.pattern.matchesName(this.prefix.toCharArray(), binding.getName().toCharArray()))
 						.map(binding -> toProposal(binding))
 						.forEach(this.requestor::accept);
@@ -259,8 +276,8 @@ public class DOMCompletionEngine implements Runnable {
 					}
 					// complete name
 					ITypeBinding type = expression.resolveTypeBinding();
-					processMembers(type, scope, true, isNodeInStaticContext(invocation));
-					scope.stream()
+					processMembers(expression, type, specificCompletionBindings, false);
+					specificCompletionBindings.stream()
 					.filter(binding -> this.pattern.matchesName(this.prefix.toCharArray(), binding.getName().toCharArray()))
 					.filter(IMethodBinding.class::isInstance)
 					.map(binding -> toProposal(binding))
@@ -271,7 +288,7 @@ public class DOMCompletionEngine implements Runnable {
 			if (context instanceof VariableDeclaration declaration) {
 				var binding = declaration.resolveBinding();
 				if (binding != null) {
-					this.variableDeclHandler.findVariableNames(binding, completeAfter, scope).stream()
+					this.variableDeclHandler.findVariableNames(binding, completeAfter, specificCompletionBindings).stream()
 							.map(name -> toProposal(binding, name)).forEach(this.requestor::accept);
 				}
 				// seems we are completing a variable name, no need for further completion search.
@@ -317,8 +334,8 @@ public class DOMCompletionEngine implements Runnable {
 			if (context instanceof QualifiedName qualifiedName) {
 				IBinding qualifiedNameBinding = qualifiedName.getQualifier().resolveBinding();
 				if (qualifiedNameBinding instanceof ITypeBinding qualifierTypeBinding && !qualifierTypeBinding.isRecovered()) {
-					processMembers(qualifierTypeBinding, scope, false, isNodeInStaticContext(qualifiedName));
-					publishFromScope(scope);
+					processMembers(qualifiedName, qualifierTypeBinding, specificCompletionBindings, true);
+					publishFromScope(specificCompletionBindings);
 					int startPos = this.offset;
 					int endPos = this.offset;
 					if ((qualifiedName.getName().getFlags() & ASTNode.MALFORMED) != 0) {
@@ -336,12 +353,17 @@ public class DOMCompletionEngine implements Runnable {
 					// suggests types in the package
 					suggestTypesInPackage(qualifierPackageBinding.getName());
 					suggestDefaultCompletions = false;
+				} else if (qualifiedNameBinding instanceof IVariableBinding variableBinding) {
+					ITypeBinding typeBinding = variableBinding.getType();
+					processMembers(qualifiedName, typeBinding, specificCompletionBindings, false);
+					publishFromScope(specificCompletionBindings);
+					suggestDefaultCompletions = false;
 				}
 			}
 			if (context instanceof SuperFieldAccess superFieldAccess) {
 				ITypeBinding superTypeBinding = superFieldAccess.resolveTypeBinding();
-				processMembers(superTypeBinding, scope, false, isNodeInStaticContext(superFieldAccess));
-				publishFromScope(scope);
+				processMembers(superFieldAccess, superTypeBinding, specificCompletionBindings, false);
+				publishFromScope(specificCompletionBindings);
 				suggestDefaultCompletions = false;
 			}
 			if (context instanceof MarkerAnnotation) {
@@ -349,7 +371,7 @@ public class DOMCompletionEngine implements Runnable {
 				suggestDefaultCompletions = false;
 			}
 			if (context instanceof NormalAnnotation normalAnnotation) {
-				completeNormalAnnotationParams(normalAnnotation, scope);
+				completeNormalAnnotationParams(normalAnnotation, specificCompletionBindings);
 				suggestDefaultCompletions = false;
 			}
 			if (context instanceof MethodDeclaration methodDeclaration) {
@@ -359,35 +381,40 @@ public class DOMCompletionEngine implements Runnable {
 					if (methodDeclaration.getReturnType2() == null) {
 						ASTNode current = this.toComplete;
 						while (current != null) {
-							scope.addAll(visibleTypeBindings(current));
+							specificCompletionBindings.addAll(visibleTypeBindings(current));
 							current = current.getParent();
 						}
-						publishFromScope(scope);
+						publishFromScope(specificCompletionBindings);
 					}
 					suggestDefaultCompletions = false;
 				} else if (methodDeclaration.getBody() != null && this.offset <= methodDeclaration.getBody().getStartPosition()) {
-					completeThrowsClause(methodDeclaration, scope);
+					completeThrowsClause(methodDeclaration, specificCompletionBindings);
 					suggestDefaultCompletions = false;
 				}
 			}
 
-			if (suggestDefaultCompletions) {
-				ASTNode current = this.toComplete;
-				while (current != null) {
-					scope.addAll(visibleBindings(current));
-					// break if following conditions match, otherwise we get all visible symbols which is unwanted in this
-					// completion context.
-					if (current instanceof NormalAnnotation normalAnnotation) {
-						completeNormalAnnotationParams(normalAnnotation, scope);
-						break;
-					}
-					if (current instanceof AbstractTypeDeclaration typeDecl) {
-						processMembers(typeDecl.resolveBinding(), scope, true, isNodeInStaticContext(this.toComplete));
-					}
-					current = current.getParent();
+			// check for accessible bindings to potentially turn into completions.
+			// currently, this is always run, even when not using the default completion,
+			// because method argument guessing uses it.
+			ASTNode current = this.toComplete;
+			while (current != null) {
+				Collection<? extends IBinding> gottenVisibleBindings = visibleBindings(current);
+				defaultCompletionBindings.addAll(gottenVisibleBindings);
+				// break if following conditions match, otherwise we get all visible symbols which is unwanted in this
+				// completion context.
+				if (current instanceof NormalAnnotation normalAnnotation) {
+					completeNormalAnnotationParams(normalAnnotation, specificCompletionBindings);
+					break;
 				}
+				if (current instanceof AbstractTypeDeclaration typeDecl) {
+					processMembers(this.toComplete, typeDecl.resolveBinding(), specificCompletionBindings, false);
+				}
+				current = current.getParent();
+			}
+
+			if (suggestDefaultCompletions) {
 				statementLikeKeywords();
-				publishFromScope(scope);
+				publishFromScope(defaultCompletionBindings);
 				if (!completeAfter.isBlank()) {
 					final int typeMatchRule = this.toComplete.getParent() instanceof Annotation
 							? IJavaSearchConstants.ANNOTATION_TYPE
@@ -529,6 +556,19 @@ public class DOMCompletionEngine implements Runnable {
 		}
 	}
 
+	private static boolean canAccessPrivate(ASTNode currentNode, ITypeBinding typeToCheck) {
+		ASTNode cursor = currentNode;
+		while (cursor != null) {
+			if (cursor instanceof AbstractTypeDeclaration typeDecl) {
+				if (typeDecl.resolveBinding().getKey().equals(typeToCheck.getErasure().getKey())) {
+					return true;
+				}
+			}
+			cursor = cursor.getParent();
+		}
+		return false;
+	}
+
 	private static ASTNode findParent(ASTNode nodeToSearch, int[] kindsToFind) {
 		ASTNode cursor = nodeToSearch;
 		while (cursor != null) {
@@ -665,23 +705,86 @@ public class DOMCompletionEngine implements Runnable {
 		return types.stream();
 	}
 
-	private void processMembers(ITypeBinding typeBinding, Bindings scope, boolean includePrivate, boolean isStaticContext) {
+	private void processMembers(ASTNode referencedFrom, ITypeBinding typeBinding, Bindings scope, boolean isStaticContext) {
+		AbstractTypeDeclaration parentType = (AbstractTypeDeclaration)findParent(referencedFrom, new int[] {ASTNode.ANNOTATION_TYPE_DECLARATION, ASTNode.TYPE_DECLARATION, ASTNode.ENUM_DECLARATION, ASTNode.RECORD_DECLARATION});
+		if (parentType == null) {
+			return;
+		}
+		ITypeBinding referencedFromBinding = parentType.resolveBinding();
+		boolean includePrivate = referencedFromBinding.getKey().equals(typeBinding.getKey());
+		MethodDeclaration methodDeclaration = (MethodDeclaration)findParent(referencedFrom, new int[] {ASTNode.METHOD_DECLARATION});
+		// you can reference protected fields/methods from a static method,
+		// as long as those protected fields/methods are declared in the current class.
+		// otherwise, the (inherited) fields/methods can only be accessed in non-static methods.
+		// FIXME: what if we are referencing an instance of a type that inherits from the current type?
+		// is that possible or is it circular referencing?
+		boolean includeProtected;
+		if (referencedFromBinding.getKey().equals(typeBinding.getKey())) {
+			includeProtected = true;
+		} else if (methodDeclaration != null
+				&& (methodDeclaration.getModifiers() & Flags.AccStatic) != 0) {
+			includeProtected = false;
+		} else {
+			includeProtected = findInSupers(referencedFromBinding, typeBinding);
+		}
+		processMembers(typeBinding, scope, includePrivate, includeProtected, referencedFromBinding.getPackage().getKey(), isStaticContext);
+	}
+
+	private void processMembers(ITypeBinding typeBinding, Bindings scope, boolean includePrivate, boolean includeProtected, String originalPackageKey, boolean isStaticContext) {
 		if (typeBinding == null) {
 			return;
 		}
+		Predicate<IBinding> accessFilter = binding -> {
+			return (includePrivate || (binding.getModifiers() & Flags.AccPrivate) == 0)
+					// check protected
+					&& (includeProtected || (binding.getModifiers() & Flags.AccProtected) == 0)
+					// check package private
+					&& ((binding.getModifiers() & (Flags.AccPublic | Flags.AccProtected | Flags.AccPrivate)) != 0 || originalPackageKey.equals(typeBinding.getPackage().getKey()))
+					// check static
+					&& (!isStaticContext || (binding.getModifiers() & Flags.AccStatic) != 0);
+		};
 		Arrays.stream(typeBinding.getDeclaredFields()) //
-			.filter(field -> (includePrivate || (field.getModifiers() & Flags.AccPrivate) == 0)
-					&& (!isStaticContext || (field.getModifiers() & Flags.AccStatic) != 0)) //
+			.filter(accessFilter) //
 			.forEach(scope::add);
 		Arrays.stream(typeBinding.getDeclaredMethods()) //
-			.filter(method -> includePrivate || (method.getModifiers() & Flags.AccPrivate) == 0
-					&& (!isStaticContext || (method.getModifiers() & Flags.AccStatic) != 0)) //
+			.filter(accessFilter) //
 			.forEach(scope::add);
 		if (typeBinding.getInterfaces() != null) {
-			Arrays.stream(typeBinding.getInterfaces()).forEach(member -> processMembers(member, scope, false, isStaticContext));
+			for (ITypeBinding superinterfaceBinding : typeBinding.getInterfaces()) {
+				processMembers(superinterfaceBinding, scope, false, includeProtected, originalPackageKey, isStaticContext);
+			}
 		}
-		processMembers(typeBinding.getSuperclass(), scope, false, isStaticContext);
+		ITypeBinding superclassBinding = typeBinding.getSuperclass();
+		if (superclassBinding != null) {
+			processMembers(superclassBinding, scope, false, includeProtected, originalPackageKey, isStaticContext);
+		}
 	}
+
+	private static boolean findInSupers(ITypeBinding root, ITypeBinding toFind) {
+		String keyToFind = toFind.getErasure().getKey();
+		Queue<ITypeBinding> toCheck = new LinkedList<>();
+		Set<String> alreadyChecked = new HashSet<>();
+		toCheck.add(root.getErasure());
+		while (!toCheck.isEmpty()) {
+			ITypeBinding current = toCheck.poll();
+			String currentKey = current.getErasure().getKey();
+			if (alreadyChecked.contains(currentKey)) {
+				continue;
+			}
+			alreadyChecked.add(currentKey);
+			if (currentKey.equals(keyToFind)) {
+				return true;
+			}
+			for (ITypeBinding superInterface : current.getInterfaces()) {
+				toCheck.add(superInterface);
+			}
+			if (current.getSuperclass() != null) {
+				toCheck.add(current.getSuperclass());
+			}
+		}
+		return false;
+	}
+
 	private CompletionProposal toProposal(IBinding binding) {
 		return toProposal(binding, binding.getName());
 	}

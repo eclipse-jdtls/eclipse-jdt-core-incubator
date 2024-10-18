@@ -15,7 +15,6 @@ package org.eclipse.jdt.internal.codeassist;
 
 import java.util.function.Supplier;
 import java.util.stream.Stream;
-
 import org.eclipse.jdt.core.CompletionContext;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.Signature;
@@ -69,6 +68,7 @@ class DOMCompletionContext extends CompletionContext {
 				return false;
 			}) //
 			.map(binding -> binding.getJavaElement()) //
+			.filter(obj -> obj != null) // eg. ArrayList.getFirst() when working with a Java 8 project
 			.toArray(IJavaElement[]::new);
 	}
 
