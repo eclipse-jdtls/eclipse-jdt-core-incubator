@@ -16,6 +16,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.eclipse.core.runtime.ILog;
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.core.runtime.OperationCanceledException;
 import org.eclipse.jdt.core.*;
 import org.eclipse.jdt.core.compiler.CharOperation;
@@ -199,19 +200,40 @@ public class DOMCompletionEngine implements Runnable {
 		}
 		this.requestor.beginReporting();
 		try {
-			this.toComplete = NodeFinder.perform(this.unit, this.offset, 0);
+			// Use the raw text to walk back the offset to the first non-whitespace spot
+			int adjustedOffset = this.offset;
+			try {
+
+				IBuffer cuBuffer = this.modelUnit.getBuffer();
+				if (adjustedOffset >= cuBuffer.getLength()) {
+					adjustedOffset = cuBuffer.getLength() - 1;
+				}
+				if (adjustedOffset + 1 >= cuBuffer.getLength()
+						|| Character.isWhitespace(cuBuffer.getChar(adjustedOffset + 1))) {
+					while (adjustedOffset > 0 && Character.isWhitespace(cuBuffer.getChar(adjustedOffset)) ) {
+						adjustedOffset--;
+					}
+				}
+			} catch (JavaModelException e) {
+				ILog.get().error("Cannot adjust the completion offset to the first preceeding non-whitespace character"); //$NON-NLS-1$
+			}
+
+			this.toComplete = NodeFinder.perform(this.unit, adjustedOffset, 0);
 			this.expectedTypes = new ExpectedTypes(this.assistOptions, this.toComplete);
 			ASTNode context = this.toComplete;
 			String completeAfter = ""; //$NON-NLS-1$
 			if (this.toComplete instanceof SimpleName simpleName) {
 				int charCount = this.offset - simpleName.getStartPosition();
 				if (!FAKE_IDENTIFIER.equals(simpleName.getIdentifier())) {
-					completeAfter = simpleName.getIdentifier().substring(0, charCount);
+					completeAfter = simpleName.getIdentifier().substring(0, simpleName.getIdentifier().length() <= charCount ? simpleName.getIdentifier().length() : charCount);
 				}
 				if (simpleName.getParent() instanceof FieldAccess || simpleName.getParent() instanceof MethodInvocation
 						|| simpleName.getParent() instanceof VariableDeclaration || simpleName.getParent() instanceof QualifiedName
 						|| simpleName.getParent() instanceof SuperFieldAccess) {
 					context = this.toComplete.getParent();
+				}
+				if (simpleName.getParent() instanceof SimpleType simpleType && (simpleType.getParent() instanceof ClassInstanceCreation)) {
+					context = simpleName.getParent().getParent();
 				}
 			} else if (this.toComplete instanceof SimpleType simpleType) {
 				if (FAKE_IDENTIFIER.equals(simpleType.getName().toString())) {
@@ -427,6 +449,31 @@ public class DOMCompletionEngine implements Runnable {
 					completeThrowsClause(methodDeclaration, specificCompletionBindings);
 					suggestDefaultCompletions = false;
 				}
+			}
+			if (context instanceof ClassInstanceCreation cic) {
+				if (cic.getParent() instanceof VariableDeclarationFragment vdf) {
+					// relevant types
+					VariableDeclarationStatement vds = (VariableDeclarationStatement)vdf.getParent();
+					ITypeBinding variableType = vds.getType().resolveBinding();
+					if (variableType != null) {
+						completeConstructor(variableType, context, this.modelUnit.getJavaProject());
+					} else {
+						ASTNode current = this.toComplete;
+						while (current != null) {
+							specificCompletionBindings.addAll(visibleTypeBindings(current));
+							current = current.getParent();
+						}
+						publishFromScope(specificCompletionBindings);
+					}
+				} else {
+					ASTNode current = this.toComplete;
+					while (current != null) {
+						specificCompletionBindings.addAll(visibleTypeBindings(current));
+						current = current.getParent();
+					}
+					publishFromScope(specificCompletionBindings);
+				}
+				suggestDefaultCompletions = false;
 			}
 
 			// check for accessible bindings to potentially turn into completions.
@@ -647,6 +694,47 @@ public class DOMCompletionEngine implements Runnable {
 		scope.stream() //
 			.filter(binding -> this.pattern.matchesName(this.prefix.toCharArray(), binding.getName().toCharArray())) //
 			.map(binding -> toProposal(binding)).forEach(this.requestor::accept);
+	}
+
+	private void completeConstructor(ITypeBinding typeBinding, ASTNode referencedFrom, IJavaProject javaProject) {
+		// compute type hierarchy
+		boolean isArray = typeBinding.isArray();
+		IType typeHandle = ((IType)typeBinding.getJavaElement());
+		if (typeHandle != null) {
+			try {
+				AbstractTypeDeclaration enclosingType = (AbstractTypeDeclaration) findParent(referencedFrom, new int[] { ASTNode.TYPE_DECLARATION, ASTNode.ENUM_DECLARATION, ASTNode.RECORD_DECLARATION, ASTNode.ANNOTATION_TYPE_DECLARATION });
+				ITypeBinding enclosingTypeBinding = enclosingType.resolveBinding();
+				IType enclosingTypeElement = (IType) enclosingTypeBinding.getJavaElement();
+				ITypeHierarchy newTypeHierarchy = typeHandle.newTypeHierarchy(javaProject, null);
+				ASTParser parser = ASTParser.newParser(AST.getJLSLatest());
+				parser.setProject(javaProject);
+				IType[] subtypes = newTypeHierarchy.getSubtypes(typeHandle);
+				IType[] subtypesAndType = new IType[subtypes.length + (enclosingTypeElement != null ? 2 : 1)];
+				subtypesAndType[0] = typeHandle;
+				// FIXME: I feel like this is a misfeature of JDT
+				// I want to fix it upstream as well as here
+				if (enclosingTypeElement != null) {
+					// FIXME: it might already be in there
+					subtypesAndType[subtypesAndType.length - 1] = enclosingTypeElement;
+				}
+				System.arraycopy(subtypes, 0, subtypesAndType, 1, subtypes.length);
+				IBinding[] descendantBindings = parser.createBindings(subtypesAndType, new NullProgressMonitor());
+				for (IBinding descendantBinding : descendantBindings) {
+					if (descendantBinding instanceof ITypeBinding descendantBindingType && CharOperation.prefixEquals(this.prefix.toCharArray(), descendantBindingType.getName().toCharArray())) {
+						if (isArray) {
+							this.requestor.accept(toProposal(descendantBinding));
+						} else {
+							List<CompletionProposal> proposals = toConstructorProposals(descendantBindingType, referencedFrom);
+							for (CompletionProposal proposal : proposals) {
+								this.requestor.accept(proposal);
+							}
+						}
+					}
+				}
+			} catch (JavaModelException e) {
+				ILog.get().error("Unable to compute type hierarchy while performing completion", e); //$NON-NLS-1$
+			}
+		}
 	}
 
 	private void findOverridableMethods(ITypeBinding typeBinding, IJavaProject javaProject, ASTNode toReplace) {
@@ -1031,6 +1119,171 @@ public class DOMCompletionEngine implements Runnable {
 		res.setRelevance(relevance);
 		// set defaults for now to avoid error downstream
 		res.setRequiredProposals(new CompletionProposal[] { toImportProposal(simpleName, signature) });
+		return res;
+	}
+
+	private List<CompletionProposal> toConstructorProposals(ITypeBinding typeBinding, ASTNode referencedFrom) {
+
+		List<CompletionProposal> proposals = new ArrayList<>();
+
+		AbstractTypeDeclaration parentType = (AbstractTypeDeclaration)findParent(referencedFrom, new int[] {ASTNode.ANNOTATION_TYPE_DECLARATION, ASTNode.TYPE_DECLARATION, ASTNode.ENUM_DECLARATION, ASTNode.RECORD_DECLARATION});
+		if (parentType == null) {
+			return proposals;
+		}
+
+		ITypeBinding referencedFromBinding = parentType.resolveBinding();
+		boolean includePrivate = referencedFromBinding.getKey().equals(typeBinding.getKey());
+		MethodDeclaration methodDeclaration = (MethodDeclaration)findParent(referencedFrom, new int[] {ASTNode.METHOD_DECLARATION});
+		// you can reference protected fields/methods from a static method,
+		// as long as those protected fields/methods are declared in the current class.
+		// otherwise, the (inherited) fields/methods can only be accessed in non-static methods.
+		boolean includeProtected;
+		if (referencedFromBinding.getKey().equals(typeBinding.getKey())) {
+			includeProtected = true;
+		} else if (methodDeclaration != null
+				&& (methodDeclaration.getModifiers() & Flags.AccStatic) != 0) {
+			includeProtected = false;
+		} else {
+			includeProtected = findInSupers(referencedFromBinding, typeBinding);
+		}
+
+		if (!this.requestor.isIgnored(CompletionProposal.ANONYMOUS_CLASS_CONSTRUCTOR_INVOCATION) && typeBinding.isInterface()) {
+			// create an anonymous declaration: `new MyInterface() { }`;
+			proposals.add(toAnonymousConstructorProposal(typeBinding));
+			// TODO: JDT allows completing the constructors declared on an abstract class,
+			// without adding a body to these instance creations.
+			// This doesn't make sense, since the abstract methods need to be implemented.
+			// We should consider making those completion items here instead
+		} else {
+			for (IMethodBinding typesMethod: typeBinding.getDeclaredMethods()) {
+				if (typesMethod.isConstructor()
+						// public
+						&& ((typesMethod.getModifiers() & Flags.AccPublic) != 0
+						// protected
+						|| (includeProtected && (typesMethod.getModifiers() & Flags.AccProtected) != 0)
+						// private
+						|| (includePrivate && (typesMethod.getModifiers() & Flags.AccPrivate) != 0)
+						// package private
+						||((typesMethod.getModifiers() & (Flags.AccPrivate | Flags.AccProtected | Flags.AccPublic)) == 0 && typeBinding.getPackage().getKey().equals(referencedFromBinding.getPackage().getKey())))) {
+					proposals.add(toConstructorProposal(typesMethod));
+				}
+			}
+		}
+
+		return proposals;
+	}
+
+	private CompletionProposal toConstructorProposal(IMethodBinding methodBinding) {
+		InternalCompletionProposal res = createProposal(CompletionProposal.CONSTRUCTOR_INVOCATION);
+		char[] simpleName = methodBinding.getName().toCharArray();
+		char[] signature = methodBinding.getKey().replace('/', '.').toCharArray();
+		res.setCompletion(new char[] {'(', ')'});
+		res.setName(simpleName);
+		res.setSignature(signature);
+		res.setOriginalSignature(signature);
+
+		res.setDeclarationSignature(Signature.createTypeSignature(methodBinding.getDeclaringClass().getQualifiedName(), true).toCharArray());
+		res.setDeclarationTypeName(simpleName);
+		res.setDeclarationPackageName(methodBinding.getDeclaringClass().getPackage().getName().toCharArray());
+		res.setParameterPackageNames(CharOperation.NO_CHAR_CHAR);
+		res.setParameterTypeNames(CharOperation.NO_CHAR_CHAR);
+
+		if (methodBinding.getParameterNames().length == 0) {
+			res.setParameterNames(CharOperation.NO_CHAR_CHAR);
+		} else {
+			char[][] paramNamesCharChar = Stream.of(methodBinding.getParameterNames()) //
+					.map(String::toCharArray)
+					.toArray(char[][]::new);
+			res.setParameterNames(paramNamesCharChar);
+		}
+
+		res.setIsContructor(true);
+
+		// TODO:
+
+//		res.setDeclarationTypeVariables(typeVariables);
+//		res.setCompatibleProposal(isCompatibleType);
+
+		res.setReplaceRange(this.offset, this.offset);
+		res.setTokenRange(this.toComplete.getStartPosition(), this.offset);
+		res.setFlags(methodBinding.getModifiers());
+		// TODO: fix; these are copied from the type proposal
+		int relevance = RelevanceConstants.R_DEFAULT
+				+ RelevanceConstants.R_RESOLVED
+				+ RelevanceConstants.R_INTERESTING
+				+ RelevanceConstants.R_NON_RESTRICTED;
+		relevance += computeRelevanceForCaseMatching(this.prefix.toCharArray(), simpleName, this.assistOptions);
+		res.setRelevance(relevance);
+
+		CompletionProposal typeProposal = toProposal(methodBinding.getDeclaringClass());
+		if (this.toComplete instanceof SimpleName) {
+			typeProposal.setReplaceRange(this.toComplete.getStartPosition(), this.offset);
+			typeProposal.setTokenRange(this.toComplete.getStartPosition(), this.offset);
+		} else {
+			typeProposal.setReplaceRange(this.offset, this.offset);
+			typeProposal.setTokenRange(this.offset, this.offset);
+		}
+		StringBuilder typeCompletion = new StringBuilder(Signature.createTypeSignature(methodBinding.getDeclaringClass().getQualifiedName(), true));
+		typeCompletion.append('.');
+		typeCompletion.append(methodBinding.getName());
+		typeProposal.setCompletion(typeCompletion.toString().toCharArray());
+		typeProposal.setRequiredProposals(null);
+
+		res.setRequiredProposals(new CompletionProposal[] { typeProposal });
+		return res;
+	}
+
+	private CompletionProposal toAnonymousConstructorProposal(ITypeBinding typeBinding) {
+		InternalCompletionProposal res = createProposal(CompletionProposal.ANONYMOUS_CLASS_CONSTRUCTOR_INVOCATION);
+		res.setDeclarationSignature(Signature.createTypeSignature(typeBinding.getQualifiedName(), true).toCharArray());
+		res.setDeclarationKey(typeBinding.getKey().toCharArray());
+		res.setSignature(
+				CompletionEngine.createMethodSignature(
+						CharOperation.NO_CHAR_CHAR,
+						CharOperation.NO_CHAR_CHAR,
+						CharOperation.NO_CHAR,
+						CharOperation.NO_CHAR));
+		res.setDeclarationPackageName(typeBinding.getPackage().getName().toCharArray());
+		res.setDeclarationTypeName(typeBinding.getName().toCharArray());
+		res.setName(typeBinding.getName().toCharArray());
+
+		int relevance = RelevanceConstants.R_DEFAULT;
+		relevance += RelevanceConstants.R_RESOLVED;
+		relevance += RelevanceConstants.R_INTERESTING; // TODO: check that it's not in the uninteresting bindings list
+		relevance += computeRelevanceForCaseMatching(this.prefix.toCharArray(), typeBinding.getName().toCharArray(), this.assistOptions);
+		// if an array, then we need to use the original expected type.
+//		relevance += computeRelevanceForExpectingType(
+//			isArrayCompletion ? originalExpectedType : refBinding);
+		relevance += RelevanceConstants.R_UNQUALIFIED;
+		relevance += RelevanceConstants.R_NON_RESTRICTED;
+//		relevance += computeRelevanceForJavaLibrary(packageName); // TODO:
+
+		if(typeBinding.isClass()) {
+			relevance += RelevanceConstants.R_CLASS;
+//			relevance += computeRelevanceForException(typeName); // TODO:
+		} else if(typeBinding.isEnum()) {
+			relevance += RelevanceConstants.R_ENUM;
+		} else if(typeBinding.isInterface()) {
+			relevance += RelevanceConstants.R_INTERFACE;
+		}
+
+		InternalCompletionProposal typeProposal = createProposal(CompletionProposal.TYPE_REF);
+		typeProposal.setDeclarationSignature(typeBinding.getPackage().getName().toCharArray());
+		typeProposal.setSignature(Signature.createTypeSignature(typeBinding.getQualifiedName(), true).toCharArray());
+		typeProposal.setPackageName(typeBinding.getPackage().getName().toCharArray());
+		typeProposal.setTypeName(typeBinding.getName().toCharArray());
+		typeProposal.setCompletion(typeBinding.getName().toCharArray());
+		typeProposal.setFlags(typeBinding.getModifiers());
+		typeProposal.setReplaceRange(this.offset, this.offset);
+		typeProposal.setTokenRange(this.offset, this.offset);
+		typeProposal.setRelevance(relevance);
+		res.setRequiredProposals( new CompletionProposal[]{typeProposal});
+
+		res.setCompletion(new char[] {'(', ')'});
+		res.setFlags(Flags.AccPublic);
+		res.setReplaceRange(this.offset, this.offset);
+		res.setTokenRange(this.toComplete.getStartPosition(), this.offset);
+		res.setRelevance(relevance);
 		return res;
 	}
 
