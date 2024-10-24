@@ -916,14 +916,6 @@ class JavadocConverter {
 				super.preVisit(node);
 			}
 		});
-		if (jdtType.getStartPosition() + jdtType.getLength() < res.getStartPosition() + res.getLength()) {
-			if (segments.length > 1) {
-				String nameSegment = segments[segments.length - 1];
-				SimpleName name = this.ast.newSimpleName(nameSegment);
-				name.setSourceRange(this.javacConverter.rawText.lastIndexOf(nameSegment, range.endPosition()), nameSegment.length());
-				res.setName(name);
-			}
-		}
 		return res;
 	}
 }
