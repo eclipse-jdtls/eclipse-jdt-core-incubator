@@ -93,7 +93,7 @@ public class CachingJDKPlatformArguments extends Arguments {
 		return new PlatformDescription() {
 			@Override
 			public JavaFileManager getFileManager() {
-				return platformFMCache.computeIfAbsent(getSourceVersion(), _ -> new ForwardingJavaFileManager<JavaFileManager>(delegate.getFileManager()) {
+				return platformFMCache.computeIfAbsent(getSourceVersion(), arg -> new ForwardingJavaFileManager<JavaFileManager>(delegate.getFileManager()) {
 					@Override
 					public void close() {
 						// do nothing, keep instance usable

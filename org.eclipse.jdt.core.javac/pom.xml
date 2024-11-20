@@ -20,41 +20,62 @@
 	<build>
 		<plugins>
 			<plugin>
-				<groupId>org.eclipse.tycho</groupId>
-				<artifactId>tycho-compiler-plugin</artifactId>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
 				<configuration>
-					<deriveReleaseCompilerArgumentFromTargetLevel>false</deriveReleaseCompilerArgumentFromTargetLevel>
-					<compilerId>javac</compilerId>
-					<compilerArgs combine.self="override">
-						<arg>--add-exports</arg>
-						<arg>java.base/java.lang=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.main=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.util=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.tree=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.api=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.file=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.parser=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.comp=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.code=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.platform=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.compiler/com.sun.tools.javac.resources=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.javadoc/jdk.javadoc.internal.doclets.formats.html.taglets.snippet=ALL-UNNAMED</arg>
-						<arg>--add-exports</arg>
-						<arg>jdk.javadoc/jdk.javadoc.internal.doclets.formats.html.taglets=ALL-UNNAMED</arg>
-					</compilerArgs>
+					<artifactItems>
+						<artifactItem>
+							<groupId>com.dukescript.nbjavac</groupId>
+							<artifactId>nb-javac</artifactId>
+							<version>jdk-23+35</version>
+						</artifactItem>
+						<artifactItem>
+							<groupId>com.dukescript.nbjavac</groupId>
+							<artifactId>nb-javac</artifactId>
+							<version>jdk-23+35</version>
+							<classifier>api</classifier>
+						</artifactItem>
+					</artifactItems>
 				</configuration>
 			</plugin>
 		</plugins>
+		<pluginManagement>
+			<plugins>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-dependency-plugin</artifactId>
+					<version>3.8.1</version>
+					<executions>
+						<execution>
+							<?m2e execute onConfiguration onIncremental?>
+							<id>get-libs</id>
+							<goals>
+								<goal>copy</goal>
+							</goals>
+							<phase>validate</phase>
+						</execution>
+					</executions>
+					<configuration>
+						<skip>false</skip>
+						<outputDirectory>${basedir}/lib/</outputDirectory>
+						<!-- baseVersion is to avoid SNAPSHOT dependencies being copied with
+							ever daily changing timestamp -->
+					</configuration>
+				</plugin>
+				<plugin>
+					<!-- make sure lib dir is removed after clean to avoid "dirty" build -->
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-clean-plugin</artifactId>
+					<version>3.4.0</version>
+					<configuration>
+						<filesets>
+							<fileset>
+								<directory>${basedir}/lib</directory>
+							</fileset>
+						</filesets>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 	</build>
 </project>

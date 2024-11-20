@@ -563,6 +563,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (sourceUnits.length == 0) {
 			return Collections.emptyMap();
 		}
+
+		JavacPatch.loadVMWrapperPatch();
 		var compiler = ToolProvider.getSystemJavaCompiler();
 		Context context = new Context();
 		CachingJarsJavaFileManager.preRegister(context);

@@ -62,9 +62,6 @@ import com.sun.tools.javac.tree.TreeScanner;
 import com.sun.tools.javac.util.Convert;
 import com.sun.tools.javac.util.JCDiagnostic;
 
-import jdk.javadoc.internal.doclets.formats.html.taglets.snippet.Attribute;
-import jdk.javadoc.internal.doclets.formats.html.taglets.snippet.MarkupParser;
-
 class JavadocConverter {
 
 	// Both copied from jdk.javadoc.internal.doclets.formats.html.taglets.snippet.Parser
@@ -329,7 +326,7 @@ class JavadocConverter {
 	}
 
 	
-	
+
 	private Stream<IDocElement> convertInlineTag(DCTree javac) {
 		ArrayList<IDocElement> collector = new ArrayList<>();
 		TagElement res = this.ast.newTagElement();
@@ -364,9 +361,9 @@ class JavadocConverter {
 		} else if (javac instanceof DCSnippet snippet) {
 			res.setTagName(TagElement.TAG_SNIPPET);
 			res.setProperty(TagProperty.TAG_PROPERTY_SNIPPET_IS_VALID, true);
-			res.fragments().addAll(splitLines(snippet.body, true)
-					.map(this::toSnippetFragment)
-					.toList());
+//			res.fragments().addAll(splitLines(snippet.body, true)
+//					.map(this::toSnippetFragment)
+//					.toList());
 		} else if (javac instanceof DCUnknownInlineTag unknown) {
 			res.fragments().add(toDefaultTextElement(unknown));
 		} else {
@@ -498,64 +495,64 @@ class JavadocConverter {
 		return Stream.empty();
 	}
 
-	private IDocElement /* TextElement or TagElement for highlight/link... */ toSnippetFragment(Region region) {
-		TextElement defaultElement = toTextElementPreserveWhitespace(region);
-		if (!defaultElement.getText().endsWith("\n")) {
-			defaultElement.setText(defaultElement.getText() + '\n');
-		}
-		String line = region.getContents();
-		Matcher markedUpLine = JAVA_COMMENT.matcher(line);
-		if (!markedUpLine.matches()) {
-			return defaultElement;
-		}
-		int markupStart = markedUpLine.start("markup");
-		String markup = line.substring(markupStart);
-		MarkupParser markupParser = new MarkupParser(null);
-		try {
-			List<?> tags = markupParser.parse(markup);
-			if (tags.isEmpty()) {
-				return defaultElement;
-			}
-			TextElement initialTextElement = this.ast.newTextElement();
-			initialTextElement.setSourceRange(region.startOffset, markupStart - 2 /* 2 is length of `//` */);
-			initialTextElement.setText(line.substring(0, markupStart - 2) + '\n');
-			IDocElement currentElement = initialTextElement;
-			Class<? extends Object> tagClass = tags.getFirst().getClass();
-			Field nameField = tagClass.getDeclaredField("name"); //$NON-NLS-1$
-			nameField.setAccessible(true);
-			Field attributesFields = tagClass.getDeclaredField("attributes"); //$NON-NLS-1$
-			attributesFields.setAccessible(true);
-			for (Object tag : tags) {
-				String name = (String)nameField.get(tag);
-				List<Attribute> attributes = (List<Attribute>)attributesFields.get(tag);
-				TagElement newElement = this.ast.newTagElement();
-				newElement.setSourceRange(region.startOffset, region.length);
-				newElement.setTagName('@' + name);
-				newElement.setProperty(TagProperty.TAG_PROPERTY_SNIPPET_INLINE_TAG_COUNT, 1); // TODO what?
-				attributes.stream().map(this::toTagProperty).forEach(newElement.tagProperties()::add);
-				newElement.fragments().add(currentElement);
-				currentElement = newElement;
-			}
-			return currentElement;
-		} catch (Exception ex) {
-			ILog.get().error("While trying to build snippet line " + line + ": " + ex.getMessage(), ex);
-		}
-		return defaultElement;
-	}
-	private TagProperty toTagProperty(Attribute snippetMarkupAttribute) {
-		TagProperty res = this.ast.newTagProperty();
-		try {
-			Field name = Attribute.class.getDeclaredField("name"); //$NON-NLS-1$
-			name.setAccessible(true);
-			res.setName((String)name.get(snippetMarkupAttribute));
-			Field value = snippetMarkupAttribute.getClass().getDeclaredField("value"); //$NON-NLS-1$
-			value.setAccessible(true);
-			res.setStringValue((String)value.get(snippetMarkupAttribute));
-		} catch (Exception ex) {
-			ILog.get().error(ex.getMessage(), ex);
-		}
-		return res;
-	}
+//	private IDocElement /* TextElement or TagElement for highlight/link... */ toSnippetFragment(Region region) {
+//		TextElement defaultElement = toTextElementPreserveWhitespace(region);
+//		if (!defaultElement.getText().endsWith("\n")) {
+//			defaultElement.setText(defaultElement.getText() + '\n');
+//		}
+//		String line = region.getContents();
+//		Matcher markedUpLine = JAVA_COMMENT.matcher(line);
+//		if (!markedUpLine.matches()) {
+//			return defaultElement;
+//		}
+//		int markupStart = markedUpLine.start("markup");
+//		String markup = line.substring(markupStart);
+//		MarkupParser markupParser = new MarkupParser(null);
+//		try {
+//			List<?> tags = markupParser.parse(markup);
+//			if (tags.isEmpty()) {
+//				return defaultElement;
+//			}
+//			TextElement initialTextElement = this.ast.newTextElement();
+//			initialTextElement.setSourceRange(region.startOffset, markupStart - 2 /* 2 is length of `//` */);
+//			initialTextElement.setText(line.substring(0, markupStart - 2) + '\n');
+//			IDocElement currentElement = initialTextElement;
+//			Class<? extends Object> tagClass = tags.getFirst().getClass();
+//			Field nameField = tagClass.getDeclaredField("name"); //$NON-NLS-1$
+//			nameField.setAccessible(true);
+//			Field attributesFields = tagClass.getDeclaredField("attributes"); //$NON-NLS-1$
+//			attributesFields.setAccessible(true);
+//			for (Object tag : tags) {
+//				String name = (String)nameField.get(tag);
+//				List<Attribute> attributes = (List<Attribute>)attributesFields.get(tag);
+//				TagElement newElement = this.ast.newTagElement();
+//				newElement.setSourceRange(region.startOffset, region.length);
+//				newElement.setTagName('@' + name);
+//				newElement.setProperty(TagProperty.TAG_PROPERTY_SNIPPET_INLINE_TAG_COUNT, 1); // TODO what?
+//				attributes.stream().map(this::toTagProperty).forEach(newElement.tagProperties()::add);
+//				newElement.fragments().add(currentElement);
+//				currentElement = newElement;
+//			}
+//			return currentElement;
+//		} catch (Exception ex) {
+//			ILog.get().error("While trying to build snippet line " + line + ": " + ex.getMessage(), ex);
+//		}
+//		return defaultElement;
+//	}
+//	private TagProperty toTagProperty(Attribute snippetMarkupAttribute) {
+//		TagProperty res = this.ast.newTagProperty();
+//		try {
+//			Field name = Attribute.class.getDeclaredField("name"); //$NON-NLS-1$
+//			name.setAccessible(true);
+//			res.setName((String)name.get(snippetMarkupAttribute));
+//			Field value = snippetMarkupAttribute.getClass().getDeclaredField("value"); //$NON-NLS-1$
+//			value.setAccessible(true);
+//			res.setStringValue((String)value.get(snippetMarkupAttribute));
+//		} catch (Exception ex) {
+//			ILog.get().error(ex.getMessage(), ex);
+//		}
+//		return res;
+//	}
 
 	private Stream<IDocElement> convertElementGroup(DCTree[] javac) {
 		return splitLines(javac).filter(x -> x.length != 0).flatMap(this::toTextOrTag);
