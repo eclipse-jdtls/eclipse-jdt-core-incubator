@@ -15,6 +15,7 @@ import static com.sun.tools.javac.jvm.ByteCodes.athrow;
 import com.sun.tools.javac.code.Kinds.Kind;
 import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ErrorType;
+import com.sun.tools.javac.code.Type.TypeVar;
 import com.sun.tools.javac.comp.Attr;
 import com.sun.tools.javac.jvm.Gen;
 import com.sun.tools.javac.tree.JCTree.JCArrayAccess;
@@ -94,7 +95,8 @@ public class ProceedOnErrorGen extends Gen {
 
 	@Override
 	public void visitApply(JCMethodInvocation tree) {
-		if (tree.type.isErroneous() || !(tree.meth.type instanceof Type.MethodType)) {
+		if (tree.type.isErroneous() || !(tree.meth.type instanceof Type.MethodType)
+			|| tree.getArguments().stream().anyMatch(arg -> arg.type.isErroneous())) {
 			visitErroneous(null);
 		} else {
 			super.visitApply(tree);
@@ -103,7 +105,9 @@ public class ProceedOnErrorGen extends Gen {
 
 	@Override
 	public void visitSelect(JCFieldAccess tree) {
-		if (tree.type.isErroneous()) {
+		if (tree.type.isErroneous() ||
+			tree.selected.type instanceof TypeVar // case of template type not resolved
+			) {
 			visitErroneous(null);
 		} else {
 			super.visitSelect(tree);

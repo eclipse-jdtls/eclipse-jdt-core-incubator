@@ -15,10 +15,12 @@ import com.sun.tools.javac.code.Symbol.MethodSymbol;
 import com.sun.tools.javac.code.Type.ClassType;
 import com.sun.tools.javac.code.Type.ErrorType;
 import com.sun.tools.javac.comp.TransTypes;
+import com.sun.tools.javac.tree.TreeInfo;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
+import com.sun.tools.javac.tree.JCTree.JCInstanceOf;
 import com.sun.tools.javac.tree.JCTree.JCMethodInvocation;
-import com.sun.tools.javac.tree.TreeInfo;
+import com.sun.tools.javac.tree.JCTree.JCTypeApply;
 import com.sun.tools.javac.util.Context;
 import com.sun.tools.javac.util.Context.Factory;
 
@@ -68,4 +70,19 @@ public class ProceedOnErrorTransTypes extends TransTypes {
 		super.visitIdent(tree);
 	}
 
+	@Override
+	public void visitTypeApply(JCTypeApply tree) {
+		if (tree.clazz.type.isErroneous()) {
+			return;
+		}
+		super.visitTypeApply(tree);
+	}
+
+	@Override
+	public void visitTypeTest(JCInstanceOf tree) {
+		if (tree.getExpression() == null) {
+			return;
+		}
+		super.visitTypeTest(tree);
+	}
 }
