@@ -376,7 +376,7 @@ public class DOMCodeSelector {
 		return new IJavaElement[0];
 	}
 
-	static IBinding resolveBinding(ASTNode node) {
+	public static IBinding resolveBinding(ASTNode node) {
 		if (node instanceof MethodDeclaration decl) {
 			return decl.resolveBinding();
 		}
