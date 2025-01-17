@@ -60,6 +60,7 @@ import com.sun.tools.javac.tree.JCTree.JCMemberReference;
 import com.sun.tools.javac.tree.JCTree.JCMethodDecl;
 import com.sun.tools.javac.tree.JCTree.JCNewArray;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
+import com.sun.tools.javac.tree.JCTree.JCTypeApply;
 import com.sun.tools.javac.tree.JCTree.JCVariableDecl;
 
 public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
@@ -70,7 +71,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	private boolean classSuppressUnused = false;
 	private boolean methodSuppressUnused = false;
 	
-	private final UnusedDocTreeScanner unusedDocTreeScanner = new UnusedDocTreeScanner();
+	private final UnusedDocTreeScanner unusedDocTreeScanner = new UnusedDocTreeScanner(this);
 	
 	@Override
 	public R scan(Tree tree, P p) {
@@ -335,10 +336,17 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 	}
 	
 	private class UnusedDocTreeScanner extends com.sun.source.util.DocTreeScanner<R, P> {
+		
+		private final  TreeScanner<R, P>  scanner;
+		
+		public UnusedDocTreeScanner( TreeScanner<R, P> scanner) {
+			this.scanner = scanner;
+		}
+		
 		@Override
 		public R visitLink(com.sun.source.doctree.LinkTree node, P p) {
 			if (node.getReference() instanceof com.sun.tools.javac.tree.DCTree.DCReference ref) {
-				useImport(ref);
+				useImport(ref, p);
 			}
 			return super.visitLink(node, p);
 		}
@@ -348,7 +356,7 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 			if (node.getReference() instanceof List<?> refs) {
 				for (Object ref : refs) {
 					if (ref instanceof com.sun.tools.javac.tree.DCTree.DCReference) {
-						useImport((com.sun.tools.javac.tree.DCTree.DCReference)ref);
+						useImport((com.sun.tools.javac.tree.DCTree.DCReference)ref, p);
 					}
 				}
 			}
@@ -358,12 +366,12 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 		@Override
 		public R visitThrows(ThrowsTree node, P p) {
 			if (node.getExceptionName() instanceof com.sun.tools.javac.tree.DCTree.DCReference ref) {
-						useImport(ref);
+				useImport(ref, p);
 			}
 			return super.visitThrows(node, p);
 		}
 
-		private void useImport(com.sun.tools.javac.tree.DCTree.DCReference ref) {
+		private void useImport(com.sun.tools.javac.tree.DCTree.DCReference ref, P p) {
 			if (ref.qualifierExpression instanceof JCIdent qualifier) {
 				String fieldName = null;
 				// for static imports
@@ -412,6 +420,23 @@ public class UnusedTreeScanner<R, P> extends TreeScanner<R, P> {
 								UnusedTreeScanner.this.unusedImports.remove(suffixWithWildcard);
 							}
 						}
+					}
+				}
+			}
+			// if this is a javadoc method reference,
+			// recursively visit the types
+			if (ref.paramTypes != null) {
+				for (JCTree param: ref.paramTypes) {
+					String simpleName = null;
+					if (param instanceof JCTypeApply typeApply) {
+						simpleName = typeApply.clazz.toString();
+					} else if (param.type != null){
+						simpleName  = param.type.tsym.getSimpleName().toString();
+					}
+					String finalizedSimpleName = simpleName;
+					Optional<String> potentialImport = UnusedTreeScanner.this.unusedImports.keySet().stream().filter(a -> a.endsWith(finalizedSimpleName)).findFirst();
+					if (potentialImport.isPresent()) {
+						UnusedTreeScanner.this.unusedImports.remove(potentialImport.get());
 					}
 				}
 			}
