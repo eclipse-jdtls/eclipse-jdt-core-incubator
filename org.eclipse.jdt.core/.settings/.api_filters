@@ -17,11 +17,31 @@
                 <message_argument value="23"/>
             </message_arguments>
         </filter>
+        <filter comment="Javac branch has bigger version" id="932184123">
+            <message_arguments>
+                <message_argument value="3.42.0"/>
+                <message_argument value="3.40.0"/>
+            </message_arguments>
+        </filter>
+        <filter comment="Javac branch has bigger version" id="1141899266">
+            <message_arguments>
+                <message_argument value="3.41"/>
+                <message_argument value="3.42"/>
+                <message_argument value="getAllSupportedVersions()"/>
+            </message_arguments>
+        </filter>
         <filter comment="javac branch has bigger version" id="1141899266">
             <message_arguments>
                 <message_argument value="3.41"/>
                 <message_argument value="3.42"/>
                 <message_argument value="getAllVersions()"/>
+            </message_arguments>
+        </filter>
+        <filter comment="Javac branch has bigger version" id="1141899266">
+            <message_arguments>
+                <message_argument value="3.41"/>
+                <message_argument value="3.42"/>
+                <message_argument value="isSupportedVersion(int)"/>
             </message_arguments>
         </filter>
     </resource>
