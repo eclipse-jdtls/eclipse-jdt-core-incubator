@@ -11,14 +11,18 @@
 package org.eclipse.jdt.internal.codeassist;
 
 import org.eclipse.jdt.core.CompletionContext;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.internal.core.NameLookup;
 
 class DOMInternalCompletionProposal extends InternalCompletionProposal {
+	
+	private DOMCompletionEngine engine;
 
-	public DOMInternalCompletionProposal(int kind, int completionLocation) {
+	public DOMInternalCompletionProposal(int kind, int completionLocation, DOMCompletionEngine engine) {
 		super(kind, completionLocation);
+		this.engine = engine;
 	}
 
 	@Override
@@ -107,6 +111,26 @@ class DOMInternalCompletionProposal extends InternalCompletionProposal {
 	@Override
 	public boolean isConstructor() {
 		return this.isConstructor;
+	}
+	
+	@Override
+	protected void incrementOpenedBinaryTypesCount() {
+		this.engine.openedBinaryTypes++;
+	}
+
+	@Override
+	protected int getOpenedBinaryTypesCount() {
+		return this.engine.openedBinaryTypes;
+	}
+
+	@Override
+	protected void addToCompletionEngineTypeCache(char[] tName, IType type) {
+		this.engine.typeCache.put(tName, type);
+	}
+
+	@Override
+	protected Object getFromEngineTypeCache(char[] tName) {
+		return this.engine.typeCache.get(tName);
 	}
 
 }
