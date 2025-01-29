@@ -94,7 +94,6 @@ import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.MethodInvocation;
 import org.eclipse.jdt.core.dom.MethodRef;
 import org.eclipse.jdt.core.dom.Modifier;
-import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.NameQualifiedType;
@@ -127,6 +126,7 @@ import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
 import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.dom.VariableDeclarationStatement;
+import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.formatter.DefaultCodeFormatterConstants;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.SearchEngine;
@@ -1033,9 +1033,22 @@ public class DOMCompletionEngine implements ICompletionEngine {
 					suggestDefaultCompletions = false;
 				}
 			}
-			if (context instanceof ClassInstanceCreation) {
-				if (this.expectedTypes.getExpectedTypes() != null && !this.expectedTypes.getExpectedTypes().isEmpty() && !this.expectedTypes.getExpectedTypes().get(0).isRecovered()) {
-					completeConstructor(this.expectedTypes.getExpectedTypes().get(0), context, this.javaProject);
+			if (context instanceof ClassInstanceCreation newObj) {
+				var newType = newObj.getType();
+				var binding = newType.resolveBinding();
+				if (this.offset > newType.getStartPosition() + newType.getLength() &&
+					binding != null &&
+					newObj.getType().resolveBinding().isEnum()) {
+					return; // don't complete illegal enum constructor
+				}
+				var visibleConstructors = Arrays.stream(binding.getDeclaredMethods())
+						.filter(IMethodBinding::isConstructor)
+						.filter(this::isVisible)
+						.toList();
+				if (visibleConstructors.size() == 1 && this.expectedTypes.getExpectedTypes() != null && !this.expectedTypes.getExpectedTypes().isEmpty() && !this.expectedTypes.getExpectedTypes().get(0).isRecovered()) {
+					completeConstructor(this.expectedTypes.getExpectedTypes().get(0), context, this.modelUnit.getJavaProject());
+				} else if (visibleConstructors.size() > 0) {
+					visibleConstructors.stream().map(this::toProposal).forEach(this.requestor::accept);
 				} else {
 					if (!this.requestor.isIgnored(CompletionProposal.TYPE_REF) && !this.requestor.isIgnored(CompletionProposal.CONSTRUCTOR_INVOCATION)) {
 						String packageName = "";//$NON-NLS-1$
@@ -2320,6 +2333,12 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			} else {
 				kind = CompletionProposal.METHOD_REF;
 			}
+			if (this.toComplete instanceof ClassInstanceCreation newObj && newObj.getType() != null && this.offset > newObj.getType().getStartPosition() + newObj.getType().getLength()) {
+				// actually completing open arg list
+				completion = ""; //$NON-NLS-1$
+			} else {
+				completion += "()"; //$NON-NLS-1$
+			}
 		} else if (binding instanceof IVariableBinding variableBinding) {
 			if (variableBinding.isField()) {
 				kind = CompletionProposal.FIELD_REF;
@@ -2330,9 +2349,6 @@ public class DOMCompletionEngine implements ICompletionEngine {
 
 		DOMInternalCompletionProposal res = createProposal(kind);
 		res.setName(binding.getName().toCharArray());
-		if (kind == CompletionProposal.METHOD_REF) {
-			completion += "()"; //$NON-NLS-1$
-		}
 		res.setCompletion(completion.toCharArray());
 		res.setFlags(binding.getModifiers());
 

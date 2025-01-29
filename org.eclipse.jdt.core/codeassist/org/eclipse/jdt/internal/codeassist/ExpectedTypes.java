@@ -88,7 +88,22 @@ public class ExpectedTypes {
 				return;
 			}
 			if (parent2 instanceof ClassInstanceCreation newObj && this.offset > newObj.getType().getStartPosition() + newObj.getType().getLength()) {
-				// TODO find params
+				int argIndexWip = 0;
+				var args = (List<Expression>)newObj.arguments();
+				for (argIndexWip = 0; argIndexWip < args.size(); argIndexWip++) {
+					var arg = args.get(argIndexWip);
+					if (this.offset < arg.getStartPosition() || this.offset > arg.getStartPosition() + arg.getLength()) {
+						break;
+					}
+				}
+				int argIndex = Math.max(0, argIndexWip - 1);
+				var binding = newObj.getType().resolveBinding();
+				Arrays.stream(binding.getDeclaredMethods())
+					.filter(IMethodBinding::isConstructor)
+					.map(IMethodBinding::getParameterTypes)
+					.filter(params -> params.length > argIndex)
+					.map(params -> params[argIndex])
+					.forEach(this.expectedTypes::add);
 				break;
 			}
 			if (parent2 instanceof CastExpression cast && this.offset > cast.getType().getStartPosition() + cast.getType().getLength()) {
@@ -237,12 +252,16 @@ public class ExpectedTypes {
 				}
 			}
 		} else if(parent instanceof ClassInstanceCreation allocationExpression) {
-			ITypeBinding binding = allocationExpression.resolveTypeBinding();
-			if(binding != null) {
-				computeExpectedTypesForAllocationExpression(
-					binding,
-					allocationExpression.arguments(),
-					allocationExpression);
+			if (this.offset <= allocationExpression.getType().getStartPosition() + allocationExpression.getType().getLength()) {
+				ITypeBinding binding = allocationExpression.resolveTypeBinding();
+				if(binding != null) {
+					computeExpectedTypesForAllocationExpression(
+						binding,
+						allocationExpression.arguments(),
+						allocationExpression);
+				}
+			} else {
+				//int itemIndexAtOffset =z
 			}
 		} else if(parent instanceof InstanceofExpression e) {
 			ITypeBinding binding = e.getLeftOperand().resolveTypeBinding();
