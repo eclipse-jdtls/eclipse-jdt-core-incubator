@@ -97,7 +97,6 @@ import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.Name;
-import org.eclipse.jdt.core.dom.NameQualifiedType;
 import org.eclipse.jdt.core.dom.NormalAnnotation;
 import org.eclipse.jdt.core.dom.NumberLiteral;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
@@ -2620,26 +2619,11 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		}
 		res.setCompletion(completion.toString().toCharArray());
 
-		if (this.toComplete instanceof FieldAccess || this.prefix.isEmpty()) {
-			res.setReplaceRange(this.offset, this.offset);
-		} else if (this.toComplete instanceof MarkerAnnotation) {
-			res.setReplaceRange(this.toComplete.getStartPosition() + 1, this.toComplete.getStartPosition() + this.toComplete.getLength());
-		} else if (this.toComplete instanceof SimpleName currentName && FAKE_IDENTIFIER.equals(currentName.toString())) {
-			res.setReplaceRange(this.offset, this.offset);
-		} else if (this.toComplete instanceof SimpleName) {
-			res.setReplaceRange(this.toComplete.getStartPosition(), this.toComplete.getStartPosition() + this.toComplete.getLength());
-		} else {
-			res.setReplaceRange(this.toComplete.getStartPosition(), this.offset);
-		}
+		setRange(res);
 		try {
 			res.setFlags(type.getFlags());
 		} catch (JavaModelException ex) {
 			ILog.get().error(ex.getMessage(), ex);
-		}
-		if (this.toComplete instanceof SimpleName) {
-			res.setTokenRange(this.toComplete.getStartPosition(), this.toComplete.getStartPosition() + this.toComplete.getLength());
-		} else if (this.toComplete instanceof MarkerAnnotation) {
-			res.setTokenRange(this.offset, this.offset);
 		}
 		boolean nodeInImports = DOMCompletionUtil.findParent(this.toComplete, new int[] { ASTNode.IMPORT_DECLARATION }) != null;
 		
