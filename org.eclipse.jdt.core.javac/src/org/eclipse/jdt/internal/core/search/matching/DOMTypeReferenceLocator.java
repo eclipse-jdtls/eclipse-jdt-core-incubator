@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 import org.eclipse.core.resources.IResource;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.ISourceReference;
 import org.eclipse.jdt.core.JavaModelException;
@@ -882,7 +883,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 				srg = sr.getSourceRange();
 				nameRange = sr.getNameRange();
 				IJavaElement ancestor = je.getAncestor(IJavaElement.COMPILATION_UNIT);
-				r = ancestor == null ? null : ancestor.getCorrespondingResource();
+				r = ancestor == null ? ((IJavaProject)je.getAncestor(IJavaElement.JAVA_PROJECT)).getProject() : ancestor.getCorrespondingResource();
 			} catch(JavaModelException jme) {
 				// ignore
 			}
