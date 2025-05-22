@@ -3543,7 +3543,7 @@ public void testBug94718() throws CoreException {
 		"public class Test {\n" +
 		"}\n"
 	);
-	IType type = this.workingCopies[1].getType("SetUp");
+	IType type = this.workingCopies[0].getType("SetUp");
 	search(type, REFERENCES, SearchEngine.createWorkspaceScope());
 	assertSearchResults(
 		"src/b94718/Test.java b94718.Test [SetUp] EXACT_MATCH"
