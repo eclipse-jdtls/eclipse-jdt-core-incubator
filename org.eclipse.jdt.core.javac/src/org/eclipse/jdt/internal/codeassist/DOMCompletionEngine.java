@@ -1201,9 +1201,9 @@ public class DOMCompletionEngine implements ICompletionEngine {
 						boolean isTypeInVariableDeclaration = isTypeInVariableDeclaration(context);
 						SwitchCase switchCase = (SwitchCase)DOMCompletionUtil.findParent(this.toComplete, new int[] { ASTNode.SWITCH_CASE });
 
+						this.qualifyingType = qualifierTypeBinding;
 						processMembers(qualifiedName, qualifierTypeBinding, specificCompletionBindings, true);
 						if (this.extendsOrImplementsInfo == null && !isTypeInVariableDeclaration && switchCase == null) {
-							this.qualifyingType = qualifierTypeBinding;
 							publishFromScope(specificCompletionBindings);
 						} else if (switchCase != null) {
 							ITypeBinding switchBinding = null;
@@ -1234,7 +1234,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 									.map(binding -> toProposal(binding))
 									.map(proposal -> {
 										if (proposal.getKind() == CompletionProposal.FIELD_REF) {
-											proposal.setRelevance(proposal.getRelevance() + RelevanceConstants.R_FINAL + RelevanceConstants.R_QUALIFIED);
+											proposal.setRelevance(proposal.getRelevance() + RelevanceConstants.R_FINAL);
 										}
 										return proposal;
 									})
