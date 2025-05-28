@@ -956,9 +956,7 @@ protected JavaSearchResultCollector resultCollector;
 			}
 		}
 
-		String prop = System.getProperty("AbstractJavaSearchTests.IGNORE_MATCH_TYPE");
-		prop = "true";
-		if( prop != null && prop.toString().equalsIgnoreCase("true")) {
+		if(Boolean.getBoolean("AbstractJavaSearchTests.IGNORE_MATCH_TYPE")) {
 			assertEqualsIgnoreMatchType(message, expected, actual);
 		} else {
 			assertEquals(

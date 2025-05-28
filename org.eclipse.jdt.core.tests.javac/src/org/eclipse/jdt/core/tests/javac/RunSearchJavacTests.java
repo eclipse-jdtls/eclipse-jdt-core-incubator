@@ -16,6 +16,8 @@ public class RunSearchJavacTests extends RunJavaSearchTests {
 
 	public RunSearchJavacTests(String name) {
 		super(name);
+		// we currently ignore the match type when using Javac, but eventually, we'll need to honor them too
+		System.setProperty("AbstractJavaSearchTests.IGNORE_MATCH_TYPE", Boolean.toString(true));
 	}
 
 }

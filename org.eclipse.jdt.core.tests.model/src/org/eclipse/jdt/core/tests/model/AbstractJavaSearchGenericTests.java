@@ -75,9 +75,7 @@ public class AbstractJavaSearchGenericTests extends JavaSearchTests {
 			System.out.println("");
 		}
 
-		String prop = System.getProperty("AbstractJavaSearchTests.IGNORE_MATCH_TYPE");
-		prop = "true";
-		if( prop != null && prop.toString().equalsIgnoreCase("true")) {
+		if(Boolean.getBoolean("AbstractJavaSearchTests.IGNORE_MATCH_TYPE")) {
 			assertEqualsIgnoreMatchType(message, trimmed, actual);
 		} else {
 			assertEquals(
