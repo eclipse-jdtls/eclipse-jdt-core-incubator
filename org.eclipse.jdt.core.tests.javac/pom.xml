@@ -41,7 +41,9 @@
 						<groupId>org.eclipse.tycho</groupId>
 						<artifactId>tycho-surefire-plugin</artifactId>
 						<configuration>
-							<argLine>${tycho.surefire.argLine}</argLine>
+							<argLine>${tycho.surefire.argLine} -XX:CompileCommand=exclude,org.eclipse.jdt.internal.core.dom.rewrite.ASTRewriteAnalyzer::getExtendedRange</argLine>
+							<useUIHarness>true</useUIHarness>
+							<useUIThread>true</useUIThread>
 						</configuration>
 					</plugin>
 				</plugins>
