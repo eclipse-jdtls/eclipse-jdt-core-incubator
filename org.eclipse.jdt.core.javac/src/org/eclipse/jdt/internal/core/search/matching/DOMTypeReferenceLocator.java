@@ -302,8 +302,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 							return new LocatorResponse(level, true, n, true, true);
 						}
 					}
-					int v = nodeSet.addMatch(node, level);
-					return toResponse(v, true);
+					return toResponse(level);
 				}
 			}
 		}

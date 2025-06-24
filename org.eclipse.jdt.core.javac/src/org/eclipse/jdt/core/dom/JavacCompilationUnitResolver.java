@@ -25,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -97,15 +98,15 @@ import com.sun.tools.javac.main.Option;
 import com.sun.tools.javac.parser.JavadocTokenizer;
 import com.sun.tools.javac.parser.Scanner;
 import com.sun.tools.javac.parser.ScannerFactory;
-import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.parser.Tokens.TokenKind;
+import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.tree.JCTree.JCClassDecl;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
 import com.sun.tools.javac.util.Context;
-import com.sun.tools.javac.util.Context.Key;
 import com.sun.tools.javac.util.DiagnosticSource;
 import com.sun.tools.javac.util.Names;
 import com.sun.tools.javac.util.Options;
+import com.sun.tools.javac.util.Context.Key;
 
 /**
  * Allows to create and resolve DOM ASTs using Javac
@@ -263,12 +264,21 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 				requestor.additionalBindingResolver = javacAdditionalBindingCreator(bindingMap, environment, lu, bindingResolver);
 			}
 
+			Set<ICompilationUnit> toReresolve = new java.util.HashSet<>();
 			units.forEach((a,b) -> {
 				if (bindingResolver[0] == null && b.ast.getBindingResolver() instanceof JavacBindingResolver javacBindingResolver) {
 					bindingResolver[0] = javacBindingResolver;
 				}
-				resolveBindings(b, bindingMap, apiLevel);
-				requestor.acceptAST(a,b);
+				try {
+					resolveBindings(b, bindingMap, apiLevel);
+					if (Arrays.stream(b.getProblems()).anyMatch(p -> p.getID() == IProblem.DuplicateTypes)) {
+						toReresolve.add(a);
+					} else {
+						requestor.acceptAST(a,b);
+					}
+				} catch (Exception e) {
+					ILog.get().error(e.getMessage(), e);
+				}
 			});
 
 			resolveRequestedBindingKeys(bindingResolver[0], bindingKeys,
@@ -276,6 +286,23 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 					new Classpath[0], // TODO need some classpaths
 					new CompilerOptions(compilerOptions),
 					units.values(), project, bindingMap, monitor);
+			if (!toReresolve.isEmpty()) {
+				resolve(toReresolve.toArray(ICompilationUnit[]::new), bindingKeys, new ASTRequestor() {
+					@Override
+					public void acceptAST(ICompilationUnit source, CompilationUnit ast) {
+						// restore problems from initial resolution: can list things
+						// like duplicate classes
+						ast.setProblems(units.get(source).getProblems());
+						requestor.acceptAST(source, ast);
+					}
+					@Override
+					public void acceptBinding(String bindingKey, IBinding binding) {
+						requestor.acceptBinding(bindingKey, binding);
+					}
+				}, apiLevel,
+						compilerOptions, project, workingCopyOwner, flags,
+						monitor);
+			}
 		} else {
 			Iterator<CompilationUnit> it = units.values().iterator();
 			while(it.hasNext()) {
@@ -452,6 +479,7 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		}
 		return res;
 	}
+
 
 	@Override
 	public void parse(String[] sourceFilePaths, String[] encodings, FileASTRequestor requestor, int apiLevel,
@@ -677,7 +705,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		JavacUtils.configureJavacContext(context, compilerOptions, javaProject, JavacUtils.isTest(javaProject, sourceUnits));
 		Options javacOptions = Options.instance(context);
 		javacOptions.put("allowStringFolding", Boolean.FALSE.toString()); // we need to keep strings as authored
-		if ((focalPoint >= 0 || !resolveBindings) && (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
+		boolean only1FromClass = sourceUnits.length == 1 && !MOCK_NAME_FOR_CLASSES.equals(new String(sourceUnits[0].getFileName()));
+		if ((focalPoint >= 0 || !resolveBindings || only1FromClass) && (flags & ICompilationUnit.FORCE_PROBLEM_DETECTION) == 0) {
 			// most likely no need for linting
 			// resolveBindings still seems requested for tests
 			javacOptions.remove(Option.XLINT.primaryName);
