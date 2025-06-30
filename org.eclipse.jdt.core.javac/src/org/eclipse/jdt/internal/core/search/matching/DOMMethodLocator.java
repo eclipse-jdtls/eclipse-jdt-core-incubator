@@ -288,8 +288,13 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		}
 		boolean isErasurePattern = isPatternErasureMatch();
 		boolean isEquivPattern = isPatternEquivalentMatch();
-		if( level == ERASURE_MATCH && !isErasurePattern && !isEquivPattern)
-			level = IMPOSSIBLE_MATCH;
+		if( level == ERASURE_MATCH) {
+			var methodFromPattern = getMethodBindingFromPattern(node.getAST());
+			if ((methodFromPattern == null || !methodFromPattern.isEqualTo(method))
+				&& !isErasurePattern && !isEquivPattern) {
+				level = IMPOSSIBLE_MATCH;
+			}
+		}
 
 		return level;
 	}
@@ -407,7 +412,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			boolean skipImpossibleArg, int level, boolean bindingIsDeclaration) {
 		boolean potentialMatchOnly = false;
 		if (this.locator.pattern.hasMethodArguments()) {
-			ITypeBinding[] argBindings = method.getTypeArguments();
+			ITypeBinding[] argBindings = bindingIsDeclaration ? method.getTypeParameters() : method.getTypeArguments();
 			char[][] goal = this.locator.pattern.methodArguments;
 			if( goal == null || goal.length == 0) {
 				return level;
@@ -635,9 +640,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			int methodLevel = matchMethod(node, method, skipVerif, false);
 			if (methodLevel == IMPOSSIBLE_MATCH) {
 				IMethodBinding decl = method.getMethodDeclaration();
-				if (method != decl) {
-					methodLevel = matchMethod(node, decl, skipVerif, true);
-				}
+				methodLevel = matchMethod(node, decl, skipVerif, true);
 				if (methodLevel == IMPOSSIBLE_MATCH) {
 					return IMPOSSIBLE_MATCH;
 				} else {
