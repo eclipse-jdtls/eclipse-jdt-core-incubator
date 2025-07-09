@@ -200,7 +200,7 @@ public class DOMCodeSelector {
 			return null;
 		} else if (findTypeDeclaration(node) == null) {
 			IBinding binding = resolveBinding(node);
-			if (binding != null && !binding.isRecovered()) {
+			if (binding != null) {
 				ITypeBinding declaringClass;
 				if (node instanceof SuperMethodInvocation && // on `super`
 					binding instanceof IMethodBinding methodBinding &&
