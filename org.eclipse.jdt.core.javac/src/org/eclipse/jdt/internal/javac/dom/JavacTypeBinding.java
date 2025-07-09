@@ -606,7 +606,7 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 				}
 			}
 
-			String nameAsString = n.toString();
+			String nameAsString = n;
 			if (useSlashes) {
 				nameAsString = nameAsString.replace('.', '/');
 			}
@@ -935,6 +935,13 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	@Override
 	public ITypeBinding getDeclaringClass() {
+		// accessing the declaring class through "enclosing type" permits preserving the type arguments (of the declaring class)
+		if (this.type.getEnclosingType() != null) {
+			ITypeBinding enclosingTypeWithArguments = this.resolver.bindings.getTypeBinding(this.type.getEnclosingType(), false);
+			if (enclosingTypeWithArguments != null) {
+				return enclosingTypeWithArguments;
+			}
+		}
 		Symbol parentSymbol = this.typeSymbol.owner;
 		do {
 			if (parentSymbol instanceof final ClassSymbol clazz) {

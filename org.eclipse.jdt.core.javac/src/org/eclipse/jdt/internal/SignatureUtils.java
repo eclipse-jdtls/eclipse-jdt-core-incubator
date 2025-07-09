@@ -129,8 +129,16 @@ public class SignatureUtils {
 			return Signature.createIntersectionTypeSignature(Stream.of(typeBounds).map(SignatureUtils::getSignature).toArray(String[]::new));
 		}
 		if (typeBinding.isParameterizedType()) {
-			StringBuilder res = new StringBuilder(Signature.createTypeSignature(typeBinding.getErasure().getQualifiedName(), true));
-			res.deleteCharAt(res.length() - 1);
+			StringBuilder res = new StringBuilder();
+			if (typeBinding.isNested()) {
+				res.append(SignatureUtils.getSignature(typeBinding.getDeclaringClass()));
+				res.deleteCharAt(res.length() - 1);
+				res.append(".");
+				res.append(typeBinding.getErasure().getName());
+			} else {
+				res.append(Signature.createTypeSignature(typeBinding.getErasure().getQualifiedName(), true));
+				res.deleteCharAt(res.length() - 1);
+			}
 			return res.toString()
 				+ Signature.C_GENERIC_START
 				+ Stream.of(typeBinding.getTypeArguments()).map(SignatureUtils::getSignature).collect(Collectors.joining())
