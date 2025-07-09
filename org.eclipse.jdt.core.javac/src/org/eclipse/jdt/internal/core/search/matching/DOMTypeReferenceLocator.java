@@ -963,7 +963,25 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 		int matchRule = match.getRule();
 		char[][][] fromPattern = this.locator.pattern.getTypeArguments();
 		int patternTypeArgsLength = (fromPattern == null || fromPattern.length == 0 || fromPattern[0] == null ? 0 : fromPattern.length <= 0 ? 0 : fromPattern[0].length);
-		int typeArgumentsLength = node instanceof ParameterizedType ptt ? ptt.typeArguments().size() : 0;
+		Type typeNode = null;
+		{
+			ASTNode current = node;
+			while (current != null) {
+				if (current.getLocationInParent() == SimpleType.NAME_PROPERTY) {
+					current = current.getParent();
+					typeNode = (SimpleType) current;
+				} else if (current.getLocationInParent() == ParameterizedType.TYPE_PROPERTY) {
+					current = current.getParent();
+					typeNode = (ParameterizedType) current;
+				} else if (current instanceof Type t) {
+					current = current.getParent();
+					typeNode = t;
+				} else {
+					current = null;
+				}
+			}
+		}
+		int typeArgumentsLength = typeNode instanceof ParameterizedType ptt ? ptt.typeArguments().size() : 0;
 		boolean hasTypeParameters = this.locator.pattern.hasTypeParameters();
 
 		if (match.isRaw()) {

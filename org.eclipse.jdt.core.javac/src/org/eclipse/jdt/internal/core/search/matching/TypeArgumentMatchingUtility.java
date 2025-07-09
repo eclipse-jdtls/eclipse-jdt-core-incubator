@@ -46,10 +46,10 @@ public class TypeArgumentMatchingUtility {
 			domSig = domBinding instanceof JavacTypeBinding jctb ? jctb.getGenericTypeSignature(false) : domBinding.getKey();
 		}
 
+		if( Objects.equals(patternSig, domSig)) {
+			return true;
+		}
 		if( requiresExactMatch ) {
-			if( Objects.equals(patternSig, domSig)) {
-				return true;
-			}
 			if( patternSig.equals("*") && isQuestionMark(domSig)) {
 				return true;
 			}

@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -649,10 +650,18 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		return IMPOSSIBLE_MATCH;
 	}
 
-	protected int resolveLevel(MethodInvocation messageSend) {
-		IMethodBinding invocationBinding = messageSend.resolveMethodBinding();
-		ITypeBinding initialReceiverType = messageSend.getExpression() != null ? messageSend.getExpression().resolveTypeBinding() : null;
-		return resolveLevelForNodeWithMethodBinding(messageSend, invocationBinding, initialReceiverType, false, false);
+	private List<Expression> arguments(ASTNode node) {
+		return (List<Expression>)
+				(node instanceof MethodInvocation method ? method.arguments() :
+				node instanceof ConstructorInvocation constr ? constr.arguments() :
+				List.of());
+	}
+
+	private List<Expression> arguments(ASTNode node) {
+		return (List<Expression>)
+				(node instanceof MethodInvocation method ? method.arguments() :
+				node instanceof ConstructorInvocation constr ? constr.arguments() :
+				List.of());
 	}
 
 	protected int resolveLevelForNodeWithMethodBinding(ASTNode messageSend,
@@ -676,6 +685,16 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			if (declarationLevel == IMPOSSIBLE_MATCH)
 				return IMPOSSIBLE_MATCH;
 			invocationOrDeclarationBinding = declarationBinding;
+		}
+
+		if (invocationBinding.getParameterTypes().length == arguments(messageSend).size()) {
+			for (int i = 0; i < invocationBinding.getParameterTypes().length; i++) {
+				var source = arguments(messageSend).get(i).resolveTypeBinding();
+				var resolved = invocationBinding.getParameterTypes()[i];
+				if (source != null && !source.isAssignmentCompatible(resolved)) {
+					return INACCURATE_MATCH;
+				}
+			}
 		}
 
 		int invocOrDeclLevel = invocationLevel == IMPOSSIBLE_MATCH ? declarationLevel : invocationLevel;
@@ -721,6 +740,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 				// this is an overridden method => add flavor to returned level
 				declaringLevel = invocOrDeclLevel | SUPER_INVOCATION_FLAVOR;
 			}
+			// Consider whether the next lines should be part of DOMJavaSearchDelegate as they
+			// don't seem so specific to Method locator (same code could serve TypeRefLocator too)
 			if ((declaringLevel & FLAVORS_MASK) != 0) {
 				// level got some flavors => return it
 				retval = declaringLevel;
@@ -795,7 +816,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	@Override
 	public LocatorResponse resolveLevel(org.eclipse.jdt.core.dom.ASTNode node, IBinding binding, MatchLocator locator) {
 		if (node instanceof MethodInvocation invocation) {
-			return toResponse(resolveLevel(invocation));
+			IMethodBinding invocationBinding = invocation.resolveMethodBinding();
+			ITypeBinding initialReceiverType = invocation.getExpression() != null ? invocation.getExpression().resolveTypeBinding() : null;
+			return toResponse(resolveLevelForNodeWithMethodBinding(invocation, invocationBinding, initialReceiverType, false, false));
 		}
 		int level = computeResolveLevel(node, binding, locator);
 		if (node instanceof MethodDeclaration declaration && binding != null) {
