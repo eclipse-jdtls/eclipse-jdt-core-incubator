@@ -1905,19 +1905,21 @@ class JavacConverter {
 			int pos = javac.getPreferredPosition();
 			char c = this.rawText.length() > pos ? this.rawText.charAt(pos) : 0;
 			if (error.getErrorTrees().isEmpty() && c == '"') {
-				  int newLine = this.rawText.indexOf('\n', pos);
-				  int lineEnd = newLine == -1 ? this.rawText.length() - 1 : newLine;
-				  String litText = this.rawText.substring(pos+1, lineEnd);
-				  Expression res = convertStringToLiteral(litText, pos, lineEnd, null);
-				  res.setSourceRange(pos,  lineEnd - pos);
-				  res.setFlags(res.getFlags() | ASTNode.MALFORMED);
-				  return res;
-				}
+			  int newLine = this.rawText.indexOf('\n', pos);
+			  int lineEnd = newLine == -1 ? this.rawText.length() - 1 : newLine;
+			  String litText = this.rawText.substring(pos+1, lineEnd);
+			  Expression res = convertStringToLiteral(litText, pos, lineEnd, null);
+			  res.setSourceRange(pos,  lineEnd - pos);
+			  res.setFlags(res.getFlags() | ASTNode.MALFORMED);
+			  return res;
+			}
 			if (error.getErrorTrees().size() == 1) {
 				JCTree tree = error.getErrorTrees().get(0);
 				if (tree instanceof JCExpression nestedExpr) {
 					try {
-						return convertExpression(nestedExpr);
+						var res = convertExpression(nestedExpr);
+						res.setFlags(res.getFlags() | ASTNode.MALFORMED);
+						return res;
 					} catch (Exception ex) {
 						// pass-through: do not break when attempting such reconcile
 					}
@@ -2256,7 +2258,7 @@ class JavacConverter {
 						try {
 							Statement stmt = convertStatement(nestedStmt, parent);
 							if( stmt != null )
-								stmt.setFlags(stmt.getFlags() | ASTNode.RECOVERED);
+								stmt.setFlags(stmt.getFlags() | ASTNode.RECOVERED | ASTNode.MALFORMED);
 							return stmt;
 						} catch (Exception ex) {
 							// pass-through: do not break when attempting such reconcile
@@ -3048,7 +3050,7 @@ class JavacConverter {
 				}
 				res.setSourceRange(startPosition, 0);
 			}
-			res.setFlags(ASTNode.RECOVERED);
+			res.setFlags(ASTNode.RECOVERED | ASTNode.MALFORMED);
 			return res;
 		}
 		ILog.get().warn("Not supported yet, converting to type type " + javac + " of class" + javac.getClass());
