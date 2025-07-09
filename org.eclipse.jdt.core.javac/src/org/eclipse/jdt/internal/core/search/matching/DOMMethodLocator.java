@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
+import org.eclipse.jdt.core.dom.ConstructorInvocation;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.IBinding;
@@ -655,6 +656,13 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		return resolveLevelForNodeWithMethodBinding(messageSend, invocationBinding, initialReceiverType, false, false);
 	}
 
+	private List<Expression> arguments(ASTNode node) {
+		return (List<Expression>)
+				(node instanceof MethodInvocation method ? method.arguments() :
+				node instanceof ConstructorInvocation constr ? constr.arguments() :
+				List.of());
+	}
+
 	protected int resolveLevelForNodeWithMethodBinding(ASTNode messageSend,
 			IMethodBinding invocationBinding, ITypeBinding initialReceiverType,
 			boolean skipVerif, boolean nullParamsForSubTypeCheck) {
@@ -676,6 +684,16 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			if (declarationLevel == IMPOSSIBLE_MATCH)
 				return IMPOSSIBLE_MATCH;
 			invocationOrDeclarationBinding = declarationBinding;
+		}
+
+		if (invocationBinding.getParameterTypes().length == arguments(messageSend).size()) {
+			for (int i = 0; i < invocationBinding.getParameterTypes().length; i++) {
+				var source = arguments(messageSend).get(i).resolveTypeBinding();
+				var resolved = invocationBinding.getParameterTypes()[i];
+				if (source != null && !source.isAssignmentCompatible(resolved)) {
+					return INACCURATE_MATCH;
+				}
+			}
 		}
 
 		int invocOrDeclLevel = invocationLevel == IMPOSSIBLE_MATCH ? declarationLevel : invocationLevel;
