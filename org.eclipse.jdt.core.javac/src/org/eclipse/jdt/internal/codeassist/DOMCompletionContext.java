@@ -50,6 +50,7 @@ import org.eclipse.jdt.core.dom.Statement;
 import org.eclipse.jdt.core.dom.StringLiteral;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
+import org.eclipse.jdt.internal.SignatureUtils;
 import org.eclipse.jdt.internal.codeassist.DOMCompletionEngine.Bindings;
 import org.eclipse.jdt.internal.codeassist.impl.AssistOptions;
 import org.eclipse.jdt.internal.compiler.parser.RecoveryScanner;
@@ -282,10 +283,11 @@ class DOMCompletionContext extends CompletionContext {
 			return null;
 		}
 		var res = this.expectedTypes.getExpectedTypes().stream() //
-				.map(binding -> binding.isTypeVariable() ?
-						'T' + binding.getQualifiedName() + ';' : binding.isLocal() ? Signature.createTypeSignature(binding.getName(), true) :
-						Signature.createTypeSignature(binding.getQualifiedName(), true))
-				.map(String::toCharArray) //
+				.map(SignatureUtils::getSignatureChar)
+//				.map(binding -> binding.isTypeVariable() ?
+//						'T' + binding.getQualifiedName() + ';' : binding.isLocal() ? Signature.createTypeSignature(binding.getName(), true) :
+//						Signature.createTypeSignature(binding.getQualifiedName(), true))
+//				.map(String::toCharArray) //
 				.toArray(char[][]::new);
 		return res.length == 0 ? null : res;
 	}
@@ -303,7 +305,7 @@ class DOMCompletionContext extends CompletionContext {
 				return TL_IN_IMPORT;
 			}
 			if (wrappingNode instanceof ClassInstanceCreation newObj) {
-				return getTokenStart() <= newObj.getType().getStartPosition() ? TL_CONSTRUCTOR_START : 0;
+				return getTokenStart() <= (newObj.getType().getStartPosition() + newObj.getType().getLength()) ? TL_CONSTRUCTOR_START : 0;
 			}
 			if (wrappingNode instanceof Statement stmt && getTokenStart() == stmt.getStartPosition()) {
 				return getTokenStart() == stmt.getStartPosition() ? TL_STATEMENT_START : 0;
@@ -322,7 +324,7 @@ class DOMCompletionContext extends CompletionContext {
 			if (wrappingNode instanceof Block block) {
 				return block.statements().isEmpty() ? TL_STATEMENT_START : 0;
 			}
-			if( wrappingNode instanceof AnonymousClassDeclaration anon) {
+			if (wrappingNode instanceof AnonymousClassDeclaration anon) {
 				if(isWithinTypeDeclarationBody(wrappingNode, this.textContent, this.offset)) {
 					return TL_MEMBER_START;
 				}
