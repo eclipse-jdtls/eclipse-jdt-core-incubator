@@ -39,6 +39,7 @@ import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
+import org.eclipse.jdt.core.dom.SuperFieldAccess;
 import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.TypeMethodReference;
 import org.eclipse.jdt.core.dom.TypePattern;
@@ -214,10 +215,12 @@ public class DOMCompletionUtils {
 				FieldAccess.NAME_PROPERTY,
 				ExpressionMethodReference.NAME_PROPERTY,
 				TypeMethodReference.NAME_PROPERTY,
-				SuperMethodReference.NAME_PROPERTY).contains(node.getLocationInParent())
+				SuperMethodReference.NAME_PROPERTY,
+				SuperFieldAccess.NAME_PROPERTY).contains(node.getLocationInParent())
 				|| node instanceof FieldAccess
 				|| node instanceof QualifiedName
 				|| node instanceof SuperMethodReference
+				|| node instanceof SuperFieldAccess
 				|| node instanceof TypeMethodReference;
 	}
 

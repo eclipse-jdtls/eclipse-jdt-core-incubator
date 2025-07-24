@@ -339,9 +339,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 				.filter(binding -> !assistOptions.checkDeprecation || !isDeprecated(binding.getJavaElement()))
 				.flatMap(binding -> {
 					if (binding instanceof IMethodBinding methodBinding
-							&& !(DOMCompletionEngine.this.toComplete.getParent() instanceof QualifiedName)
-							&& !(DOMCompletionEngine.this.toComplete.getParent() instanceof MethodInvocation)
-							&& !(DOMCompletionEngine.this.toComplete.getParent() instanceof FieldAccess)) {
+							&& !DOMCompletionUtils.isInQualifiedName(DOMCompletionEngine.this.toComplete)) {
 						// Handle referencing methods from parent classes using ClassName.this.methodName()
 						// Note that the completion text is correct,
 						// but due to bugs in jdt.ui this completion doesn't work in practice
