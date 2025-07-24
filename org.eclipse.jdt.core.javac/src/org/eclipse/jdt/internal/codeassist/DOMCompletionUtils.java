@@ -28,6 +28,8 @@ import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -314,6 +316,20 @@ public class DOMCompletionUtils {
 			});
 			return new TrueFalseCasts(castedTypes, Collections.emptyList());
 		}
+	}
+
+	public static List<ITypeBinding> getParentTypeDeclarations(ASTNode cursor) {
+		List<ITypeBinding> parentTypeBinding = new ArrayList<>();
+		while (DOMCompletionUtils.findParentTypeDeclaration(cursor) != null) {
+			ASTNode parentTypeDeclaration = DOMCompletionUtils.findParentTypeDeclaration(cursor);
+			if (parentTypeDeclaration instanceof AbstractTypeDeclaration typeDecl) {
+				parentTypeBinding.add(typeDecl.resolveBinding());
+			} else {
+				parentTypeBinding.add(((AnonymousClassDeclaration)parentTypeDeclaration).resolveBinding());
+			}
+			cursor = parentTypeDeclaration.getParent();
+		}
+		return parentTypeBinding;
 	}
 
 }

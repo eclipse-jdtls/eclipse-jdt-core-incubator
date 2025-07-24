@@ -86,6 +86,7 @@ import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
+import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
@@ -282,17 +283,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		public Stream<CompletionProposal> toProposals(boolean expectedOnly) {
 
 			// Needed to tell if `this` should be used
-			List<ITypeBinding> parentTypeBinding = new ArrayList<>();
-			ASTNode cursor = DOMCompletionEngine.this.toComplete;
-			while (DOMCompletionUtils.findParentTypeDeclaration(cursor) != null) {
-				ASTNode parentTypeDeclaration = DOMCompletionUtils.findParentTypeDeclaration(cursor);
-				if (parentTypeDeclaration instanceof AbstractTypeDeclaration typeDecl) {
-					parentTypeBinding.add(typeDecl.resolveBinding());
-				} else {
-					parentTypeBinding.add(((AnonymousClassDeclaration)parentTypeDeclaration).resolveBinding());
-				}
-				cursor = parentTypeDeclaration.getParent();
-			}
+			List<ITypeBinding> parentTypeBinding = DOMCompletionUtils.getParentTypeDeclarations(DOMCompletionEngine.this.toComplete);
 
 			return all() //
 				.filter(binding -> pattern.matchesName(prefix.toCharArray(), binding.getName().toCharArray())) //
@@ -743,6 +734,7 @@ public class DOMCompletionEngine implements ICompletionEngine {
 						|| simpleName.getParent() instanceof ContinueStatement
 						|| simpleName.getParent() instanceof MarkerAnnotation
 						|| simpleName.getParent() instanceof AnnotationTypeMemberDeclaration
+						|| simpleName.getParent() instanceof EnumConstantDeclaration
 						|| ((simpleName.getLocationInParent() == SwitchCase.EXPRESSIONS2_PROPERTY || simpleName.getLocationInParent() == SwitchCase.EXPRESSION_PROPERTY) && simpleName.getParent() instanceof SwitchCase)) {
 					if (!this.toComplete.getLocationInParent().getId().equals(QualifiedName.QUALIFIER_PROPERTY.getId())) {
 						context = this.toComplete.getParent();
@@ -956,6 +948,8 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			case SwitchCase _:
 				completeSwitchCase();
 				break;
+			case EnumConstantDeclaration _:
+				completeEnumConstantDeclaration();
 			default:
 				// Fall back to default completion strategy (accessible bindings + type search)
 			}
@@ -1082,6 +1076,10 @@ public class DOMCompletionEngine implements ICompletionEngine {
 				this.monitor.done();
 			}
 		}
+	}
+
+	private void completeEnumConstantDeclaration() {
+		this.suggestDefaultCompletions = false;
 	}
 
 	private void completeSwitchCase() {
@@ -2194,16 +2192,23 @@ public class DOMCompletionEngine implements ICompletionEngine {
 				}
 				if (!(this.toComplete instanceof Type)) {
 					ASTNode parentTypeDeclaration = DOMCompletionUtils.findParentTypeDeclaration(qualifiedName);
+					List<ITypeBinding> parentTypeDeclarations = DOMCompletionUtils.getParentTypeDeclarations(this.toComplete);
 					MethodDeclaration methodDecl = (MethodDeclaration)DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.METHOD_DECLARATION });
 					if (parentTypeDeclaration != null && methodDecl != null && (methodDecl.getModifiers() & Flags.AccStatic) == 0) {
 						if (completionContext.getCurrentTypeBinding().isSubTypeCompatible(qualifierTypeBinding)) {
-							if (!isFailedMatch(this.prefix.toCharArray(), Keywords.THIS)) {
+							if (parentTypeDeclarations.stream().anyMatch(parent -> parent.getKey().equals(qualifierTypeBinding.getKey()))
+									&& !isFailedMatch(this.prefix.toCharArray(), Keywords.THIS)) {
 								CompletionProposal res = createKeywordProposal(Keywords.THIS, startPos, endPos);
 								res.setRelevance(res.getRelevance() + RelevanceConstants.R_NON_INHERITED);
 								this.requestor.accept(res);
 							}
-							if (!isFailedMatch(this.prefix.toCharArray(), Keywords.SUPER)) {
-								this.requestor.accept(createKeywordProposal(Keywords.SUPER, startPos, endPos));
+							if ((!completionContext.getCurrentTypeBinding().isInterface() || !completionContext.getCurrentTypeBinding().getKey().equals(qualifierTypeBinding.getKey()))
+									&& !isFailedMatch(this.prefix.toCharArray(), Keywords.SUPER)) {
+								CompletionProposal res = createKeywordProposal(Keywords.SUPER, startPos, endPos);
+								if (!completionContext.getCurrentTypeBinding().getKey().equals(qualifierTypeBinding.getKey())) {
+									res.setRelevance(res.getRelevance() + RelevanceConstants.R_NON_INHERITED);
+								}
+								this.requestor.accept(res);
 							}
 						}
 						if (!isFailedMatch(this.prefix.toCharArray(), Keywords.CLASS)) {

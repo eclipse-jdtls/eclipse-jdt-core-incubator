@@ -1270,6 +1270,11 @@ class JavacConverter {
 					// when there are syntax errors where the statement is not completed.
 					qualifiedName = this.ast.newSimpleName(FAKE_IDENTIFIER);
 					qualifiedName.setFlags(ASTNode.RECOVERED);
+				} else {
+					int qualifiedOffset = this.rawText.indexOf(qualifiedName.toString(), qualifierName.getStartPosition() + qualifierName.getLength() + 1);
+					if (qualifiedOffset != -1) {
+						qualifiedName.setSourceRange(qualifiedOffset, qualifiedName.toString().length());
+					}
 				}
 				QualifiedName res = this.ast.newQualifiedName(qualifierName, qualifiedName);
 				commonSettings(res, javac);
