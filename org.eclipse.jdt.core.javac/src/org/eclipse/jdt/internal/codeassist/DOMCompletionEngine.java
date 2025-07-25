@@ -3570,6 +3570,8 @@ public class DOMCompletionEngine implements ICompletionEngine {
 				||
 				this.toComplete instanceof MethodInvocation
 				||
+				this.toComplete.getParent() instanceof MethodInvocation
+				||
 				(this.toComplete.getParent() instanceof Assignment)
 				||
 				(this.toComplete instanceof Assignment)
