@@ -2591,6 +2591,9 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		if (simpleName.getParent() instanceof PackageDeclaration) {
 			suggestDefaultCompletions = false;
 		}
+		if (simpleName.getParent() instanceof AbstractTypeDeclaration typeDecl && typeDecl.getName() == simpleName) {
+			suggestDefaultCompletions = false;
+		}
 	}
 
 	private void completeModuleDeclaration(ModuleDeclaration moduleDeclaration) {
@@ -4828,6 +4831,12 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			}
 		}
 
+		boolean isMember = false;
+		try {
+			isMember = type.isMember();
+		} catch (JavaModelException e) {
+			// do nothing
+		}
 		Javadoc javadoc = (Javadoc) DOMCompletionUtils.findParent(this.toComplete, new int[] { ASTNode.JAVADOC });
 		ASTNode parentTypeDeclaration = DOMCompletionUtils.findParentTypeDeclaration(this.toComplete);
 		if (parentTypeDeclaration != null || javadoc != null) {
@@ -4836,9 +4845,9 @@ public class DOMCompletionEngine implements ICompletionEngine {
 			boolean isInJavaLang = type.getFullyQualifiedName().startsWith("java.lang.") && !type.getFullyQualifiedName().substring("java.lang.".length()).contains(".");
 			IPackageBinding currentPackageBinding = completionContext.getCurrentTypeBinding() == null ? null : completionContext.getCurrentTypeBinding().getPackage();
 			// TODO: what about qualified references to inner classes?
-			if (packageFrag != null && (currentPackageBinding == null
+			if (packageFrag != null && !packageFrag.getElementName().isEmpty() && (currentPackageBinding == null
 					|| (this.qualifiedPrefix.startsWith(packageFrag.getElementName()) && javadoc != null)
-					|| (!packageFrag.getElementName().equals(currentPackageBinding.getName())
+					|| ((!packageFrag.getElementName().equals(currentPackageBinding.getName()) || (isMember && this.qualifiedPrefix.equals(this.prefix) && !type.getCompilationUnit().equals(this.modelUnit)))
 							&& !packageFrag.getElementName().equals("java.lang"))) && !inImports && !isInJavaLang) { //$NON-NLS-1$
 				completion.insert(0, '.');
 				completion.insert(0, packageFrag.getElementName());
