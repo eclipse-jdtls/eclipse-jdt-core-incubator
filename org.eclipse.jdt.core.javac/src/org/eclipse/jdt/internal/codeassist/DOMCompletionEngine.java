@@ -4337,9 +4337,13 @@ public class DOMCompletionEngine implements ICompletionEngine {
 					// check private
 					(!includePrivate && (binding.getModifiers() & Flags.AccPrivate) != 0)
 					// check protected
-					|| (!includeProtected && (binding.getModifiers() & Flags.AccProtected) != 0)
+					|| (!includeProtected && (binding.getModifiers() & Flags.AccProtected) != 0
+						&& !((typeBinding.getPackage() == null && originalPackageKey.isEmpty())
+							|| (typeBinding.getPackage() != null && originalPackageKey.equals(typeBinding.getPackage().getKey()))))
 					// check package private
-					|| ((binding.getModifiers() & (Flags.AccPublic | Flags.AccProtected | Flags.AccPrivate)) == 0 && !originalPackageKey.equals(typeBinding.getPackage().getKey()))
+					|| ((binding.getModifiers() & (Flags.AccPublic | Flags.AccProtected | Flags.AccPrivate)) == 0
+						&& !((typeBinding.getPackage() == null && originalPackageKey.isEmpty())
+							|| (typeBinding.getPackage() != null && originalPackageKey.equals(typeBinding.getPackage().getKey()))))
 					// check static
 					|| (isStaticContext && ((binding.getModifiers() & Flags.AccStatic) == 0 && !(binding instanceof ITypeBinding)))
 					// check abstract
