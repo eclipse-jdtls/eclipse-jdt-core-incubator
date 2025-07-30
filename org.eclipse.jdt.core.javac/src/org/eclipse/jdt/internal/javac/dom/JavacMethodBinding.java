@@ -460,7 +460,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			builder.append('(');
 			if (methodType != null) {
 				for (var param : methodType.getParameterTypes()) {
-					JavacTypeBinding.getKey(builder, param, false, false, true, resolver);
+					JavacTypeBinding.getKey(builder, param, false, true, true, resolver);
 				}
 			} else {
 				for (var param : methodSymbol.getParameters()) {
