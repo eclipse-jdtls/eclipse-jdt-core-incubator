@@ -11,14 +11,18 @@
 package org.eclipse.jdt.core.tests.javac;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 
 import org.eclipse.core.runtime.NullProgressMonitor;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTParser;
+import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.Javadoc;
+import org.eclipse.jdt.core.dom.ModuleDeclaration;
 import org.eclipse.jdt.core.dom.TagElement;
 import org.eclipse.jdt.core.dom.TypeDeclaration;
 import org.junit.Test;
@@ -49,5 +53,24 @@ public class JavacSpecificConverterTests {
 		Javadoc javadoc = fieldDecl.getJavadoc();
 		TagElement elt = (TagElement)javadoc.tags().get(0);
 		assertEquals(elt.getTagName(), TagElement.TAG_SERIAL);
+	}
+
+	@Test
+	public void testModuleConversionUnderJava8() throws Exception {
+		ASTParser parser = ASTParser.newParser(AST.JLS8);
+		parser.setSource("""
+			module org.example.util {
+				requires java.base;
+			}
+			""".toCharArray());
+		ASTNode node = parser.createAST(new NullProgressMonitor());
+		assertTrue(node instanceof CompilationUnit);
+		node.accept(new ASTVisitor() {
+			@Override
+			public boolean visit(ModuleDeclaration node) {
+				fail("expected no module declaration");
+				return false;
+			}
+		});
 	}
 }

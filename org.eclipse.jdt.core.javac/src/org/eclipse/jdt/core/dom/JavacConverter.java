@@ -191,7 +191,7 @@ class JavacConverter {
 				res.setPackage(possible);
 			}
 		}
-		if (javacCompilationUnit.getModule() != null) {
+		if (javacCompilationUnit.getModule() != null && this.ast.apiLevel >= AST.JLS9_INTERNAL) {
 			res.setModule(convert(javacCompilationUnit.getModuleDecl()));
 		}
 		javacCompilationUnit.getImports().stream().filter(imp -> imp instanceof JCImport).map(jc -> convert((JCImport)jc)).forEach(res.imports()::add);

@@ -1635,8 +1635,7 @@ public class JavacBindingResolver extends BindingResolver {
 		resolve();
 		JCTree javacElement = this.converter.domToJavac.get(module);
 		if( javacElement instanceof JCModuleDecl jcmd) {
-			Object o = jcmd.sym.type;
-			if( o instanceof ModuleType mt ) {
+			if (jcmd.sym != null && jcmd.sym.type instanceof ModuleType mt) {
 				return this.bindings.getModuleBinding(mt);
 			}
 		}
