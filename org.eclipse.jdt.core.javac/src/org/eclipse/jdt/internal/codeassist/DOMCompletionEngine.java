@@ -83,6 +83,7 @@ import org.eclipse.jdt.core.dom.ChildPropertyDescriptor;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
 import org.eclipse.jdt.core.dom.Comment;
 import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.ContinueStatement;
 import org.eclipse.jdt.core.dom.DoStatement;
 import org.eclipse.jdt.core.dom.EnhancedForStatement;
@@ -592,6 +593,32 @@ public class DOMCompletionEngine implements ICompletionEngine {
 						visibleBindings.add(e.getPatternVariable().resolveBinding());
 					});
 				}
+			}
+		}
+
+		if (node.getParent() instanceof InfixExpression infixExpression
+				&& infixExpression.getOperator().equals(Operator.CONDITIONAL_AND)
+				&& infixExpression.getRightOperand() != null
+				&& infixExpression.getRightOperand().equals(node)) {
+			TrueFalseBindings trueFalseBindings = DOMCompletionUtils.collectTrueFalseBindings(infixExpression.getLeftOperand());
+			visibleBindings.addAll(trueFalseBindings.trueBindings());
+		}
+
+		if (node.getParent() instanceof InfixExpression infixExpression
+				&& infixExpression.getOperator().equals(Operator.CONDITIONAL_OR)
+				&& infixExpression.getRightOperand() != null
+				&& infixExpression.getRightOperand().equals(node)) {
+			TrueFalseBindings trueFalseBindings = DOMCompletionUtils.collectTrueFalseBindings(infixExpression.getLeftOperand());
+			visibleBindings.addAll(trueFalseBindings.falseBindings());
+		}
+
+		if (node.getParent() instanceof ConditionalExpression conditionalExpression) {
+			if (conditionalExpression.getThenExpression() == node) {
+				TrueFalseBindings trueFalseBindings = DOMCompletionUtils.collectTrueFalseBindings(conditionalExpression.getExpression());
+				visibleBindings.addAll(trueFalseBindings.trueBindings());
+			} else if (conditionalExpression.getElseExpression() == node) {
+				TrueFalseBindings trueFalseBindings = DOMCompletionUtils.collectTrueFalseBindings(conditionalExpression.getExpression());
+				visibleBindings.addAll(trueFalseBindings.falseBindings());
 			}
 		}
 
@@ -2631,6 +2658,8 @@ public class DOMCompletionEngine implements ICompletionEngine {
 		} else if (methodInvocation.arguments().size() == 1 && ((ASTNode)methodInvocation.arguments().get(0)).getLength() == 0) {
 			// actually unresolved method: eg myMethod(|
 			// leave it to default behavior: complete with methods in scope
+		} else if (methodInvocation.arguments().indexOf(this.toComplete) != -1) {
+			// default completion
 		} else {
 			// inside parens, but not on any specific argument
 			IMethodBinding methodBinding = methodInvocation.resolveMethodBinding();

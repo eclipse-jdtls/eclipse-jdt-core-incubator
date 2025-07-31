@@ -730,4 +730,304 @@ public class JavacSpecificCompletionTests {
 				List<E>[TYPE_REF]{List, java.util, Ljava.util.List<TE;>;, null, [72, 72], 54}""", requestor.getResults());
 	}
 
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineAnd() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = o instanceof RequiresDirective requires && useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [150, 153], 21}
+				requires[LOCAL_VARIABLE_REF]{requires, null, LHelloWorld$RequiresDirective;, requires, [150, 153], 82}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineNegatedAnd() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = !(o instanceof RequiresDirective requires) && useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [153, 156], 21}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineOr() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = o instanceof RequiresDirective requires || useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [150, 153], 21}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineNegatedOr() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = !(o instanceof RequiresDirective requires) || useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [153, 156], 21}
+				requires[LOCAL_VARIABLE_REF]{requires, null, LHelloWorld$RequiresDirective;, requires, [153, 156], 82}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineComposite() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = (o instanceof RequiresDirective requires || 1 < 2) && useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [161, 164], 21}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineTernaryThen() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = o instanceof RequiresDirective requires ? useRequiresDirective(req) : false;
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [149, 152], 21}
+				requires[LOCAL_VARIABLE_REF]{requires, null, LHelloWorld$RequiresDirective;, requires, [149, 152], 82}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineTernaryElse() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = !(o instanceof RequiresDirective requires) ? false : useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [160, 163], 21}
+				requires[LOCAL_VARIABLE_REF]{requires, null, LHelloWorld$RequiresDirective;, requires, [160, 163], 82}""", requestor.getResults());
+	}
+
+	@Test
+	public void testCompleteVariablesFromInstanceofOnSameLineDoNotReachInsideTernary() throws Exception {
+		this.workingCopies = new ICompilationUnit[1];
+		this.workingCopies[0] = getWorkingCopy("HelloWorld.java",
+			"""
+			public class HelloWorld {
+
+				public void myMethod() {
+					Object o = null;
+					boolean a = (o instanceof RequiresDirective requires ? 1 < 2 : 1 < 2) && useRequiresDirective(req);
+				}
+
+				static class RequiresDirective {
+					private int a;
+					public RequiresDirective(int a) { this.a = a; }
+					int getA() { return a; }
+				}
+
+				public static boolean useRequiresDirective(RequiresDirective requiresDirective) {
+					return requiresDirective.getA() > 5;
+				}
+			}
+			""");
+
+		CompletionTestsRequestor2 requestor = new CompletionTestsRequestor2(false, false, true);
+		// prune out the type completions from the list
+		requestor.setIgnored(CompletionProposal.TYPE_REF, true);
+
+		String str = this.workingCopies[0].getSource();
+		String completeBehind = "(req";
+		int cursorLocation = str.lastIndexOf(completeBehind) + completeBehind.length();
+		IProgressMonitor monitor = new NullProgressMonitor();
+		this.workingCopies[0].codeComplete(cursorLocation, requestor, WC_OWNER, monitor);
+		assertEquals("""
+				useRequiresDirective[METHOD_REF]{useRequiresDirective(), LHelloWorld;, (LHelloWorld$RequiresDirective;)Z, useRequiresDirective, [168, 171], 21}""", requestor.getResults());
+	}
+
 }

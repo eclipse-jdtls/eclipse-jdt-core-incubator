@@ -30,6 +30,7 @@ import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.ASTVisitor;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
+import org.eclipse.jdt.core.dom.ConditionalExpression;
 import org.eclipse.jdt.core.dom.Expression;
 import org.eclipse.jdt.core.dom.ExpressionMethodReference;
 import org.eclipse.jdt.core.dom.FieldAccess;
@@ -39,6 +40,7 @@ import org.eclipse.jdt.core.dom.InfixExpression;
 import org.eclipse.jdt.core.dom.InstanceofExpression;
 import org.eclipse.jdt.core.dom.Modifier.ModifierKeyword;
 import org.eclipse.jdt.core.dom.Name;
+import org.eclipse.jdt.core.dom.ParenthesizedExpression;
 import org.eclipse.jdt.core.dom.PrefixExpression;
 import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SuperFieldAccess;
@@ -268,6 +270,10 @@ public class DOMCompletionUtils {
 			combined.addAll(left.falseBindings());
 			combined.addAll(right.falseBindings());
 			return new TrueFalseBindings(Collections.emptyList(), combined);
+		} else if (e instanceof ParenthesizedExpression parenExpr) {
+			return collectTrueFalseBindings(parenExpr.getExpression());
+		} else if (e instanceof ConditionalExpression) {
+			return new TrueFalseBindings(Collections.emptyList(), Collections.emptyList());
 		} else {
 			List<IVariableBinding> typePatternBindings = new ArrayList<>();
 			DOMCompletionUtils.visitChildren(e, ASTNode.TYPE_PATTERN, (TypePattern patt) -> {
