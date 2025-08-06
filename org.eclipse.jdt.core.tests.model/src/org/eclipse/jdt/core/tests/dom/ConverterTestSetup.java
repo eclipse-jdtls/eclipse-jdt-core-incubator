@@ -878,7 +878,7 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 			return;
 		}
 
-		final IProblem[] problems = filterIgnoredProblems(problemsRaw);
+		final IProblem[] problems = filterJavacOnlyProblemsUnknownToECJ(problemsRaw);
 		length = problems.length;
 		if( length == expectedSize ) {
 			checkProblemMessages(expectedOutput, problems, length);
@@ -889,12 +889,15 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 		assertEquals("Wrong size", expectedSize, length);
 	}
 
-	private IProblem[] filterIgnoredProblems(IProblem[] problemsRaw) {
+	static IProblem[] filterJavacOnlyProblemsUnknownToECJ(IProblem[] problemsRaw) {
 		return Arrays.stream(problemsRaw).filter(x -> {
 			if( x.getMessage().startsWith("@Deprecated annotation has no effect on this ")) {
 				return false;
 			}
 			if( x.getMessage().endsWith("has been deprecated and marked for removal")) {
+				return false;
+			}
+			if (x.getMessage().equals("possible 'this' escape before subclass is fully initialized")) {
 				return false;
 			}
 			return true;
