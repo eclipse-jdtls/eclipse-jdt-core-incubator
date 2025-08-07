@@ -19,6 +19,9 @@ import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
+import org.eclipse.jdt.core.tests.javac.JavacFailReason;
+import org.junit.Ignore;
+import org.junit.experimental.categories.Category;
 
 /**
  * Test for generic methods search using R_ERASURE_MATCH rule.
@@ -300,6 +303,9 @@ public class JavaSearchGenericMethodTests extends AbstractJavaSearchGenericTests
 			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testRuntimeException() [generic(new RuntimeException())] EQUIVALENT_MATCH"
 		);
 	}
+
+	@Category(value=Ignore.class) @JavacFailReason(cause=JavacFailReason.VALID_ALTERNATIVE_IMPL)
+	// Test had potential matches due to unresolved type, but type resolves for javac
 	public void testMethodReferencesElementPatternSingleParamArguments06() throws CoreException {
 		ICompilationUnit unit = getCompilationUnit("JavaSearch15/src/g5/m/ref/RefRaw.java");
 		IMethod method = selectMethod(unit, "complete");
@@ -310,9 +316,9 @@ public class JavaSearchGenericMethodTests extends AbstractJavaSearchGenericTests
 			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testObject() [complete(new Object(), gs)] EQUIVALENT_MATCH\n" +
 			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testException() [complete(new Exception(), gs)] EQUIVALENT_MATCH\n" +
 			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testRuntimeException() [complete(new RuntimeException(), gs)] EQUIVALENT_MATCH\n" +
-			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testUnbound() [complete(new String(), gs)] POTENTIAL_MATCH\n" +
-			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testExtends() [complete(new Throwable(), gs)] POTENTIAL_MATCH\n" +
-			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testSuper() [complete(new RuntimeException(), gs)] POTENTIAL_MATCH"
+			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testUnbound() [complete(new String(), gs)] EXACT_RAW_MATCH\n" +
+			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testExtends() [complete(new Throwable(), gs)] EXACT_RAW_MATCH\n" +
+			"src/g5/m/ref/RefSingle.java void g5.m.ref.RefSingle.testSuper() [complete(new RuntimeException(), gs)] EXACT_RAW_MATCH"
 		);
 	}
 
