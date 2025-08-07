@@ -580,8 +580,8 @@ public class JavaSearchGenericMethodTests extends AbstractJavaSearchGenericTests
 		search("<?,? extends Throwable,? extends RuntimeException>complete", METHOD, REFERENCES, scope, this.resultCollector);
 		assertSearchResults(
 			"src/g5/m/ref/RefMultiple.java void g5.m.ref.RefMultiple.test() [<Object, Exception, RuntimeException>complete(new Object(), new Exception(), new RuntimeException(), gm)] EQUIVALENT_MATCH\n" +
-			"src/g5/m/ref/RefMultiple.java void g5.m.ref.RefMultiple.testExtends() [<Object, RuntimeException, RuntimeException>complete(new Object(), new RuntimeException(), new RuntimeException(), gm)] POTENTIAL_MATCH\n" +
-			"src/g5/m/ref/RefMultiple.java void g5.m.ref.RefMultiple.testSuper() [<Object, RuntimeException, IllegalMonitorStateException>complete(new Object(), new RuntimeException(), new IllegalMonitorStateException(), gm)] POTENTIAL_MATCH\n" +
+			"src/g5/m/ref/RefMultiple.java void g5.m.ref.RefMultiple.testExtends() [<Object, RuntimeException, RuntimeException>complete(new Object(), new RuntimeException(), new RuntimeException(), gm)] EQUIVALENT_MATCH\n" +
+			"src/g5/m/ref/RefMultiple.java void g5.m.ref.RefMultiple.testSuper() [<Object, RuntimeException, IllegalMonitorStateException>complete(new Object(), new RuntimeException(), new IllegalMonitorStateException(), gm)] EQUIVALENT_MATCH\n" +
 			"src/g5/m/ref/RefRaw.java void g5.m.ref.RefRaw.testMultiple() [complete(new Object(), new Exception(), new RuntimeException(), gm)] EQUIVALENT_RAW_MATCH"
 		);
 	}
