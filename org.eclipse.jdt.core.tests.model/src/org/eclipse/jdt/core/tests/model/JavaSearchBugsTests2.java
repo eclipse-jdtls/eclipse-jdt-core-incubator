@@ -1517,7 +1517,7 @@ public class JavaSearchBugsTests2 extends AbstractJavaSearchTests {
 							"	A(Exception ex) {}\n" +
 							"	class B { \n" +
 							"		/**\n" +
-							"		 * Link {@link #A(Exception)} OK\n" +
+							"		 * Link {@link A#A(Exception)} OK\n" +
 							"		 */\n" +
 							"		public B(String str) {}\n" +
 							"	}\n" +
