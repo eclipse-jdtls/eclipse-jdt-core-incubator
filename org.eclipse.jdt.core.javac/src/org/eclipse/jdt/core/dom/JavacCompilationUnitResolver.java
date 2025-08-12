@@ -54,7 +54,6 @@ import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.core.compiler.CategorizedProblem;
 import org.eclipse.jdt.core.compiler.IProblem;
 import org.eclipse.jdt.core.compiler.InvalidInputException;
-import org.eclipse.jdt.internal.compiler.DefaultErrorHandlingPolicies;
 import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.env.AccessRestriction;
@@ -66,14 +65,14 @@ import org.eclipse.jdt.internal.compiler.impl.ITypeRequestor;
 import org.eclipse.jdt.internal.compiler.lookup.LookupEnvironment;
 import org.eclipse.jdt.internal.compiler.lookup.PackageBinding;
 import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
-import org.eclipse.jdt.internal.compiler.problem.ProblemReporter;
-import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import org.eclipse.jdt.internal.compiler.util.Util;
 import org.eclipse.jdt.internal.core.CancelableNameEnvironment;
 import org.eclipse.jdt.internal.core.JavaModelManager;
 import org.eclipse.jdt.internal.core.JavaProject;
+import org.eclipse.jdt.internal.core.SearchableEnvironment;
 import org.eclipse.jdt.internal.core.dom.ICompilationUnitResolver;
 import org.eclipse.jdt.internal.core.util.BindingKeyParser;
+import org.eclipse.jdt.internal.javac.AccessRestrictionTreeScanner;
 import org.eclipse.jdt.internal.javac.CachingClassSymbolClassReader;
 import org.eclipse.jdt.internal.javac.CachingJDKPlatformArguments;
 import org.eclipse.jdt.internal.javac.CachingJarsJavaFileManager;
@@ -340,33 +339,6 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 		if (environment == null) {
 			environment = new NameEnvironmentWithProgress(cp, null, monitor);
 		}
-
-		LookupEnvironment lu = new LookupEnvironment(new ITypeRequestor() {
-
-			@Override
-			public void accept(IBinaryType binaryType, PackageBinding packageBinding,
-					AccessRestriction accessRestriction) {
-				// do nothing
-			}
-
-			@Override
-			public void accept(org.eclipse.jdt.internal.compiler.env.ICompilationUnit unit,
-					AccessRestriction accessRestriction) {
-				// do nothing
-			}
-
-			@Override
-			public void accept(ISourceType[] sourceType, PackageBinding packageBinding,
-					AccessRestriction accessRestriction) {
-				// do nothing
-			}
-
-		}, opts, new ProblemReporter(DefaultErrorHandlingPolicies.ignoreAllProblems() , null, new DefaultProblemFactory()) {
-			@Override
-			public int computeSeverity(int problemID) {
-				return ProblemSeverities.Ignore;
-			}
-		}, environment);
 
 		// resolve the requested bindings
 		for (String bindingKey : bindingKeys) {
@@ -669,6 +641,17 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
 					}
 
+					AccessRestrictionTreeScanner accessScanner = null;
+					if (javaProject instanceof JavaProject internalJavaProject) {
+						try {
+							INameEnvironment environment = new SearchableEnvironment(internalJavaProject, (WorkingCopyOwner)null, false, JavaProject.NO_RELEASE);
+							accessScanner = new AccessRestrictionTreeScanner(environment, new DefaultProblemFactory(), new CompilerOptions(compilerOptions));
+							accessScanner.scan(unit, null);
+						} catch (JavaModelException javaModelException) {
+							// do nothing
+						}
+					}
+
 					List<CategorizedProblem> unusedProblems = scanner.getUnusedPrivateMembers(unusedProblemFactory);
 					if (!unusedProblems.isEmpty()) {
 						addProblemsToDOM(dom, unusedProblems);
@@ -685,6 +668,10 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 						if (Objects.equals(currentTopLevelType, lastType.sym)) {
 							addProblemsToDOM(dom, unusedImports);
 						}
+					}
+
+					if (accessScanner != null) {
+						addProblemsToDOM(dom, accessScanner.getAccessRestrictionProblems());
 					}
 				}
 			}

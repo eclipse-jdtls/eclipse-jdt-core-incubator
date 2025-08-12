@@ -59,7 +59,8 @@ import com.sun.tools.javac.tree.JCTree.JCModuleDecl;
 
 public class JavacTaskListener implements TaskListener {
 	private Map<ICompilationUnit, JavacCompilationResult> results = new HashMap<>();
-	private UnusedProblemFactory problemFactory;
+	private IProblemFactory problemFactory;
+	private UnusedProblemFactory unusedProblemFactory;
 	private JavacConfig config;
 	private final Map<JavaFileObject, ICompilationUnit> fileObjectToCUMap;
 	private final JavacCompiler javacCompiler;
@@ -80,7 +81,8 @@ public class JavacTaskListener implements TaskListener {
 	public JavacTaskListener(JavacCompiler javacCompiler, JavacConfig config, IProblemFactory problemFactory, Map<JavaFileObject, ICompilationUnit> fileObjectToCUMap) {
 		this.javacCompiler = javacCompiler;
 		this.config = config;
-		this.problemFactory = new UnusedProblemFactory(problemFactory, config.compilerOptions());
+		this.problemFactory = problemFactory;
+		this.unusedProblemFactory = new UnusedProblemFactory(problemFactory, config.compilerOptions());
 		this.fileObjectToCUMap = fileObjectToCUMap;
 		Path dir = null;
 		try {
@@ -274,8 +276,12 @@ public class JavacTaskListener implements TaskListener {
 				ILog.get().error("Internal error when visiting the AST Tree. " + ex.getMessage(), ex);
 			}
 
-			result.addUnusedMembers(scanner.getUnusedPrivateMembers(this.problemFactory));
-			result.setUnusedImports(scanner.getUnusedImports(this.problemFactory));
+			final var accessRestrictionScanner = new AccessRestrictionTreeScanner(javacCompiler.lookupEnvironment.nameEnvironment, this.problemFactory, this.javacCompiler.options);
+			accessRestrictionScanner.scan(unit, null);
+
+			result.addUnusedMembers(scanner.getUnusedPrivateMembers(this.unusedProblemFactory));
+			result.setUnusedImports(scanner.getUnusedImports(this.unusedProblemFactory));
+			result.setAccessRestrictionProblems(accessRestrictionScanner.getAccessRestrictionProblems());
 		}
 	}
 

@@ -152,10 +152,15 @@ public class JavacCompiler extends Compiler {
 
 		// Configure Javac to generate the class files in a mapped temporary location
 		JavacUtils.configureJavacContext(javacContext, this.compilerConfig, javaProject, javacListener.tempDir.toFile(), true);
-		// Javadoc problem are not reported by builder
 		var javacOptions = Options.instance(javacContext);
-		javacOptions.remove(Option.XDOCLINT.primaryName);
-		javacOptions.remove(Option.XDOCLINT_CUSTOM.primaryName);
+		// Javadoc problem are not reported by builder,
+		// EXCEPT for access restriction patterns.
+		// so we need to enable doc linting to get the javac-side bindings there
+		boolean docEnabled = JavaCore.ENABLED.equals(this.options.getMap().get(JavaCore.COMPILER_DOC_COMMENT_SUPPORT));
+		if (!docEnabled) {
+			javacOptions.remove(Option.XDOCLINT.primaryName);
+			javacOptions.put(Option.XDOCLINT_CUSTOM, "none");
+		}
 		javacContext.put(JavaCompiler.compilerKey, (Factory<JavaCompiler>)c -> new JavaCompiler(c) {
 			boolean isInGeneration = false;
 
