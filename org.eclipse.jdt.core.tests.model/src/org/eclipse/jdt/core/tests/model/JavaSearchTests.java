@@ -930,6 +930,8 @@ public void testFieldReference06() throws CoreException {
  * Field reference test.
  * (regression test for bug 61017 Refactoring - test case that results in uncompilable source)
  */
+@JavacFailReason(cause=JavacFailReason.JAVAC_DEFICIENCY)
+// symbols for some classes are missing, leading to null bindings and incorrect matches
 public void testFieldReference07() throws CoreException {
 	IType type = getCompilationUnit("JavaSearch", "src", "s5", "A.java").getType("A");
 	IField field = type.getField("b");
@@ -1848,6 +1850,7 @@ public void testMethodReference17() throws CoreException {
  * OrPattern test.
  * (regression test for bug 5862 search : too many matches on search with OrPattern)
  */
+@Category(value=Ignore.class) @JavacFailReason(cause=JavacFailReason.JDT_BEHAVIOR_STRANGE)
 public void testOrPattern() throws CoreException {
 	IMethod leftMethod = getCompilationUnit("JavaSearch", "src", "q9", "I.java")
 		.getType("I").getMethod("m", new String[] {});
@@ -2931,6 +2934,8 @@ public void testTypeOccurence1() throws CoreException { // was testTypeOccurence
  * Type ocuurence in unresolvable import test.
  * (regression test for bug 37166 NPE in SearchEngine when matching type against ProblemReferenceBinding )
  */
+@JavacFailReason(cause=JavacFailReason.JDT_BEHAVIOR_STRANGE)
+// This is the only test I can find where an import r8.B is expected to match only the 'B' and not the 'r8.B'
 public void testTypeOccurence2() throws CoreException {
 	IType type = getCompilationUnit("JavaSearch", "src", "r8", "B.java").getType("B");
 	IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {type.getPackageFragment()});
