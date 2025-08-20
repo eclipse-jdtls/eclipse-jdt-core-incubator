@@ -32,9 +32,14 @@ import org.eclipse.jdt.internal.compiler.problem.ProblemSeverities;
 import com.sun.source.doctree.DocTree;
 import com.sun.source.doctree.LinkTree;
 import com.sun.source.doctree.SeeTree;
+import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.ImportTree;
 import com.sun.source.tree.MemberSelectTree;
+import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ModifiersTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.util.TreeScanner;
@@ -43,9 +48,13 @@ import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.parser.Tokens.Comment;
 import com.sun.tools.javac.parser.Tokens.Comment.CommentStyle;
 import com.sun.tools.javac.tree.JCTree;
+import com.sun.tools.javac.tree.JCTree.JCAnnotation;
+import com.sun.tools.javac.tree.JCTree.JCAssign;
 import com.sun.tools.javac.tree.JCTree.JCCompilationUnit;
+import com.sun.tools.javac.tree.JCTree.JCExpression;
 import com.sun.tools.javac.tree.JCTree.JCFieldAccess;
 import com.sun.tools.javac.tree.JCTree.JCIdent;
+import com.sun.tools.javac.tree.JCTree.JCLiteral;
 import com.sun.tools.javac.tree.JCTree.JCNewClass;
 
 /**
@@ -74,6 +83,9 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 
 	private List<CategorizedProblem> accessRestrictionProblems = new ArrayList<>();
 	private JCCompilationUnit unit = null;
+
+	private boolean isWarningSuppressed = false;
+	private int suppressedWarningsCount = 0;
 
 	public AccessRestrictionTreeScanner(INameEnvironment nameEnvironment, IProblemFactory problemFactory,
 			CompilerOptions compilerOptions) {
@@ -107,6 +119,51 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 	}
 
 	@Override
+	public Void visitImport(ImportTree node, Void p) {
+		// Do not visit subtree; access restriction errors are not reported on imports
+		return null;
+	}
+
+
+	@Override
+	public Void visitClass(ClassTree node, Void p) {
+		boolean oldWarningSuppressed = this.isWarningSuppressed;
+		int oldNumSuppressedWarnings = this.suppressedWarningsCount;
+		JCTree restrictionStrNode = getSuppressWarningsRestriction(node.getModifiers());
+		try {
+			this.isWarningSuppressed = oldWarningSuppressed || restrictionStrNode != null;
+			if (oldWarningSuppressed && restrictionStrNode != null) {
+				addUnnecessarySuppressWarnings(restrictionStrNode);
+			}
+			return super.visitClass(node, p);
+		} finally {
+			this.isWarningSuppressed = oldWarningSuppressed;
+			if (oldNumSuppressedWarnings == this.suppressedWarningsCount && restrictionStrNode != null) {
+				addUnnecessarySuppressWarnings(restrictionStrNode);
+			}
+		}
+	}
+
+	@Override
+	public Void visitMethod(MethodTree node, Void p) {
+		boolean oldWarningSuppressed = this.isWarningSuppressed;
+		int oldNumSuppressedWarnings = this.suppressedWarningsCount;
+		JCTree restrictionStrNode = getSuppressWarningsRestriction(node.getModifiers());
+		try {
+			this.isWarningSuppressed = oldWarningSuppressed || restrictionStrNode != null;
+			if (oldWarningSuppressed && restrictionStrNode != null) {
+				addUnnecessarySuppressWarnings(restrictionStrNode);
+			}
+			return super.visitMethod(node, p);
+		} finally {
+			this.isWarningSuppressed = oldWarningSuppressed;
+			if (oldNumSuppressedWarnings == this.suppressedWarningsCount && restrictionStrNode != null) {
+				addUnnecessarySuppressWarnings(restrictionStrNode);
+			}
+		}
+	}
+
+	@Override
 	public Void visitMemberSelect(MemberSelectTree node, Void p) {
 		JCFieldAccess fieldAccess = (JCFieldAccess) node;
 		if (fieldAccess.selected.type == null || fieldAccess.selected.type.isErroneous()) {
@@ -115,35 +172,50 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		}
 		Symbol sym = fieldAccess.selected.type.tsym;
 		String fqn = getQualifiedName(sym);
-
-		int startPos = fieldAccess.selected.getEndPosition(this.unit.endPositions) + 1;
-		int endPos = startPos + fieldAccess.name.length() - 1;
-
 		String fieldName = fieldAccess.name.toString();
 
-		boolean isField = false;
 		if (!(sym instanceof Symbol.TypeSymbol typeSym) || typeSym.members() == null) {
 			return super.visitMemberSelect(node, p);
 		}
-		for (Symbol elt : typeSym.getEnclosedElements()) {
-			if (fieldName.equals(elt.getSimpleName().toString())) {
-				if (elt instanceof Symbol.VarSymbol) {
-					isField = true;
+
+		if (sym instanceof Symbol.PackageSymbol packageSym) {
+			// left side is a package; perhaps this is a fully qualified type
+			int startPos = fieldAccess.getStartPosition();
+			int endPos = fieldAccess.getEndPosition(this.unit.endPositions) - 1;
+			if (endPos == -1) {
+				endPos = fieldAccess.toString().length();
+			}
+			for (Symbol elt : packageSym.getEnclosedElements()) {
+				if (fieldName.equals(elt.getSimpleName().toString())) {
+					collectProblemForFQN(fqn + "." + fieldName, startPos, endPos, TYPE_ACCESS, null);
+					break;
 				}
 			}
-		}
-
-		if (!UNINTERESTING_FIELDS.contains(fieldName)) {
-			if (fieldAccess.type instanceof Type.MethodType methodType) {
-				collectProblemForFQN(fqn, startPos, endPos, METHOD_ACCESS,
-						toDisplayString(fieldAccess.name.toString(), methodType));
-			} else if (isField) {
-				collectProblemForFQN(fqn, startPos, endPos, FIELD_ACCESS, fieldAccess.name.toString());
-			} else {
-				collectProblemForFQN(fqn + "$" + fieldName, startPos, endPos, TYPE_ACCESS, null);
+			return super.visitMemberSelect(node, p);
+		} else {
+			boolean isField = false;
+			int startPos = fieldAccess.selected.getEndPosition(this.unit.endPositions) + 1;
+			int endPos = startPos + fieldAccess.name.length() - 1;
+			for (Symbol elt : typeSym.getEnclosedElements()) {
+				if (fieldName.equals(elt.getSimpleName().toString())) {
+					if (elt instanceof Symbol.VarSymbol) {
+						isField = true;
+					}
+				}
 			}
+
+			if (!UNINTERESTING_FIELDS.contains(fieldName)) {
+				if (fieldAccess.type instanceof Type.MethodType methodType) {
+					collectProblemForFQN(fqn, startPos, endPos, METHOD_ACCESS,
+							toDisplayString(fieldAccess.name.toString(), methodType));
+				} else if (isField) {
+					collectProblemForFQN(fqn, startPos, endPos, FIELD_ACCESS, fieldAccess.name.toString());
+				} else {
+					collectProblemForFQN(fqn + "$" + fieldName, startPos, endPos, TYPE_ACCESS, null);
+				}
+			}
+			return super.visitMemberSelect(node, p);
 		}
-		return super.visitMemberSelect(node, p);
 	}
 
 	@Override
@@ -158,7 +230,19 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		if (ident.sym instanceof Symbol.ClassSymbol classSymbol) {
 			fqn = getQualifiedName(classSymbol);
 		} else if (ident.sym instanceof Symbol.MethodSymbol methodSymbol) {
-			memberName = toDisplayString(methodSymbol);
+			if (methodSymbol.isConstructor()) {
+				if (methodSymbol.type instanceof Type.MethodType methodType) {
+					memberName = toDisplayString(methodSymbol.owner.getSimpleName().toString(), methodType);
+				} else if (methodSymbol.type instanceof Type.ForAll forAllType) {
+					memberName = toDisplayString(methodSymbol.owner.getSimpleName().toString(), forAllType.asMethodType());
+				} else {
+					throw new IllegalStateException("Excepted a method; this isn't one????");
+				}
+				accessKind = CONSTRUCTOR_ACCESS;
+			} else {
+				memberName = toDisplayString(methodSymbol);
+				accessKind = METHOD_ACCESS;
+			}
 			Symbol cursor = methodSymbol;
 			while (cursor != null && !(cursor instanceof Symbol.ClassSymbol)) {
 				cursor = cursor.owner;
@@ -166,7 +250,6 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 			if (cursor != null) {
 				fqn = getQualifiedName(cursor);
 			}
-			accessKind = METHOD_ACCESS;
 		} else if (ident.sym instanceof Symbol.VarSymbol varSymbol) {
 			memberName = varSymbol.toString();
 			Symbol cursor = varSymbol;
@@ -265,6 +348,54 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		}
 	}
 
+	static final String SUPPRESS_WARNINGS = "java.lang.SuppressWarnings";
+	static final String RESTRICTION = "\"restriction\"";
+	/**
+	 * Returns the node for the "restriction" string literal if <code>@SuppressWarnings("restriction")</code> is present, or null otherwise.
+	 *
+	 * @param modifiers the modifiers to check for <code>@SuppressWarnings("restriction")</code>
+	 * @return the node for the "restriction" string literal if <code>@SuppressWarnings("restriction")</code> is present, or null otherwise.
+	 */
+	private static JCTree getSuppressWarningsRestriction(ModifiersTree modifiers) {
+		for (AnnotationTree annotation : modifiers.getAnnotations()) {
+			JCAnnotation jcAnnotation = (JCAnnotation) annotation;
+			if (jcAnnotation == null
+					|| jcAnnotation.annotationType == null
+					|| jcAnnotation.annotationType.type == null
+					|| jcAnnotation.annotationType.type.tsym == null) {
+				continue;
+			}
+			if (SUPPRESS_WARNINGS.equals(jcAnnotation.annotationType.type.tsym.getQualifiedName().toString())) {
+				for (JCExpression expr : jcAnnotation.args) {
+					if (expr instanceof JCAssign jcAssign) {
+						if (RESTRICTION.equals(jcAssign.rhs.toString())) {
+							return jcAssign.rhs;
+						}
+					} else if (expr instanceof JCLiteral) {
+						if (RESTRICTION.equals(expr.toString())) {
+							return expr;
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	static final String[] UNNECESSARY_SUPPRESS_ARGS = new String[] {"restriction"};
+	private void addUnnecessarySuppressWarnings(JCTree nodeForRange) {
+		int startPos = nodeForRange.getStartPosition();
+		int endPos = nodeForRange.getEndPosition(this.unit.endPositions) - 1;
+
+		int line = unit.getLineMap().getLineNumber(startPos);
+		int column = unit.getLineMap().getColumnNumber(startPos);
+
+		this.accessRestrictionProblems.add(this.problemFactory.createProblem(unit.getSourceFile().getName().toCharArray(), //
+				IProblem.UnusedWarningToken, //
+				UNNECESSARY_SUPPRESS_ARGS, 0, UNNECESSARY_SUPPRESS_ARGS, toSeverity(IProblem.UnusedWarningToken), //
+				startPos, endPos, line, column));
+	}
+
 	private void collectProblemForFQN(String fqn, JCTree node, byte accessType, String memberName) {
 		int startPos = node.getStartPosition();
 		int endPos = node.getEndPosition(this.unit.endPositions) - 1;
@@ -283,8 +414,12 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		NameEnvironmentAnswer ans = nameEnvironment.findType(fqnChar);
 		if (ans != null && ans.getAccessRestriction() != null) {
 			AccessRestriction accessRestriction = ans.getAccessRestriction();
-			this.accessRestrictionProblems
-					.add(toCategorizedProblem(startPos, endPos, fqn, accessRestriction, accessType, memberName));
+			if (accessRestriction.getProblemId() == IProblem.ForbiddenReference || !this.isWarningSuppressed) {
+				this.accessRestrictionProblems
+				.add(toCategorizedProblem(startPos, endPos, fqn, accessRestriction, accessType, memberName));
+			} else if (this.isWarningSuppressed) {
+				this.suppressedWarningsCount++;
+			}
 		}
 	}
 
@@ -346,7 +481,7 @@ public class AccessRestrictionTreeScanner extends TreeScanner<Void, Void> {
 		return ProblemSeverities.Warning;
 	}
 
-	private String toDisplayString(Symbol.MethodSymbol sym) {
+	private static String toDisplayString(Symbol.MethodSymbol sym) {
 		StringBuilder builder = new StringBuilder();
 		builder.append(sym.name);
 		builder.append('(');

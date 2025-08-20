@@ -502,6 +502,462 @@ public class CompilerTests extends AbstractJavaModelTests {
 				Access restriction: The method 'Mouth.Tongue.flapAboutEveryWhichWay()' is not API (restriction on required project 'A')""", actual);
 	}
 
+	@Test
+	public void testAccessRulesProblemsFullyQualifiedName() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_NON_ACCESSIBLE);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public Mouth() {}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			public class BreakAccessRules {
+				public static void main(String[] args) {
+					org.example.util.Mouth mouth = new org.example.util.Mouth();
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		// Two on the Mouth constructor (one of which is marked constructor)
+		// One on the LHS of the assignment for Mouth type
+		// One on open()
+		assertEquals(4, markers.length);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[76, 98] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				[99, 104] The value of the local variable mouth is not used
+				[111, 133] Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')
+				[111, 133] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuperclassConstructorInvocation() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_NON_ACCESSIBLE);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public Mouth() {}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			import org.example.util.Mouth;
+			public class BreakAccessRules extends Mouth {
+				public BreakAccessRules() {
+					super();
+				}
+
+				public static void main(String[] args) {
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		// Two on the Mouth constructor (one of which is marked constructor)
+		// One on the LHS of the assignment for Mouth type
+		// One on open()
+		assertEquals(2, markers.length);
+		String actual = getMarkersString(markers, false);
+		assertEquals("""
+				Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuppressWarnings() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_DISCOURAGED);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public void flapAboutEveryWhichWay() {
+						System.out.println("bllblblbllblbllblbllbll!");
+					}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			import org.example.util.Mouth;
+			public class BreakAccessRules {
+				@SuppressWarnings("restriction")
+				public static void main(String[] args) {
+					new Mouth().flapAboutEveryWhichWay();
+				}
+				@SuppressWarnings("restriction")
+				public static class Interior {
+					public void method1() {
+						new Mouth().flapAboutEveryWhichWay();
+					}
+				}
+				@Deprecated
+				public void method2() {
+					Mouth mouth = null;
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(2, markers.length);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[362, 367] Discouraged access: The type 'Mouth' is not API (restriction on required project 'A')
+				[368, 373] The value of the local variable mouth is not used""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuppressWarningsRoot() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_DISCOURAGED);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public void flapAboutEveryWhichWay() {
+						System.out.println("bllblblbllblbllblbllbll!");
+					}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			import org.example.util.Mouth;
+			@SuppressWarnings("restriction")
+			public class BreakAccessRules {
+				public static void main(String[] args) {
+					new Mouth().flapAboutEveryWhichWay();
+				}
+				public static class Interior {
+					public void method1() {
+						new Mouth().flapAboutEveryWhichWay();
+					}
+				}
+				@Deprecated
+				public void method2() {
+					Mouth mouth = null;
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(1, markers.length);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[333, 338] The value of the local variable mouth is not used""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuppressWarningsDoesntSuppressErrors() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_NON_ACCESSIBLE);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public void flapAboutEveryWhichWay() {
+						System.out.println("bllblblbllblbllblbllbll!");
+					}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			import org.example.util.Mouth;
+			@SuppressWarnings("restriction")
+			public class BreakAccessRules {
+				public static void main(String[] args) {
+					new Mouth().flapAboutEveryWhichWay();
+				}
+				public static class Interior {
+					public void method1() {
+						new Mouth().flapAboutEveryWhichWay();
+					}
+				}
+				@Deprecated
+				public void method2() {
+					Mouth mouth = null;
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[49, 62] Unnecessary @SuppressWarnings("restriction")
+				[144, 149] Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')
+				[144, 149] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				[152, 174] Access restriction: The method 'Mouth.flapAboutEveryWhichWay()' is not API (restriction on required project 'A')
+				[246, 251] Access restriction: The constructor 'Mouth()' is not API (restriction on required project 'A')
+				[246, 251] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				[254, 276] Access restriction: The method 'Mouth.flapAboutEveryWhichWay()' is not API (restriction on required project 'A')
+				[327, 332] Access restriction: The type 'Mouth' is not API (restriction on required project 'A')
+				[333, 338] The value of the local variable mouth is not used""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuppressWarningsNotUsed() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_NON_ACCESSIBLE);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public void flapAboutEveryWhichWay() {
+						System.out.println("bllblblbllblbllblbllbll!");
+					}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			public class BreakAccessRules {
+
+				@SuppressWarnings("restriction")
+				public static void main(String[] args) {
+					System.out.println("args");
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[52, 65] Unnecessary @SuppressWarnings("restriction")""", actual);
+	}
+
+	@Test
+	public void testAccessRulesProblemsSuppressWarningsNotUsedParenting() throws Exception {
+		IJavaProject javaProjectA = createJava21Project("A");
+		IJavaProject javaProjectB = createJava21Project("B");
+		IClasspathEntry[] classpathEntries = javaProjectB.getRawClasspath();
+
+		IAccessRule accessRule = JavaCore.newAccessRule(new Path("**/org/example/util/*"), IAccessRule.K_DISCOURAGED);
+
+		IClasspathEntry projectAEntry = JavaCore.newProjectEntry(javaProjectA.getPath(), //
+				new IAccessRule[] { accessRule },
+				false,
+				new IClasspathAttribute[0],
+				false);
+
+		IClasspathEntry[] newClasspathEntries = new IClasspathEntry[classpathEntries.length + 1];
+		System.arraycopy(classpathEntries, 0, newClasspathEntries, 0, classpathEntries.length);
+		newClasspathEntries[classpathEntries.length] = projectAEntry;
+
+		javaProjectB.setRawClasspath(newClasspathEntries, new NullProgressMonitor());
+
+		createFolder("A/src/org");
+		createFolder("A/src/org/example");
+		createFolder("A/src/org/example/util");
+
+		IFile utilClass = createFile("A/src/org/example/util/Mouth.java", """
+				package org.example.util;
+
+				public class Mouth {
+					public void flapAboutEveryWhichWay() {
+						System.out.println("bllblblbllblbllblbllbll!");
+					}
+				}
+				""");
+
+		javaProjectA.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectA.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		IMarker[] markers = utilClass.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		assertEquals(0, markers.length);
+
+		IFile file = createFile("B/src/BreakAccessRules.java", """
+			import org.example.util.Mouth;
+
+			@SuppressWarnings("restriction")
+			public class BreakAccessRules {
+
+				@SuppressWarnings("restriction")
+				public static void main(String[] args) {
+					new Mouth().flapAboutEveryWhichWay();
+				}
+			}
+			""");
+
+		javaProjectB.setOption(JavaCore.COMPILER_PB_FORBIDDEN_REFERENCE, JavaCore.ERROR);
+		javaProjectB.getProject().build(IncrementalProjectBuilder.FULL_BUILD, null);
+		javaProjectB.getProject().refreshLocal(IResource.DEPTH_INFINITE, null);
+		markers = file.findMarkers(IMarker.PROBLEM, true, IResource.DEPTH_INFINITE);
+		String actual = getMarkersString(markers, true);
+		assertEquals("""
+				[117, 130] Unnecessary @SuppressWarnings("restriction")""", actual);
+	}
+
 	// HELPERS
 
 	/**
