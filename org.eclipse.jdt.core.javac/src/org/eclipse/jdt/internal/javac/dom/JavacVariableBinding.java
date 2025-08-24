@@ -35,7 +35,6 @@ import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.JavacBindingResolver.BindingKeyException;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.Modifier;
 import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclaration;
 import org.eclipse.jdt.core.dom.VariableDeclarationExpression;
@@ -50,7 +49,6 @@ import org.eclipse.jdt.internal.core.LocalVariable;
 import org.eclipse.jdt.internal.core.ResolvedBinaryField;
 import org.eclipse.jdt.internal.core.ResolvedSourceField;
 import org.eclipse.jdt.internal.core.SourceField;
-import org.eclipse.jdt.internal.core.util.Util;
 
 import com.sun.tools.javac.code.Flags;
 import com.sun.tools.javac.code.Kinds;
@@ -167,13 +165,13 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 			} else {
 				ASTNode node = this.resolver.findNode(this.variableSymbol);
 				if (node instanceof VariableDeclarationFragment fragment) {
-					return toLocalVariable(fragment, (JavaElement) method);
+					return DOMToModelPopulator.toLocalVariable(fragment, (JavaElement) method);
 				} else if (node instanceof SingleVariableDeclaration variableDecl) {
 					return DOMToModelPopulator.toLocalVariable(variableDecl, (JavaElement) method);
 				} else if (node instanceof VariableDeclarationStatement statement && statement.fragments().size() == 1) {
-					return toLocalVariable((VariableDeclarationFragment)statement.fragments().get(0), (JavaElement)method);
+					return DOMToModelPopulator.toLocalVariable((VariableDeclarationFragment)statement.fragments().get(0), (JavaElement)method);
 				} else if (node instanceof VariableDeclarationExpression expression && expression.fragments().size() == 1) {
-					return toLocalVariable((VariableDeclarationFragment)expression.fragments().get(0), (JavaElement)method);
+					return DOMToModelPopulator.toLocalVariable((VariableDeclarationFragment)expression.fragments().get(0), (JavaElement)method);
 				}
 			}
 		}
@@ -396,53 +394,6 @@ public abstract class JavacVariableBinding implements IVariableBinding {
 	@Override
 	public boolean isEffectivelyFinal() {
 		return (this.variableSymbol.flags() & Flags.EFFECTIVELY_FINAL) != 0;
-	}
-
-	private static LocalVariable toLocalVariable(VariableDeclarationFragment fragment, JavaElement parent) {
-		if (fragment.getParent() instanceof VariableDeclarationStatement variableDeclaration) {
-			return new LocalVariable(parent,
-				fragment.getName().getIdentifier(),
-				variableDeclaration.getStartPosition(),
-				variableDeclaration.getStartPosition() + variableDeclaration.getLength() - 1,
-				fragment.getName().getStartPosition(),
-				fragment.getName().getStartPosition() + fragment.getName().getLength() - 1,
-				Util.getSignature(variableDeclaration.getType()),
-				null, // I don't think we need this, also it's the ECJ's annotation node
-				toModelFlags(variableDeclaration.getModifiers(), false),
-				false);
-		} else if (fragment.getParent() instanceof VariableDeclarationExpression variableDeclaration) {
-			return new LocalVariable(parent,
-					fragment.getName().getIdentifier(),
-					variableDeclaration.getStartPosition(),
-					variableDeclaration.getStartPosition() + variableDeclaration.getLength() - 1,
-					fragment.getName().getStartPosition(),
-					fragment.getName().getStartPosition() + fragment.getName().getLength() - 1,
-					Util.getSignature(variableDeclaration.getType()),
-					null, // I don't think we need this, also it's the ECJ's annotation node
-					toModelFlags(variableDeclaration.getModifiers(), false),
-					false);
-		}
-		return null;
-	}
-
-	private static int toModelFlags(int domModifiers, boolean isDeprecated) {
-		int res = 0;
-		if (Modifier.isAbstract(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccAbstract;
-		if (Modifier.isDefault(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccDefaultMethod;
-		if (Modifier.isFinal(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccFinal;
-		if (Modifier.isNative(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccNative;
-		if (Modifier.isNonSealed(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccNonSealed;
-		if (Modifier.isPrivate(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccPrivate;
-		if (Modifier.isProtected(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccProtected;
-		if (Modifier.isPublic(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccPublic;
-		if (Modifier.isSealed(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccSealed;
-		if (Modifier.isStatic(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccStatic;
-		if (Modifier.isStrictfp(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccStrictfp;
-		if (Modifier.isSynchronized(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccSynchronized;
-		if (Modifier.isTransient(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccTransient;
-		if (Modifier.isVolatile(domModifiers)) res |= org.eclipse.jdt.core.Flags.AccVolatile;
-		if (isDeprecated) res |= org.eclipse.jdt.core.Flags.AccDeprecated;
-		return res;
 	}
 
 	@Override

@@ -93,11 +93,15 @@ public class DOMLocalVariableLocator extends DOMPatternLocator {
 				return new LocatorResponse(ACCURATE_MATCH, false, node, false, false);
 			} else if (this.locator.pattern.findDeclarations) {
 				// we need to make sure the node has a VariableDeclaration in its ancestry
-				boolean isDecl = hasVariableDeclarationAncestor(node);
-				if( isDecl) {
-					if( !alreadyFound(localVar)) {
-						foundDeclarations.add(localVar);
-						return new LocatorResponse(ACCURATE_MATCH, false, node, false, false);
+				VariableDeclaration ancestor = getVariableDeclarationAncestor(node);
+				if( ancestor != null ) {
+					// This is a declaration, but, is it a declaration for OUR variable?
+					char[] needleName = this.locator.pattern.name;
+					if( needleName != null ) {
+						char[] ancestorName = ancestor.getName().getIdentifier().toCharArray();
+						if( this.locator.matchesName(needleName,  ancestorName)) {
+							return new LocatorResponse(ACCURATE_MATCH, false, node, false, false);
+						}
 					}
 				}
 				return toResponse(IMPOSSIBLE_MATCH);
@@ -107,14 +111,18 @@ public class DOMLocalVariableLocator extends DOMPatternLocator {
 	}
 
 	private boolean hasVariableDeclarationAncestor(ASTNode node) {
+		return getVariableDeclarationAncestor(node) != null;
+	}
+
+	private VariableDeclaration getVariableDeclarationAncestor(ASTNode node) {
 		ASTNode working = node;
 		while(working != null ) {
-			if( working instanceof VariableDeclaration) {
-				return true;
+			if( working instanceof VariableDeclaration vd) {
+				return vd;
 			}
 			working = working.getParent();
 		}
-		return false;
+		return null;
 	}
 
 	@Override
