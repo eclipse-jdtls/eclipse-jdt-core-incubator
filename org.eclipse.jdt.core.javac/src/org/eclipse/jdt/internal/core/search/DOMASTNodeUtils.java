@@ -297,14 +297,4 @@ public class DOMASTNodeUtils {
 		}
 		return false;
 	}
-
-	public static CompilationUnit enclosingUnit(ASTNode node) {
-		while (node != null) {
-			if (node instanceof CompilationUnit cu) {
-				return cu;
-			}
-			node = node.getParent();
-		}
-		return null;
-	}
 }

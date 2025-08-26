@@ -422,17 +422,6 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			int len = enumConstantDeclaration.getLength();
 			if (enumConstantDeclaration.getAnonymousClassDeclaration() != null) {
 				len = enumConstantDeclaration.getAnonymousClassDeclaration().getStartPosition() - start;
-				// ignore trailing whitespaces
-				if (DOMASTNodeUtils.enclosingUnit(node).getJavaElement() instanceof ICompilationUnit unit) {
-					try {
-						IBuffer buffer = unit.getBuffer();
-						while (buffer != null && len > 0 && Character.isWhitespace(buffer.getChar(start + len - 1))) {
-							len--;
-						}
-					} catch (JavaModelException ex) {
-						ILog.get().warn(ex.getMessage(), ex);
-					}
-				}
 			}
 			return new FieldDeclarationMatch(DOMASTNodeUtils.getDeclaringJavaElement(node), accuracy, start, len,
 					getParticipant(locator), resource);
