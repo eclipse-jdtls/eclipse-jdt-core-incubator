@@ -70,6 +70,7 @@ import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeDeclarationMatch;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
 import org.eclipse.jdt.internal.core.ClassFileWorkingCopy;
+import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.internal.core.JavaElement;
 import org.eclipse.jdt.internal.core.search.DOMASTNodeUtils;
 import org.eclipse.jdt.internal.core.search.LocatorResponse;
@@ -868,6 +869,10 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 		if( je != null && !this.foundElements.contains(je) && DOMASTNodeUtils.isWithinRange(node, enclosing)) {
 			ISourceReference sr = je instanceof ISourceReference ? (ISourceReference)je : null;
 			IResource r = je.getResource();
+			boolean isExternal = false;
+			if (r == null && je.getAncestor(IJavaElement.PACKAGE_FRAGMENT_ROOT) instanceof JarPackageFragmentRoot jpfRoot) {
+				isExternal = true;
+			}
 			ISourceRange srg = null;
 			ISourceRange nameRange = null;
 			try {
@@ -877,7 +882,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 				// ignore
 			}
 			ISourceRange rangeToUse = (nameRange == null) ? srg : nameRange;
-			if( rangeToUse != null && r != null) {
+			if( rangeToUse != null && (r != null || isExternal)) {
 				TypeDeclarationMatch tdm = new TypeDeclarationMatch(je, newLevel,
 						rangeToUse.getOffset(), rangeToUse.getLength(),
 						locator.getParticipant(), r);
@@ -888,6 +893,7 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 					// ignore
 				}
 			}
+
 		}
 		return IMPOSSIBLE_MATCH;
 	}
