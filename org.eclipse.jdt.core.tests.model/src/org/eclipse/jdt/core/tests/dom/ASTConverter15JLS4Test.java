@@ -9205,6 +9205,9 @@ public class ASTConverter15JLS4Test extends ConverterTestSetup {
 		SuperConstructorInvocation invocation = (SuperConstructorInvocation) node;
 		IMethodBinding methodBinding = invocation.resolveConstructorBinding();
 		assertNotNull("No binding", methodBinding);
+		boolean b1 = methodBinding.isParameterizedMethod();
+		boolean b2 = methodBinding.isGenericMethod();
+		boolean b3 = methodBinding.isRawMethod();
 		assertFalse("Not a parameterized method", methodBinding.isParameterizedMethod());
 		node = getASTNode(unit, 1, 1, 0);
 		assertEquals("Not a expression statement", ASTNode.SUPER_CONSTRUCTOR_INVOCATION, node.getNodeType());
