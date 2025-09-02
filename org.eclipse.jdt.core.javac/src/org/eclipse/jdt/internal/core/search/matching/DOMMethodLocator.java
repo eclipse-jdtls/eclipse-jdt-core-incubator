@@ -31,6 +31,7 @@ import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.dom.AST;
 import org.eclipse.jdt.core.dom.ASTNode;
+import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
 import org.eclipse.jdt.core.dom.Annotation;
 import org.eclipse.jdt.core.dom.AnnotationTypeMemberDeclaration;
 import org.eclipse.jdt.core.dom.Expression;
@@ -57,11 +58,13 @@ import org.eclipse.jdt.core.dom.SuperMethodInvocation;
 import org.eclipse.jdt.core.dom.SuperMethodReference;
 import org.eclipse.jdt.core.dom.ThisExpression;
 import org.eclipse.jdt.core.dom.TypeMethodReference;
+import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.MethodDeclarationMatch;
 import org.eclipse.jdt.core.search.MethodReferenceMatch;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
+import org.eclipse.jdt.internal.codeassist.DOMCompletionUtils;
 import org.eclipse.jdt.internal.core.BinaryMethod;
 import org.eclipse.jdt.internal.core.SourceMethod;
 import org.eclipse.jdt.internal.core.search.BasicSearchEngine;
@@ -189,10 +192,16 @@ public class DOMMethodLocator extends DOMPatternLocator {
 				return toResponse(IMPOSSIBLE_MATCH);
 			}
 		}
+		if (!matchesExpectedJavaElement(node)) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
 		return toResponse(nodeSet.addMatch(node, level), true);
 	}
 	@Override
 	public LocatorResponse match(MethodRef node, NodeSetWrapper nodeSet, MatchLocator locator) {
+		if (!matchesExpectedJavaElement(node)) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
 		int level = this.matchReference(node.getName(), node.parameters());
 		if( level == IMPOSSIBLE_MATCH )
 			return toResponse(IMPOSSIBLE_MATCH);
@@ -200,6 +209,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	}
 	@Override
 	public LocatorResponse match(MethodReference node, NodeSetWrapper nodeSet, MatchLocator locator) {
+		if (!matchesExpectedJavaElement(node)) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
 		if (this.locator.pattern.fineGrain == 0
 			|| (this.locator.pattern.fineGrain & IJavaSearchConstants.METHOD_REFERENCE_EXPRESSION) != 0
 			|| (node instanceof SuperMethodReference && (this.locator.pattern.fineGrain & IJavaSearchConstants.SUPER_REFERENCE) != 0)
@@ -222,6 +234,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	}
 	@Override
 	public LocatorResponse match(org.eclipse.jdt.core.dom.Expression expression, NodeSetWrapper nodeSet, MatchLocator locator) {
+		if (!matchesExpectedJavaElement(expression)) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
 		int level = IMPOSSIBLE_MATCH;
 		if (expression instanceof SuperMethodInvocation node) {
 			if (this.pattern.fineGrain != 0 && (this.pattern.fineGrain & IJavaSearchConstants.SUPER_REFERENCE) == 0) {
@@ -247,6 +262,9 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			TypeMethodReference.NAME_PROPERTY == node.getLocationInParent() ||
 			ExpressionMethodReference.NAME_PROPERTY == node.getLocationInParent() ||
 			SuperMethodReference.NAME_PROPERTY == node.getLocationInParent()) {
+			return toResponse(IMPOSSIBLE_MATCH);
+		}
+		if (!matchesExpectedJavaElement(node)) {
 			return toResponse(IMPOSSIBLE_MATCH);
 		}
 
@@ -1257,5 +1275,36 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			return toResponse(POSSIBLE_MATCH);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
+	}
+
+	private boolean matchesExpectedJavaElement(ASTNode currentNode) {
+		// only applies to DeclarationOfReferencedMethodsPattern
+		if (!(this.pattern instanceof DeclarationOfReferencedMethodsPattern referencedMethodsPattern)) {
+			return true;
+		}
+		ASTNode elementNode = DOMCompletionUtils.findParent(currentNode, new int[] {ASTNode.METHOD_DECLARATION, ASTNode.VARIABLE_DECLARATION_FRAGMENT, ASTNode.TYPE_DECLARATION, ASTNode.ENUM_DECLARATION, ASTNode.ANNOTATION_TYPE_DECLARATION, ASTNode.RECORD_DECLARATION});
+		if (elementNode == null) {
+			return false;
+		}
+		IBinding parentBinding = switch (elementNode) {
+		case MethodDeclaration methodDecl -> {
+			yield methodDecl.resolveBinding();
+		}
+		case AbstractTypeDeclaration typeDecl -> {
+			yield typeDecl.resolveBinding();
+		}
+		case VariableDeclarationFragment varFragment -> {
+			yield varFragment.resolveBinding();
+		}
+		default -> { yield null; }
+		};
+		if (parentBinding == null) {
+			return false;
+		}
+		// attempt to locate the expected enclosing element in the parent elements
+		IJavaElement cursor = parentBinding.getJavaElement();
+		while (cursor != null && !referencedMethodsPattern.enclosingElement.equals(cursor))
+			cursor = cursor.getParent();
+		return cursor != null;
 	}
 }
