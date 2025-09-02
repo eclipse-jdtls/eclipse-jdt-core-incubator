@@ -143,7 +143,7 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 		org.eclipse.jdt.core.ICompilationUnit[] unitArray = new org.eclipse.jdt.core.ICompilationUnit[possibleMatches.length];
 
 		Map<org.eclipse.jdt.core.ICompilationUnit, PossibleMatch> cuToMatch = new HashMap<>();
-		for (int i = 0; i < possibleMatches.length; i++) {
+		for (int i = start; i < start + length; i++) {
 			var currentPossibleMatch = possibleMatches[i];
 			locator.currentPossibleMatch = currentPossibleMatch;
 			if (!skipMatch(locator, javaProject, currentPossibleMatch)) {
@@ -565,10 +565,25 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				ILog.get().error(ce.getMessage(), ce);
 			}
 			if (info != null) {
+				// Redoes the getMethodBinding logic to avoid requiring a CompilationUnitScope
+				if (locator.patternLocator instanceof MethodLocator methodLocator) {
+					methodLocator.matchLocator = new DOMMatchLocator(locator.pattern, locator.requestor, locator.scope, locator.progressMonitor);
+					methodLocator.matchLocator.lookupEnvironment = locator.lookupEnvironment;
+				}
+				/**
+				 * @see MatchLocator#process(PossibleMatch, boolean)
+				 */
+				boolean oldMayBeGeneric = locator.patternLocator.mayBeGeneric;
+				locator.patternLocator.mayBeGeneric = false;
 				try {
 					new ClassFileMatchLocator().locateMatches(locator, classFile, info);
 				} catch (CoreException e) {
 					ILog.get().error(e.getMessage(), e);
+				} finally {
+					locator.patternLocator.mayBeGeneric = oldMayBeGeneric;
+					if (locator.patternLocator instanceof MethodLocator methodLocator) {
+						methodLocator.matchLocator = locator;
+					}
 				}
 			}
 		} else if (possibleMatch.openable instanceof ModularClassFile modularClassFile) { // no source
