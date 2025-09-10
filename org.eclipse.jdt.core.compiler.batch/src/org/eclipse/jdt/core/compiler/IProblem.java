@@ -1671,9 +1671,9 @@ void setSourceStart(int sourceStart);
 	int NullExpressionReference = Internal + 672;
 	/** @since 3.9 */
 	int PotentialNullExpressionReference = Internal + 673;
-	/** @since 3.42*/
+	/** @since 3.43*/
 	int LocalMustBeEffectivelyFinal = Internal + 674;
-	/** @since 3.42*/
+	/** @since 3.43*/
 	int ResourceLocalMustBeEffectivelyFinal = Internal + 675;
 
 	/**
@@ -2617,7 +2617,7 @@ void setSourceStart(int sourceStart);
 	int RecordErasureIncompatibilityInCanonicalConstructor = TypeRelated + 1768;
 	/** @since 3.41 */
 	int CompactConstructorOnlyInRecords = TypeRelated + 1769;
-	/** @since 3.42 */
+	/** @since 3.43 */
 	int RecordAccessorMissingOverrideAnnotation = TypeRelated + 1770;
 	/* records - end */
 
