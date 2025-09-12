@@ -5513,4 +5513,63 @@ public void testIssue4458() throws JavaModelException {
 	parser.createASTs(new ICompilationUnit[] {this.workingCopy}, new String[0], requestor, null);
 }
 
+// j19
+public void testIssue708_1() throws JavaModelException {
+	String contents = 			"public class Test1 {\n"
+			+ "	public void test(Type type, String string) {\n"
+			+ "		switch (type) {\n"
+			+ "		case openDeclarationFails -> {\n"
+			+ "			switch (string) {\n"
+			+ "			case \"Test\" -> method(Type.openDeclarationFails);\n"
+			+ "			}\n"
+			+ "			method(Type.openDeclarationFails);\n"
+			+ "		}\n"
+			+ "		case anotherValue -> {\n"
+			+ "			switch (string) {\n"
+			+ "			case \"Test\" -> method(Type.anotherValue);\n"
+			+ "			}\n"
+			+ "		}\n"
+			+ "		}\n"
+			+ "	}\n"
+			+ "	private void method(Type relay) {}\n"
+			+ "	static public enum Type {\n"
+			+ "		openDeclarationFails, anotherValue;\n"
+			+ "	}\n"
+			+ "}";
+
+	this.workingCopy = getWorkingCopy("/Converter22/src/xyz/X.java", true/*resolve*/);
+	CompilationUnit cu = (CompilationUnit) buildAST(AST_INTERNAL_JLS20,
+			contents, this.workingCopy, false, false, false);
+
+	TypeDeclaration td = (TypeDeclaration)cu.types().get(0);
+	MethodDeclaration testMethod = td.getMethods()[0];
+	Block blok = testMethod.getBody();
+	SwitchStatement ss = (SwitchStatement)blok.statements().get(0);
+	assertEquals("type", ss.getExpression().toString());
+	assertEquals(4, ss.statements().size());
+	assertTrue(ss.statements().get(0) instanceof SwitchCase);
+	assertTrue(ss.statements().get(1) instanceof Block);
+	assertTrue(ss.statements().get(2) instanceof SwitchCase);
+	assertTrue(ss.statements().get(3) instanceof Block);
+
+	Block b1 = (Block)ss.statements().get(1);
+	List b1State = b1.statements();
+	assertEquals(2, b1State.size());
+	assertTrue(b1State.get(0) instanceof SwitchStatement);
+	assertTrue(b1State.get(1) instanceof ExpressionStatement);
+
+	List b1State1Statements = ((SwitchStatement)b1State.get(0)).statements();
+	assertEquals(2, b1State1Statements.size());
+	assertTrue(b1State1Statements.get(0) instanceof SwitchCase);
+	assertTrue(b1State1Statements.get(1) instanceof YieldStatement);
+
+	Block b2 = (Block)ss.statements().get(3);
+	List b2State = b2.statements();
+	assertEquals(1, b2State.size());
+	assertTrue(b2State.get(0) instanceof SwitchStatement);
+	List b2State1Statements = ((SwitchStatement)b2State.get(0)).statements();
+	assertEquals(2, b2State1Statements.size());
+	assertTrue(b2State1Statements.get(0) instanceof SwitchCase);
+	assertTrue(b2State1Statements.get(1) instanceof YieldStatement);
+}
 }
