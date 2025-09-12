@@ -243,17 +243,18 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 		if (this.typeSymbol instanceof final ClassSymbol classSymbol) {
 			if (isAnonymous()) {
 				if (getDeclaringMethod() != null && getDeclaringMethod().getJavaElement() instanceof IMethod method) {
-					// TODO find proper occurenceCount (eg checking the source range)
 					if( !method.isBinary()) {
-						return resolved(method.getType("", 1));
+						return resolved(method.getType("", getOccurrenceCount()));
 					}
 				} else if( getDeclaringMember() instanceof IBinding gdm && gdm != null && gdm.getJavaElement() instanceof IField field) {
 					if( !field.isBinary()) {
+						// javac considers the second field initialized with an anonymous type to be occurence 2,
+						// but JDT uses 1, since it's the first occurrence under the field declaration
 						return resolved(field.getType("", 1));
 					}
 				} else if (getDeclaringClass() != null && getDeclaringClass().getJavaElement() instanceof IType type) {
 					if(!type.isBinary()) {
-						return resolved(type.getType("", 1));
+						return resolved(type.getType("", getOccurrenceCount()));
 					}
 				}
 				try {
@@ -264,9 +265,8 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 			}
 			if( this.typeSymbol.owner instanceof MethodSymbol) {
 				if (getDeclaringMethod() != null && getDeclaringMethod().getJavaElement() instanceof IMethod method) {
-					// TODO find proper occurenceCount (eg checking the source range)
 					if( !method.isBinary()) {
-						return resolved(method.getType(this.typeSymbol.name.toString(), 1));
+						return resolved(method.getType(this.typeSymbol.name.toString(), getOccurrenceCount()));
 					}
 				}
 			}
@@ -1690,6 +1690,27 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 
 	public void setRecovered(boolean recovered) {
 		this.recovered = recovered;
+	}
+
+	/**
+	 * Returns the occurrence count of this anonymous or local class declaration.
+	 *
+	 * The occurrence count starts at 1 instead of 0.
+	 *
+	 * @throws IllegalArgumentException if the binding represents neither a local or an anonymous class declaration
+	 * @return the occurrence count of this anonymous or local class declaration
+	 */
+	private int getOccurrenceCount() {
+		if (this.isAnonymous() || this.isLocal()) {
+			String flatname = this.typeSymbol.flatName().toString();
+			String index = flatname.substring(flatname.lastIndexOf('$') + 1);
+			if (this.isLocal()) {
+				// for local types, the index is followed by the type name
+				index = index.replaceAll("([0-9]+).*", "$1");
+			}
+			return Integer.parseInt(index);
+		}
+		throw new IllegalArgumentException("Must be either anonymous or local");
 	}
 
 	@Override
