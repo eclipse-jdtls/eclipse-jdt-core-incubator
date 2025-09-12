@@ -1006,7 +1006,7 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 			return m;
 		case IProblem.JavadocMissingParamTag:
 			return original.replace("no @param for ", "Javadoc: Missing tag for parameter ").equals(expected);
-		case IProblem.UncheckedAccessOfValueOfFreeTypeVariable:
+		case IProblem.UncheckedAccessOfValueOfFreeTypeVariable: {
 			String p = "Type safety: The expression of type (.*) needs unchecked conversion to conform to (.*)";
 			Pattern r = Pattern.compile(p);
 			Matcher m1 = r.matcher(expected);
@@ -1020,6 +1020,25 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 				}
 			}
 			return false;
+		}
+		case IProblem.UnsafeGenericCast: {
+			String p = "Type safety: Unchecked cast from (.*) to (.*)";
+			Pattern r = Pattern.compile(p);
+			Matcher m1 = r.matcher(expected);
+			if (m1.find( )) {
+				String g0 = m1.group(1).replaceAll("capture#([0-9]*)-", "capture#$1 ");
+				String g1 = m1.group(2).replaceAll("capture#([0-9]*)-", "capture#$1 ");
+				String originalToSimple = original
+						.replaceAll("java\\.lang\\.", "")
+						.replaceAll("java\\.util\\.", "");
+				String found = "unchecked cast\n  required: *" + g1 + "\n  found: *" + g0;
+				found = found.replaceAll("\\?", "\\\\?");
+				if( originalToSimple.replaceAll(found, "").equals("")) {
+					return true;
+				}
+			}
+			return false;
+		}
 		case IProblem.DuplicateMethod: // TODO these should really be fixed elsewhere
 			if( expected.startsWith("Duplicate local variable ")) {
 				return original.startsWith(expected.substring(16) + " is already defined");
