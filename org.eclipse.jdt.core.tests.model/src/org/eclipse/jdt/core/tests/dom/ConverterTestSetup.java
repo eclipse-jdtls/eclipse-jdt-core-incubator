@@ -1072,6 +1072,11 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 			return false;
 		case IProblem.NotAnnotationType:
 			return (arguments[0] + " is not an annotation type").equals(expected);
+		case IProblem.Syntax:
+			return original.equals(switch (expected) {
+				case "Syntax error, insert \"Finally\" to complete BlockStatements" -> "'try' without 'catch', 'finally' or resource declarations";
+				default -> "";
+			});
 		default:
 			return false;
 		}
