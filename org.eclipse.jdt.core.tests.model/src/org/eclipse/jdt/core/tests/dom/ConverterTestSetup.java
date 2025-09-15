@@ -1076,6 +1076,8 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 			return ("The attribute " + arguments[0] + " is undefined for the annotation type " + arguments[3]).replaceAll("@interface ", "").equals(expected);
 		case IProblem.CannotOverrideAStaticMethodWithAnInstanceMethod:
 			return ("This instance method cannot override the static method from " + arguments[3]).replaceAll("@interface ", "").equals(expected);
+		case IProblem.CannotHideAnInstanceMethodWithAStaticMethod:
+			return ("This static method cannot hide the instance method from " + arguments[3]).replaceAll("@interface ", "").equals(expected);
 		case IProblem.Syntax:
 			return original.equals(switch (expected) {
 				case "Syntax error, insert \"Finally\" to complete BlockStatements" -> "'try' without 'catch', 'finally' or resource declarations";
