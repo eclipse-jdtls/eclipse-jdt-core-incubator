@@ -44,8 +44,7 @@ public class DOMPackageReferenceLocator extends DOMPatternLocator {
 	public LocatorResponse resolveLevel(org.eclipse.jdt.core.dom.ASTNode node, IBinding binding, MatchLocator locator) {
 		if (binding instanceof IPackageBinding ipb) {
 			String n = ipb.getName();
-			String patternName = new String(this.locator.pattern.pkgName);
-			if (patternName.equals(n)) {
+			if (matchesName(this.locator.pattern.pkgName, n.toCharArray())) {
 				if( this.locator.pattern.focus == null ) {
 					// good enough
 					return toResponse(ACCURATE_MATCH);
