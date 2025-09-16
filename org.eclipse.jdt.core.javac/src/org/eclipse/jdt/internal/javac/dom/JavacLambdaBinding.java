@@ -14,11 +14,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
+import org.eclipse.jdt.core.ILocalVariable;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.Signature;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
 import org.eclipse.jdt.core.dom.IBinding;
+import org.eclipse.jdt.core.dom.IVariableBinding;
 import org.eclipse.jdt.core.dom.LambdaExpression;
 import org.eclipse.jdt.core.dom.MethodDeclaration;
 import org.eclipse.jdt.core.dom.Modifier;
@@ -28,6 +30,8 @@ import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.internal.SignatureUtils;
 import org.eclipse.jdt.internal.core.JavaElement;
 import org.eclipse.jdt.internal.core.LambdaFactory;
+import org.eclipse.jdt.internal.core.LambdaMethod;
+import org.eclipse.jdt.internal.core.LambdaUtils;
 
 public class JavacLambdaBinding extends JavacMethodBinding {
 
@@ -78,7 +82,11 @@ public class JavacLambdaBinding extends JavacMethodBinding {
 		if (member != null && member.getJavaElement() instanceof JavaElement parent) {
 			int arrowIndex = ((List<ASTNode>)this.declaration.parameters()).stream().mapToInt(param -> param.getStartPosition() + param.getLength()).max().orElse(this.declaration.getStartPosition());
 			org.eclipse.jdt.internal.core.LambdaExpression expr = LambdaFactory.createLambdaExpression(parent, Signature.createTypeSignature(getMethodDeclaration().getDeclaringClass().getQualifiedName(), true), this.declaration.getStartPosition(), this.declaration.getStartPosition() + this.declaration.getLength() - 1, arrowIndex);
-			return LambdaFactory.createLambdaMethod(expr, this.methodSymbol.name.toString(), getKey(), this.declaration.getStartPosition(), this.declaration.getStartPosition() + this.declaration.getLength() - 1, arrowIndex, Arrays.stream(getParameterTypes()).map(SignatureUtils::getSignature).toArray(String[]::new), getParameterNames(), SignatureUtils.getSignature(getReturnType()));
+			LambdaMethod lambdaMethod = LambdaFactory.createLambdaMethod(expr, this.methodSymbol.name.toString(), getKey(), this.declaration.getStartPosition(), this.declaration.getStartPosition() + this.declaration.getLength() - 1, arrowIndex, Arrays.stream(getParameterTypes()).map(SignatureUtils::getSignature).toArray(String[]::new), getParameterNames(), SignatureUtils.getSignature(getReturnType()));
+			LambdaUtils.attachMethodToExpression(lambdaMethod, expr);
+			ILocalVariable[] parameters = this.methodSymbol.params.stream().map(this.resolver.bindings::getVariableBinding).map(IVariableBinding::getJavaElement).toArray(ILocalVariable[]::new);
+			LambdaUtils.attachMethodArgumentsToLambda(lambdaMethod, parameters);
+			return lambdaMethod;
 		}
 		return super.getJavaElement();
 	}

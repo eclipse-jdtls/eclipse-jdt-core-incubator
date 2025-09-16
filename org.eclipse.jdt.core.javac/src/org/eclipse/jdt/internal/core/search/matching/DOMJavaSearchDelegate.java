@@ -275,6 +275,9 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 			return null;
 		}
 		SearchMatch sm = toCoreMatch(locator, node, accuracy, possibleMatch);
+		if (sm == null || sm.getElement() == null || !locator.scope.encloses((IJavaElement)sm.getElement())) {
+			return null;
+		}
 		if( accuracy == SearchPattern.R_ERASURE_MATCH) {
 			sm.setRule(SearchPattern.R_ERASURE_MATCH);
 		}
