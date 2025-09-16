@@ -11,13 +11,13 @@
 package org.eclipse.jdt.internal.core.search.matching;
 
 import org.eclipse.jdt.core.IJavaElement;
+import org.eclipse.jdt.core.IJavaProject;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.IBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.Name;
 import org.eclipse.jdt.core.dom.PackageDeclaration;
 import org.eclipse.jdt.internal.core.search.LocatorResponse;
-import org.eclipse.jdt.internal.javac.dom.JavacPackageBinding;
 
 public class DOMPackageReferenceLocator extends DOMPatternLocator {
 
@@ -61,10 +61,17 @@ public class DOMPackageReferenceLocator extends DOMPatternLocator {
 					working = working.getParent();
 				}
 				if( fullName != null ) {
-					String typeName = fullName.toString();
-					IJavaElement je = binding instanceof JavacPackageBinding jpb ? jpb.findJavaElementForClass(typeName) : ipb.getJavaElement();
-					if( je != null && !this.locator.pattern.focus.equals(je)) {
-						return toResponse(IMPOSSIBLE_MATCH);
+
+					IJavaElement je = fullName.resolveBinding().getJavaElement();
+					je = je.getAncestor(IJavaElement.PACKAGE_FRAGMENT);
+					if( je != null) {
+						IJavaProject otherProject = (IJavaProject)je.getAncestor(IJavaElement.JAVA_PROJECT);
+						if (otherProject == null || !otherProject.equals(this.locator.pattern.focus.getAncestor(IJavaElement.JAVA_PROJECT))) {
+							return toResponse(IMPOSSIBLE_MATCH);
+						}
+						if (!this.locator.pattern.focus.getElementName().equals(je.getElementName())) {
+							return toResponse(IMPOSSIBLE_MATCH);
+						}
 					}
 					// If we can't find a java element, let's give some leeway
 					return toResponse(ACCURATE_MATCH);
