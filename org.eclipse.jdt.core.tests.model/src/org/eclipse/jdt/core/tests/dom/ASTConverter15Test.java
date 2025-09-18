@@ -11625,7 +11625,7 @@ public class ASTConverter15Test extends ConverterTestSetup {
 		CompilationUnit compilationUnit = (CompilationUnit) node;
 		EnumDeclaration eDecl = (EnumDeclaration) compilationUnit.types().get(0);
 		EnumConstantDeclaration ec = (EnumConstantDeclaration) eDecl.enumConstants().get(1);
-		checkSourceRange(ec, "FOURTH_ENUM(\"b\", new X[] { }", str); //recovery parser propagated
+		checkSourceRange(ec, "FOURTH_ENUM(\"b\", new X[] { })", str); //recovery parser propagated
 	}
 	// https://bugs.eclipse.org/bugs/show_bug.cgi?id=474922
 	public void testBug474922_001() throws JavaModelException {
