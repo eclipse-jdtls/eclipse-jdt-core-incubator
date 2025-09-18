@@ -16,11 +16,15 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.dom.ASTNode;
 import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
+import org.eclipse.jdt.core.dom.AnonymousClassDeclaration;
+import org.eclipse.jdt.core.dom.CompilationUnit;
+import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.GenericRecoveredTypeBinding;
 import org.eclipse.jdt.core.dom.IMethodBinding;
 import org.eclipse.jdt.core.dom.IPackageBinding;
 import org.eclipse.jdt.core.dom.ITypeBinding;
 import org.eclipse.jdt.core.dom.IVariableBinding;
+import org.eclipse.jdt.core.dom.IntersectionType;
 import org.eclipse.jdt.core.dom.JavacBindingResolver;
 import org.eclipse.jdt.core.dom.ParameterizedType;
 import org.eclipse.jdt.core.dom.QualifiedName;
@@ -167,6 +171,51 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 		return this.domNode instanceof ParameterizedType;
 	}
 	@Override
+	public boolean isAnonymous() {
+		if (this.typeSymbol != null) {
+			return super.isAnonymous();
+		}
+		return this.domNode.getParent() instanceof AnonymousClassDeclaration;
+	}
+	@Override
+	public boolean isEnum() {
+		if (typeSymbol != null) {
+			return super.isEnum();
+		}
+		return this.domNode.getParent() instanceof EnumDeclaration;
+	}
+	@Override
+	public boolean isMember() {
+		if (this.typeSymbol != null) {
+			return super.isMember();
+		}
+		// guess?
+		return false;
+	}
+	@Override
+	public boolean isIntersectionType() {
+		if (this.typeSymbol != null) {
+			return super.isAnonymous();
+		}
+		return this.domNode instanceof IntersectionType;
+	}
+	@Override
+	public boolean isInterface() {
+		if (typeSymbol != null) {
+			return super.isInterface();
+		}
+		// guess?
+		return false;
+	}
+	@Override
+	public boolean isLocal() {
+		if (typeSymbol != null) {
+			super.isLocal();
+		}
+		// guess
+		return false;
+	}
+	@Override
 	public ITypeBinding getTypeDeclaration() {
 		if (isParameterizedType() && this.domNode instanceof org.eclipse.jdt.core.dom.Type domType) {
 			return new GenericRecoveredTypeBinding(this.resolver, domType, this);
@@ -181,5 +230,45 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 	@Override
 	public IMethodBinding[] getDeclaredMethods() {
 		return new IMethodBinding[0];
+	}
+	@Override
+	public ITypeBinding getDeclaringClass() {
+		if (this.typeSymbol != null) {
+			return super.getDeclaringClass();
+		}
+		return null;
+	}
+	@Override
+	public String getName(boolean checkParameterized, boolean sourceName) {
+		if (this.typeSymbol != null) {
+			return super.getName(checkParameterized, sourceName);
+		}
+		return this.domNode.toString();
+	}
+	@Override
+	public String getQualifiedName(boolean includeParams) {
+		if (this.typeSymbol != null) {
+			return super.getQualifiedName(includeParams);
+		}
+		ASTNode cursor = this.domNode;
+		while (cursor != null && !(cursor instanceof CompilationUnit)) {
+			cursor = cursor.getParent();
+		}
+		StringBuilder qualifiedNameBuilder = new StringBuilder();
+		if (cursor instanceof CompilationUnit cu) {
+			if (cu.getPackage() != null) {
+				qualifiedNameBuilder.append(cu.getPackage().getName().toString());
+				qualifiedNameBuilder.append(".");
+			}
+		}
+		qualifiedNameBuilder.append(this.domNode.toString());
+		return qualifiedNameBuilder.toString();
+	}
+	@Override
+	public String getKey() {
+		if (this.type != null) {
+			return super.getKey();
+		}
+		return "L" + getQualifiedName() + ";";
 	}
 }
