@@ -33,6 +33,7 @@ import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.tests.util.Util;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
 
 @SuppressWarnings("rawtypes")
 public abstract class ConverterTestSetup extends AbstractASTTests {
@@ -1078,6 +1079,8 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 			return ("This instance method cannot override the static method from " + arguments[3]).replaceAll("@interface ", "").equals(expected);
 		case IProblem.CannotHideAnInstanceMethodWithAStaticMethod:
 			return ("This static method cannot hide the instance method from " + arguments[3]).replaceAll("@interface ", "").equals(expected);
+		case IProblem.CannotUseDiamondWithExplicitTypeArguments:
+			return new DefaultProblemFactory().getLocalizedMessage(IProblem.CannotUseDiamondWithExplicitTypeArguments, null).equals(expected);
 		case IProblem.Syntax:
 			return original.equals(switch (expected) {
 				case "Syntax error, insert \"Finally\" to complete BlockStatements" -> "'try' without 'catch', 'finally' or resource declarations";
