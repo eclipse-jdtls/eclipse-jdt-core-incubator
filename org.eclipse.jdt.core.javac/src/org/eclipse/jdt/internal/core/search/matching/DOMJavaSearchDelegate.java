@@ -295,7 +295,10 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 				ISourceRange range = new SourceRange(node.getStartPosition(), node.getLength());
 				if (javaElement instanceof NamedMember named) {
 					try {
-						range = named.getNameRange();
+						ISourceRange namedRange = named.getNameRange();
+						if (namedRange.getOffset() >= 0) {
+							range = named.getNameRange();
+						}
 					} catch (JavaModelException ex) {
 						ILog.get().error(ex.getMessage(), ex);
 					}

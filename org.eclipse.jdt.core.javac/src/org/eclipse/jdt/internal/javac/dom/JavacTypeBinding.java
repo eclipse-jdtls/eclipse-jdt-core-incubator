@@ -287,7 +287,13 @@ public abstract class JavacTypeBinding implements ITypeBinding {
 					if (jarFileResource != null
 						&& jarFileResource.exists()
 						&& JavaCore.create(jarFileResource) instanceof IPackageFragmentRoot pkgFragmentRoot) {
-						IClassFile classFile = pkgFragmentRoot.getPackageFragment(getPackage().getName()).getClassFile(getName() + ".class");
+						IClassFile classFile;
+						if (isLocal()) {
+							String classFileName = this.getDeclaringClass().getName() + "$" + getOccurrenceCount() + "$" + getName() + ".class";
+							classFile = pkgFragmentRoot.getPackageFragment(getPackage().getName()).getClassFile(classFileName);
+						} else {
+							classFile = pkgFragmentRoot.getPackageFragment(getPackage().getName()).getClassFile(getName() + ".class");
+						}
 						if (classFile.exists() && classFile instanceof IOrdinaryClassFile ordinary) {
 							return resolved(ordinary.getType());
 						}
