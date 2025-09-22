@@ -34,6 +34,7 @@ import org.eclipse.jdt.core.dom.BreakStatement;
 import org.eclipse.jdt.core.dom.CastExpression;
 import org.eclipse.jdt.core.dom.CatchClause;
 import org.eclipse.jdt.core.dom.ClassInstanceCreation;
+import org.eclipse.jdt.core.dom.CompilationUnit;
 import org.eclipse.jdt.core.dom.EnumConstantDeclaration;
 import org.eclipse.jdt.core.dom.EnumDeclaration;
 import org.eclipse.jdt.core.dom.FieldDeclaration;
@@ -69,6 +70,7 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeDeclarationMatch;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
+import org.eclipse.jdt.internal.codeassist.DOMCompletionUtils;
 import org.eclipse.jdt.internal.core.ClassFileWorkingCopy;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.internal.core.JavaElement;
@@ -523,9 +525,12 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 	@Override
 	public LocatorResponse resolveLevel(org.eclipse.jdt.core.dom.ASTNode node, IBinding binding, MatchLocator locator) {
 		if (binding == null) {
-			if( node instanceof SimpleName sn) {
+			Name toAnalyse = node instanceof Name ? (Name)node : node instanceof SimpleType st ? st.getName() : null;
+			if( toAnalyse instanceof SimpleName sn) {
 				int accuracy = resolveLevelForSimpleName(node, sn.getIdentifier());
-				if( accuracy != -1 ) {
+				if (accuracy == IMPOSSIBLE_MATCH) {
+					return toResponse(accuracy);
+				} else if( accuracy != -1 ) {
 					// Add directly
 					IResource r = null;
 					IJavaElement enclosing = DOMASTNodeUtils.getEnclosingJavaElement(node);
@@ -545,6 +550,14 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 					// Then return not possible so it doesn't get added again
 					return toResponse(IMPOSSIBLE_MATCH);
 				}
+				return toResponse(INACCURATE_MATCH);
+			} else if (toAnalyse instanceof QualifiedName qn) {
+				if (this.matchLocator.pattern instanceof TypeReferencePattern typePattern) {
+					if (!new String(typePattern.qualification).equals(qn.getQualifier().toString())) {
+						return toResponse(IMPOSSIBLE_MATCH);
+					}
+				}
+				return toResponse(INACCURATE_MATCH);
 			}
 			return toResponse(INACCURATE_MATCH);
 		}
@@ -747,6 +760,18 @@ public class DOMTypeReferenceLocator extends DOMPatternLocator {
 						return INACCURATE_MATCH;
 					}
 				}
+			}
+		} else if (this.locator.pattern.qualification == null || this.locator.pattern.qualification.length == 0) {
+			for( Name id : imports) {
+				if( id instanceof QualifiedName qn) {
+					if( qn.getName().toString().equals(simpleNameNeedle)) {
+						return IMPOSSIBLE_MATCH;
+					}
+				}
+			}
+			CompilationUnit unit = (CompilationUnit)DOMCompletionUtils.findParent(node, new int[] {ASTNode.COMPILATION_UNIT});
+			if (unit.getPackage() != null && !unit.getPackage().getName().toString().isEmpty()) {
+				return IMPOSSIBLE_MATCH;
 			}
 		}
 		return -1;
