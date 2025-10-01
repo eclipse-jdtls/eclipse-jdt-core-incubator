@@ -174,6 +174,28 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 			&& matchesTypeReference(this.locator.pattern.declaringSimpleName, typeDecl.getSuperclassType())) {
 			return toResponse(POSSIBLE_MATCH);
 		}
+		if( this.locator.pattern instanceof ConstructorPattern cp ) {
+			MethodDeclaration constructor = (MethodDeclaration)node.bodyDeclarations().stream().
+					filter(x -> x instanceof MethodDeclaration md && md.isConstructor()).findAny().orElse(null);
+			if( constructor == null ) {
+				// We are searching for a constructor but this type doesn't have one
+				// Check it manually
+				// constructor name is stored in selector field
+				if (this.locator.pattern.declaringSimpleName != null &&
+						!this.locator.matchesName(this.locator.pattern.declaringSimpleName, node.getName().toString().toCharArray()))
+					return toResponse(IMPOSSIBLE_MATCH);
+
+				if (this.locator.pattern.parameterSimpleNames != null) {
+					int length = this.locator.pattern.parameterSimpleNames.length;
+					if( length > 0 ) return toResponse(IMPOSSIBLE_MATCH);
+				}
+
+				return toResponse(ACCURATE_MATCH);
+			}
+
+
+		}
+
 		return toResponse(IMPOSSIBLE_MATCH);
 	}
 
