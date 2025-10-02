@@ -179,21 +179,9 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 					filter(x -> x instanceof MethodDeclaration md && md.isConstructor()).findAny().orElse(null);
 			if( constructor == null ) {
 				// We are searching for a constructor but this type doesn't have one
-				// Check it manually
-				// constructor name is stored in selector field
-				if (this.locator.pattern.declaringSimpleName != null &&
-						!this.locator.matchesName(this.locator.pattern.declaringSimpleName, node.getName().toString().toCharArray()))
-					return toResponse(IMPOSSIBLE_MATCH);
-
-				if (this.locator.pattern.parameterSimpleNames != null) {
-					int length = this.locator.pattern.parameterSimpleNames.length;
-					if( length > 0 ) return toResponse(IMPOSSIBLE_MATCH);
-				}
-
-				return toResponse(ACCURATE_MATCH);
+				IBinding b = DOMASTNodeUtils.getBinding(node);
+				return resolveLevel(node, b, locator);
 			}
-
-
 		}
 
 		return toResponse(IMPOSSIBLE_MATCH);
@@ -239,8 +227,16 @@ public class DOMConstructorLocator extends DOMPatternLocator {
 			return toResponse(level);
 		}
 		if (binding instanceof ITypeBinding type) {
-			// matched a direct subtype without explicit constructor
-			return toResponse(resolveLevelForType(this.locator.pattern.declaringSimpleName, this.locator.pattern.declaringQualification, type.getSuperclass()));
+			// matching a type without explicit constructor...
+			int level = IMPOSSIBLE_MATCH;
+			if( this.locator.pattern.findDeclarations) {
+				level = resolveLevelForType(this.locator.pattern.declaringSimpleName, this.locator.pattern.declaringQualification, type);
+			}
+			if( level == IMPOSSIBLE_MATCH && this.locator.pattern.findReferences) {
+				// or a direct subtype without explicit constructor
+				level = resolveLevelForType(this.locator.pattern.declaringSimpleName, this.locator.pattern.declaringQualification, type.getSuperclass());
+			}
+			return toResponse(level);
 		}
 		return toResponse(IMPOSSIBLE_MATCH);
 	}
