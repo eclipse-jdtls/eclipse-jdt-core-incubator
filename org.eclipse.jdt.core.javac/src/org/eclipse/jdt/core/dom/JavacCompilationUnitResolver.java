@@ -250,14 +250,42 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 	public void resolve(ICompilationUnit[] compilationUnits, String[] bindingKeys, ASTRequestor requestor, int apiLevel,
 			Map<String, String> compilerOptions, IJavaProject project, WorkingCopyOwner workingCopyOwner, int flags,
 			IProgressMonitor monitor) {
-		ICompilationUnit mockUnit = compilationUnits.length == 0 && bindingKeys.length > 0 ? createMockUnit(project, monitor) : null;
+		List<ICompilationUnit> filteredUnits = new ArrayList<>();
+		try {
+			Set<String> classFQNs = new HashSet<>();
+			for (ICompilationUnit unit : compilationUnits) {
+				if (unit.getModule() != null) {
+					filteredUnits.add(unit);
+					continue;
+				}
+				StringBuilder fqn = new StringBuilder();
+				if (unit.getPackageDeclarations() != null && unit.getPackageDeclarations().length > 0) {
+					fqn.append(unit.getPackageDeclarations()[0].getElementName().toString());
+					fqn.append(".");
+				}
+				// TODO: handle multiple top level type decls properly
+				if (unit.getTypes().length == 0) {
+					continue;
+				}
+				fqn.append(unit.getTypes()[0].getElementName());
+				if (!classFQNs.contains(fqn.toString())) {
+					filteredUnits.add(unit);
+					classFQNs.add(fqn.toString());
+				}
+			}
+		} catch (JavaModelException e) {
+			// TODO:
+			ILog.get().error("this approach won't work", e);
+		}
+		ICompilationUnit mockUnit = filteredUnits.size() == 0 && bindingKeys.length > 0 ? createMockUnit(project, monitor) : null;
 		if (mockUnit != null) {
 			// if we're looking for a key in a binary type and have no actual unit,
 			// create a mock to activate some compilation task, enable a bindingResolver
 			// and then allow looking up the binary types too
-			compilationUnits = new ICompilationUnit[] { mockUnit };
+			filteredUnits.add(mockUnit);
 		}
-		Map<ICompilationUnit, CompilationUnit> units = parse(compilationUnits, apiLevel, compilerOptions, true, flags, workingCopyOwner, monitor);
+
+		Map<ICompilationUnit, CompilationUnit> units = parse(filteredUnits.toArray(ICompilationUnit[]::new), apiLevel, compilerOptions, true, flags, workingCopyOwner, monitor);
 		if (requestor != null) {
 			final JavacBindingResolver[] bindingResolver = new JavacBindingResolver[1];
 			bindingResolver[0] = null;
@@ -300,7 +328,8 @@ public class JavacCompilationUnitResolver implements ICompilationUnitResolver {
 			}
 
 			units.forEach((a,b) -> {
-				if (bindingResolver[0] == null && b.ast.getBindingResolver() instanceof JavacBindingResolver javacBindingResolver) {
+				if (b.ast.getBindingResolver() instanceof JavacBindingResolver javacBindingResolver
+						&& (bindingResolver[0] == null || javacBindingResolver != bindingResolver[0])) {
 					bindingResolver[0] = javacBindingResolver;
 				}
 				resolveBindings(b, bindingMap, apiLevel);
