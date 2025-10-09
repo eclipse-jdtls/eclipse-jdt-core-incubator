@@ -34,11 +34,14 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
+import org.eclipse.jdt.core.tests.javac.JavacFailReason;
 import org.eclipse.jdt.internal.core.JavaModelManager;
 import org.eclipse.jdt.internal.core.LambdaMethod;
 import org.eclipse.jdt.internal.core.search.indexing.IndexManager;
 import org.eclipse.jdt.internal.core.search.matching.AndPattern;
 import org.eclipse.jdt.internal.core.search.matching.MethodPattern;
+import org.junit.Ignore;
+import org.junit.experimental.categories.Category;
 
 /**
  * Non-regression tests for bugs fixed in Java Search engine.
@@ -1325,6 +1328,7 @@ assertSearchResults(
  * ReferenceExpression ::= Name Dimsopt '::' NonWildTypeArgumentsopt IdentifierOrNew
  * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=400899"
  */
+@Category(value=Ignore.class) @JavacFailReason(cause = JavacFailReason.JDT_VIOLATES_SPEC)
 public void testBug400899g36() throws CoreException {
 this.workingCopies = new ICompilationUnit[1];
 this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400899/X.java",
