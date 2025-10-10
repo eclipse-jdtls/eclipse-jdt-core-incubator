@@ -474,7 +474,7 @@ public abstract class JavacMethodBinding implements IMethodBinding {
 			if (methodType instanceof MethodType && !methodType.getTypeVariables().isEmpty()) { // parameterized
 				builder.append('<');
 				for (var typeParam : methodType.getTypeVariables()) {
-					JavacTypeBinding.getKey(builder, (Type)typeParam, false, true, useSlashes, resolver);
+					builder.append(JavacTypeVariableBinding.getTypeVariableKey((TypeVariableSymbol)typeParam.asElement(), resolver));
 				}
 				builder.append('>');
 			} else if (methodType instanceof ForAll && !methodType.getTypeVariables().isEmpty()) { // generic

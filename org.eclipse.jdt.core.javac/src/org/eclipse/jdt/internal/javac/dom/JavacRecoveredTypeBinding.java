@@ -31,7 +31,6 @@ import org.eclipse.jdt.core.dom.QualifiedName;
 import org.eclipse.jdt.core.dom.SimpleName;
 import org.eclipse.jdt.core.dom.SimpleType;
 
-import com.sun.tools.javac.code.Type;
 import com.sun.tools.javac.code.Type.ArrayType;
 import com.sun.tools.javac.code.Type.PackageType;
 
@@ -73,24 +72,17 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 
 	@Override
 	public JavacTypeBinding getElementType() {
-		var res = getElementType();
-		if (res != null) {
-			return res;
+		if (this.type != null) {
+			return (JavacTypeBinding)super.getElementType();
 		}
-		if (isArray()) {
-			Type t = this.types.elemtype(this.type);
-			while (t instanceof Type.ArrayType) {
-				t = this.types.elemtype(t);
+		if (this.domNode instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
+			org.eclipse.jdt.core.dom.Type cursor = domArrayType.getElementType();
+			while (cursor instanceof org.eclipse.jdt.core.dom.ArrayType at) {
+				cursor = at.getElementType();
 			}
-			if (t == null || t.isErroneous()) {
-				if (this.domNode instanceof org.eclipse.jdt.core.dom.ArrayType domArrayType) {
-					return this.resolver.bindings.getRecoveredTypeBinding(t, domArrayType.getElementType());
-				} else {
-					return this.resolver.bindings.getRecoveredTypeBinding(t, domName());
-				}
-			}
+			return this.resolver.bindings.getRecoveredTypeBinding(this.type, cursor);
 		}
-		return res;
+		return null;
 	}
 
 	@Override
@@ -273,5 +265,39 @@ public class JavacRecoveredTypeBinding extends JavacTypeBinding {
 			return super.getKey();
 		}
 		return "L" + getQualifiedName() + ";";
+	}
+	@Override
+	public String getKey(boolean includeTypeParameters, boolean useSlashes) {
+		if (this.type != null) {
+			return super.getKey(includeTypeParameters, useSlashes);
+		}
+		if (useSlashes) {
+			return "L" + getQualifiedName().replace('.', '/') + ";";
+		} else {
+			return "L" + getQualifiedName() + ";";
+		}
+	}
+	@Override
+	public String getGenericTypeSignature(boolean useSlashes) {
+		if (this.type == null) {
+			return getKey(false, useSlashes);
+		}
+		return super.getGenericTypeSignature(useSlashes);
+	}
+
+	@Override
+	public ITypeBinding[] getInterfaces() {
+		if (this.type != null) {
+			return super.getInterfaces();
+		}
+		return new ITypeBinding[0];
+	}
+
+	@Override
+	public ITypeBinding getSuperclass() {
+		if (this.type != null) {
+			return super.getSuperclass();
+		}
+		return null;
 	}
 }
