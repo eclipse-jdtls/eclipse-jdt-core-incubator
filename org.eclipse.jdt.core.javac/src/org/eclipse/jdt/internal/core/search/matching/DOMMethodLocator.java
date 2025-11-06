@@ -681,6 +681,8 @@ public class DOMMethodLocator extends DOMPatternLocator {
 	}
 
 	private IMethodBinding findMethodBindingFromFocus(MethodPattern methodPattern, AST ast) {
+		if( methodPattern.focus == null || methodPattern.declaringType == null )
+			return null;
 		IType typeFromPattern = methodPattern.declaringType;
 		IType enclosingType = typeFromPattern.getDeclaringType();
 		while (enclosingType != null) {
