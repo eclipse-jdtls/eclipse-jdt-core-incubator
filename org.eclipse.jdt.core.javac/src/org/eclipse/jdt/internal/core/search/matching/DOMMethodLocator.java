@@ -27,6 +27,7 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.ILocalVariable;
 import org.eclipse.jdt.core.IMethod;
 import org.eclipse.jdt.core.ISourceRange;
+import org.eclipse.jdt.core.IType;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.compiler.CharOperation;
 import org.eclipse.jdt.core.dom.AST;
@@ -64,6 +65,7 @@ import org.eclipse.jdt.core.search.MethodDeclarationMatch;
 import org.eclipse.jdt.core.search.MethodReferenceMatch;
 import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchPattern;
+import org.eclipse.jdt.internal.SignatureUtils;
 import org.eclipse.jdt.internal.codeassist.DOMCompletionUtils;
 import org.eclipse.jdt.internal.core.BinaryMethod;
 import org.eclipse.jdt.internal.core.SourceMethod;
@@ -655,7 +657,7 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		String declaringPackage = methodPattern.declaringPackageName != null ? new String(methodPattern.declaringPackageName) : "";
 		String declaringQualification = methodPattern.declaringQualification != null ? new String(methodPattern.declaringQualification) : "";
 		String simpleName = methodPattern.declaringSimpleName != null ? new String(methodPattern.declaringSimpleName) : "";
-		String typeName = declaringQualification.length() > declaringPackage.length() && declaringQualification.startsWith(declaringPackage)
+		String typeName = !declaringPackage.isEmpty() && declaringQualification.length() > declaringPackage.length() && declaringQualification.startsWith(declaringPackage)
 				? declaringPackage + '.' + declaringQualification.substring(declaringPackage.length() + 1).replace('.', '$') + '$' + simpleName
 				: declaringQualification +  '.' + simpleName;
 		if (typeName.startsWith(".")) {
@@ -666,6 +668,54 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			for (IMethodBinding method : type.getDeclaredMethods()) {
 				if (Objects.equals(method.getJavaElement(), methodPattern.focus)) {
 					return method;
+				}
+			}
+		}
+
+		// Not a well known type
+		IMethodBinding focusBinding = findMethodBindingFromFocus(methodPattern, ast);
+		if( focusBinding != null ) {
+			return focusBinding;
+		}
+		return null;
+	}
+
+	private IMethodBinding findMethodBindingFromFocus(MethodPattern methodPattern, AST ast) {
+		IType typeFromPattern = methodPattern.declaringType;
+		IType enclosingType = typeFromPattern.getDeclaringType();
+		while (enclosingType != null) {
+			typeFromPattern = enclosingType;
+			enclosingType = typeFromPattern.getDeclaringType();
+		}
+		String typeName = typeFromPattern.getFullyQualifiedName();
+		IBinding found = JdtCoreDomPackagePrivateUtility.findUnresolvedBindingForType(ast, typeName);
+		if( found == null ) {
+			found = JdtCoreDomPackagePrivateUtility.findUnresolvedBindingForType(ast, "Q" + typeName + ";");
+		}
+		if( found instanceof ITypeBinding tb && methodPattern.focus instanceof IMethod im) {
+			String needleName = im.getElementName();
+			String[] parameterTypeSignatures = im.getParameterTypes();
+			int parameterCount = parameterTypeSignatures.length;
+			IMethodBinding[] mb = tb.getDeclaredMethods();
+			for( int i = 0; i < mb.length; i++ ) {
+				String workingName = mb[i].getName();
+				if( workingName.equals(needleName)) {
+					ITypeBinding[] params = mb[i].getParameterTypes();
+					int l2 = params.length;
+					if( parameterCount == l2 ) {
+						boolean failed = false;
+						for( int j = 0; j < params.length && !failed; j++ ) {
+							String sigJ = SignatureUtils.getSignature(params[j]);
+							boolean eq = sigJ.equals(parameterTypeSignatures[j]);
+							boolean eq2 = parameterTypeSignatures[j].startsWith("Q") && sigJ.endsWith(parameterTypeSignatures[j].substring(1));
+							if( !eq && !eq2) {
+								failed = true;
+							}
+						}
+						if( !failed ) {
+							return mb[i];
+						}
+					}
 				}
 			}
 		}
