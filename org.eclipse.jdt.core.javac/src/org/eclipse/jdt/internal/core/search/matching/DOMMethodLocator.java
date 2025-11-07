@@ -309,6 +309,11 @@ public class DOMMethodLocator extends DOMPatternLocator {
 		if (level == IMPOSSIBLE_MATCH)
 			return level;
 
+		level = matchReceiverType(node, method, level);
+		if (level == IMPOSSIBLE_MATCH)
+			return level;
+
+
 		int typeParamMatches = validateReceiverTypeArguments(node, method, level, bindingIsDeclaration);
 		if( typeParamMatches == DOMTypeReferenceLocator.TYPE_PARAMS_NO_MATCH) level = IMPOSSIBLE_MATCH;
 		if( typeParamMatches == DOMTypeReferenceLocator.TYPE_PARAMS_COUNT_MATCH) level = ERASURE_MATCH;
@@ -323,6 +328,57 @@ public class DOMMethodLocator extends DOMPatternLocator {
 			level = IMPOSSIBLE_MATCH;
 
 		return level;
+	}
+
+	private int matchReceiverType(ASTNode node, IMethodBinding method, int level) {
+		if( node instanceof MethodInvocation mi && mi.getExpression() != null ) {
+			ASTNode expr = mi.getExpression();
+			IBinding b = DOMASTNodeUtils.getBinding(expr);
+			if( b instanceof IVariableBinding vb) {
+				b = vb.getType();
+			}
+			if( b != null && b instanceof ITypeBinding tb) {
+				return matchReceiverTypeSuperHeirarchy(method, tb, this.locator.pattern.declaringPackageName, this.locator.pattern.declaringSimpleName, level);
+			}
+		}
+		return IMPOSSIBLE_MATCH;
+	}
+
+	private int matchReceiverTypeSuperHeirarchy(IMethodBinding original, ITypeBinding tb, char[] desiredPkg, char[] desiredClazz, int level) {
+		if( tb == null )
+			return IMPOSSIBLE_MATCH;
+		String pkg = tb.getPackage().getName();
+		String clazz = tb.getName();
+		boolean matchesPkg = desiredPkg == null || new String(this.locator.pattern.declaringPackageName).equals(pkg);
+		boolean matchesClazz = desiredClazz == null || new String(this.locator.pattern.declaringSimpleName).equals(clazz);
+		if( matchesPkg && matchesClazz ) {
+			return level;
+		}
+
+		IMethodBinding[] intMethods = tb.getDeclaredMethods();
+		for( int j = 0; j < intMethods.length; j++ ) {
+			if( original == intMethods[j] ||  original.overrides(intMethods[j]) ) {
+				int ret = level | SUPER_INVOCATION_FLAVOR;
+				return ret;
+			}
+		}
+
+		ITypeBinding[] ints = tb.getInterfaces();
+		for( int i = 0; i < ints.length; i++ ) {
+			ITypeBinding ti = ints[i];
+			int l = matchReceiverTypeSuperHeirarchy(original, ti, desiredPkg, desiredClazz, level);
+			if( l != IMPOSSIBLE_MATCH ) {
+				return level;
+			}
+		}
+		ITypeBinding sup = tb.getSuperclass();
+		if( sup != null ) {
+			int l = matchReceiverTypeSuperHeirarchy(original, sup, desiredPkg, desiredClazz, level);
+			if( l != IMPOSSIBLE_MATCH ) {
+				return level;
+			}
+		}
+		return IMPOSSIBLE_MATCH;
 	}
 
 	private int validateReceiverTypeArguments(ASTNode node, IMethodBinding method, int level,
