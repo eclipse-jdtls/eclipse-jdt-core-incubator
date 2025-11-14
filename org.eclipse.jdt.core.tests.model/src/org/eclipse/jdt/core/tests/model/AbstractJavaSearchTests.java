@@ -21,6 +21,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
+import junit.framework.AssertionFailedError;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -910,6 +911,21 @@ protected JavaSearchResultCollector resultCollector;
 	protected void assertSearchResults(String expected, JavaSearchResultCollector collector) {
 		assertSearchResults("Unexpected search results", expected, collector);
 	}
+
+	protected void assertSearchResultsWithAlternate(String expected1, String expected2, JavaSearchResultCollector collector) {
+		AssertionFailedError afe = null;
+		try {
+			assertSearchResults(expected1,collector);
+		} catch(AssertionFailedError afe2) {
+			afe = afe2;
+			try {
+				assertSearchResults(expected2,collector);
+			} catch(AssertionFailedError afe3) {
+				throw afe;
+			}
+		}
+	}
+
 	protected void assertSearchResults(String message, String expected, JavaSearchResultCollector collector) {
 		String actual = Arrays.stream(collector.toString().split("\n"))
 			.sorted()
