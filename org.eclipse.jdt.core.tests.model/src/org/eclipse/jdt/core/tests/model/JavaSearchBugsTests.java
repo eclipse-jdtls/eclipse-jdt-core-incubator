@@ -8616,11 +8616,11 @@ public void testBug164791() throws CoreException {
 	};
 	collector.showAccuracy(true);
 	search(type, REFERENCES, getJavaSearchScope(), collector);
-	assertSearchResults(
-		"lib/b164791.jar test.<anonymous> EXACT_MATCH\n" +
-		"lib/b164791.jar test.<anonymous> EXACT_MATCH",
-		collector
-	);
+	String expected1 = "lib/b164791.jar test.<anonymous> EXACT_MATCH\n" +
+			"lib/b164791.jar test.<anonymous> EXACT_MATCH";
+	String expected2 = "lib/b164791.jar test.<anonymous> EXACT_MATCH\n" +
+			"lib/b164791.jar test.Test EXACT_MATCH";
+	assertSearchResultsWithAlternate(expected1, expected2, collector);
 }
 
 /**
