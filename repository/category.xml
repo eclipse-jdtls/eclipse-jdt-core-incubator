@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <site>
+	<category-def name="org.eclipse.jdt.javac" label="Javac in JDT"/>
 	<category-def name="org.eclipse.jdt.core.bundles" label="JDT Core bundles"/>
 	<category-def name="org.eclipse.jdt.core.bundles.source" label="JDT Core source bundles"/>
 	<bundle id="org.eclipse.jdt.annotation" version="0.0.0">
@@ -38,11 +39,8 @@
 	<bundle id="org.eclipse.jdt.core.compiler.batch.source" version="0.0.0">
 		<category name="org.eclipse.jdt.core.bundles.source"/>
 	</bundle>
-	<bundle id="org.eclipse.jdt.core.javac" version="0.0.0">
-		<category name="org.eclipse.jdt.core.bundles"/>
-	</bundle>
-	<feature id="org.eclipse.jdt.core.javac.feature" version="0.0.0">
-		<category name="org.eclipse.jdt.core.bundles"/>
+	<feature id="org.eclipse.jdt.javac.feature" version="0.0.0">
+		<category name="org.eclipse.jdt.javac"/>
 	</feature>
 	<bundle id="org.eclipse.jdt.core.formatterapp" version="0.0.0">
 		<category name="org.eclipse.jdt.core.bundles"/>
