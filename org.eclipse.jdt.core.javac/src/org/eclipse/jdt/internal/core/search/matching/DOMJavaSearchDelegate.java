@@ -42,7 +42,9 @@ import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.IJavaModelStatusConstants;
 import org.eclipse.jdt.core.IJavaProject;
+import org.eclipse.jdt.core.IMember;
 import org.eclipse.jdt.core.IOpenable;
+import org.eclipse.jdt.core.IOrdinaryClassFile;
 import org.eclipse.jdt.core.IPackageFragment;
 import org.eclipse.jdt.core.ISourceRange;
 import org.eclipse.jdt.core.IType;
@@ -122,6 +124,7 @@ import org.eclipse.jdt.internal.core.search.DOMASTNodeUtils;
 import org.eclipse.jdt.internal.core.search.DOMPatternLocatorFactory;
 import org.eclipse.jdt.internal.core.search.PatternLocatorVisitor;
 import org.eclipse.jdt.internal.core.search.processing.JobManager;
+import org.eclipse.jdt.internal.core.util.DeduplicationUtil;
 import org.eclipse.jdt.internal.core.util.Util;
 
 public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
@@ -327,6 +330,20 @@ public class DOMJavaSearchDelegate implements IJavaSearchDelegate {
 					}
 				}
 				return locator.newDeclarationMatch(javaElement, null, accuracy, range.getOffset(), range.getLength());
+			}
+			if( node instanceof AbstractTypeDeclaration atd) {
+				// This specific node wasn't found. Let's try its parent?
+				IJavaElement enclosingElement = DOMASTNodeUtils.getEnclosingJavaElement(node.getParent());
+				if (enclosingElement instanceof IMember member) {
+					IJavaElement element = null;
+					ISourceRange range = new SourceRange(node.getStartPosition(), node.getLength());
+					if (member.isBinary())  {
+						element = ((IOrdinaryClassFile)possibleMatch.openable).getType();
+					} else {
+						element = member.getType(DeduplicationUtil.toString(atd.getName().toString().toCharArray()), 1);
+					}
+					return locator.newDeclarationMatch(element, null, accuracy, range.getOffset(), range.getLength());
+				}
 			}
 		}
 		if (node instanceof MethodInvocation method) {
