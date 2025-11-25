@@ -13,7 +13,31 @@ pipeline {
 		jdk 'openjdk-jdk25-latest'
 	}
 	stages {
-		stage('javac specific tests') {
+		stage('Fetch forked tests') {
+			steps {
+				dir('forkedTests') {
+					checkout scmGit(
+						branches: [[name: 'dom-with-javac']],
+						extensions: [ cloneOption(shallow: true) ],
+						userRemoteConfigs: [[url: 'https://github.com/eclipse-jdtls/eclipse-jdt-core-incubator.git']])
+					sh """#!/bin/bash -x
+						mkdir -p $WORKSPACE/tmp
+						
+						unset JAVA_TOOL_OPTIONS
+						unset _JAVA_OPTIONS
+						# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
+						mvn install -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
+							-Pbree-libs \
+							-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
+							-Pp2-repo \
+							-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
+							-DskipTests \
+							-pl org.eclipse.jdt.core.tests.compiler,org.eclipse.jdt.core.tests.model
+						"""
+				}
+			}
+		}
+		stage('Build, install, tests Javac-based JDT') {
 			steps {
 				sh """#!/bin/bash -x
 					mkdir -p $WORKSPACE/tmp
@@ -21,14 +45,15 @@ pipeline {
 					unset JAVA_TOOL_OPTIONS
 					unset _JAVA_OPTIONS
 					# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
-					mvn install -DskipTests -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
+					mvn install -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
 						-Pbree-libs \
 						-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
 						-Pp2-repo \
 						-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						-pl org.eclipse.jdt.core.javac,org.eclipse.jdt.core.javac.configurator,org.eclipse.jdt.javac.ui,org.eclipse.jdt.javac.feature,org.eclipse.jdt.core.tests.model,org.eclipse.jdt.core.tests.compiler,repository
+						-DskipTests \
+						-pl org.eclipse.jdt.core.javac,org.eclipse.jdt.core.javac.configurator,org.eclipse.jdt.javac.ui,org.eclipse.jdt.javac.feature,repository
 
-					mvn verify --batch-mode -pl org.eclipse.jdt.core.compiler.batch,org.eclipse.jdt.core,org.eclipse.jdt.core.tests.javac -Dmaven.repo.local=$WORKSPACE/.m2/repository \
+					mvn verify --batch-mode -pl org.eclipse.jdt.core.tests.javac -Dmaven.repo.local=$WORKSPACE/.m2/repository \
 						--fail-at-end -Ptest-on-javase-25 -Pbree-libs \
 						-DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
 						-Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
