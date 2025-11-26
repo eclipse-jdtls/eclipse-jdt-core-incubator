@@ -13,7 +13,7 @@ pipeline {
 		jdk 'openjdk-jdk25-latest'
 	}
 	stages {
-		stage('Fetch forked tests') {
+		stage('Fetch and install forked tests') {
 			steps {
 				dir('forkedTests') {
 					checkout scmGit(
@@ -45,26 +45,18 @@ pipeline {
 					unset JAVA_TOOL_OPTIONS
 					unset _JAVA_OPTIONS
 					# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
-					mvn install -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-						-Pbree-libs \
+					mvn verify --batch-mode -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
 						-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
-						-Pp2-repo \
 						-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						-DskipTests \
-						-pl org.eclipse.jdt.core.javac,org.eclipse.jdt.core.javac.configurator,org.eclipse.jdt.javac.ui,org.eclipse.jdt.javac.feature,repository
-
-					mvn verify --batch-mode -pl org.eclipse.jdt.core.tests.javac -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-						--fail-at-end -Ptest-on-javase-25 -Pbree-libs \
-						-DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
-						-Papi-check -Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true  
+						--fail-at-end -Ptest-on-javase-25 -Pbree-libs -DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
+						-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true
 """
 			}
 			post {
 				always {
 					archiveArtifacts artifacts: '*.log,*/target/work/data/.metadata/*.log,*/tests/target/work/data/.metadata/*.log,apiAnalyzer-workspace/.metadata/*.log,repository/target/repository/**,**/target/artifactcomparison/**', allowEmptyArchive: true
 					junit 'org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'
-					discoverGitReferenceBuild referenceJob: 'jdt-core-incubator/dom-with-javac'
+					discoverGitReferenceBuild referenceJob: 'jdt-core-incubator/javac'
 					//recordIssues ignoreQualityGate:true, tool: junitParser(pattern: 'org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'), qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
 				}
 			}
