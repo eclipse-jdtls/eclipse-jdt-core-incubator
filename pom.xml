@@ -60,16 +60,11 @@
     <module>org.eclipse.jdt.annotation</module>
     <module>org.eclipse.jdt.core.compiler.batch</module>
     <module>org.eclipse.jdt.core</module>
-    <module>org.eclipse.jdt.core.javac</module>
-    <module>org.eclipse.jdt.core.javac.configurator</module>
-    <module>org.eclipse.jdt.javac.ui</module>
-    <module>org.eclipse.jdt.javac.feature</module>
     <module>org.eclipse.jdt.core.formatterapp</module>
     <module>org.eclipse.jdt.compiler.tool.tests</module>
     <module>org.eclipse.jdt.core.tests.builder.mockcompiler</module>
     <module>org.eclipse.jdt.core.tests.builder</module>
     <module>org.eclipse.jdt.core.tests.compiler</module>
-    <module>org.eclipse.jdt.core.tests.javac</module>
     <module>org.eclipse.jdt.core.tests.model</module>
     <module>org.eclipse.jdt.core.tests.performance</module>
     <module>org.eclipse.jdt.apt.core</module>
