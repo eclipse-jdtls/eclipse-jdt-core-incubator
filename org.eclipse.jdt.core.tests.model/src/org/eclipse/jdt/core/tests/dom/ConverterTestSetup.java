@@ -868,6 +868,14 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 		return (node.getFlags() & ASTNode.ORIGINAL) != 0;
 	}
 
+	protected void assertProblemsSizeOnly(CompilationUnit unit, int expected1, int expectedAlternate) {
+		final IProblem[] problemsRaw = unit.getProblems();
+		int length = problemsRaw.length;
+		if( length != expected1 && length != expectedAlternate) {
+			assertEquals("Wrong number of problems", expected1, length); //$NON-NLS-1$<
+		}
+	}
+
 	protected void assertProblemsSize(CompilationUnit compilationUnit, int expectedSize) {
 		assertProblemsSize(compilationUnit, expectedSize, "");
 	}
