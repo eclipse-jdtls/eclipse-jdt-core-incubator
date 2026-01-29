@@ -970,6 +970,11 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 				possible.add(alt3);
 			}
 			return possible.contains(expected);
+		case IProblem.NotVisibleField:
+			if(("The type " + arguments[0] + " is not visible").equals(expected)) {
+				return true;
+			}
+			return false;
 		case IProblem.UsingDeprecatedField:
 			if( arguments.length == 2 ) {
 				String simpleName = ((String)arguments[1]).replaceAll(fqqnToSimpleNameRegex, "");
