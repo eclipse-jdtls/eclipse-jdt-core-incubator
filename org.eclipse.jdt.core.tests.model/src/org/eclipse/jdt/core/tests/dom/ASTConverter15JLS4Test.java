@@ -2530,6 +2530,22 @@ public class ASTConverter15JLS4Test extends ConverterTestSetup {
 	 * http://bugs.eclipse.org/bugs/show_bug.cgi?id=79460
 	 */
 	public void test0081() throws JavaModelException {
+		/*
+
+		package test0081;
+
+		class Y<T> {
+		        <T> Class foo(T t) {
+		                return t.getClass();
+		        }
+		}
+		public class X {
+		        public static void main(String[] args) {
+		                Class c = new Y().foo(null);
+		        }
+		}
+
+		 */
 		ICompilationUnit sourceUnit = getCompilationUnit("Converter15" , "src", "test0081", "X.java"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$
 		ASTNode result = runJLS4Conversion(sourceUnit, true);
 		assertNotNull(result);
@@ -2554,6 +2570,42 @@ public class ASTConverter15JLS4Test extends ConverterTestSetup {
 		assertFalse("Is a generic method", methodBinding.isGenericMethod());
 		assertFalse("Doesn't override itself", methodBinding.overrides(methodBinding));
 	}
+
+	public void test0081FromTestDoNotUseVarOnGenericMethod() throws JavaModelException {
+		this.workingCopy = getWorkingCopy("/Converter15/src/X.java", true/*resolve*/);
+		String contents =
+				"""
+			import java.util.ArrayList;
+
+			public class X {
+			    public void foo() {
+			        ArrayList<Integer> doNotRefactorGenericMethod = newInstance();
+			    }
+
+			    public <D> ArrayList<D> newInstance() {
+			        return new ArrayList<D>();
+			    }
+			}
+
+				""";
+
+		ASTNode node = buildAST(
+				contents,
+				this.workingCopy,
+				false);
+		assertEquals("Not a compilation unit", ASTNode.COMPILATION_UNIT, node.getNodeType());
+		CompilationUnit unit = (CompilationUnit) node;
+		node = getASTNode(unit, 0, 0, 0);
+		assertEquals("Not a expression statement", ASTNode.VARIABLE_DECLARATION_STATEMENT, node.getNodeType());
+		VariableDeclarationStatement statement = (VariableDeclarationStatement) node;
+		VariableDeclarationFragment frag = (VariableDeclarationFragment) statement.fragments().get(0);
+		MethodInvocation invocation = (MethodInvocation) frag.getInitializer();
+		IMethodBinding methodBinding = invocation.resolveMethodBinding();
+		assertNotNull("No binding", methodBinding);
+		assertFalse("Not a raw method", methodBinding.isRawMethod());
+		assertTrue("Not a parameterized method", methodBinding.isParameterizedMethod());
+	}
+
 
 	/*
 	 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=78183
