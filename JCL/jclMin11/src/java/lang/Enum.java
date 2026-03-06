@@ -11,4 +11,11 @@ public abstract class Enum<T extends Enum<T>> implements Comparable<T>, java.io.
 	public final int ordinal() {
 		return 0;
 	}
+	public static <E extends Enum<E>> E valueOf(Class<E> enumClass,
+			String name) {
+		return null;   
+	}
+	public final int compareTo(T o) {
+		return 0;
+	}
 }

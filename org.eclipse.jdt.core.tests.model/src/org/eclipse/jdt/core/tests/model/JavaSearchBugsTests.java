@@ -3133,20 +3133,31 @@ public void testBug92264a() throws CoreException {
 	);
 	assertSearchResults(
 		"Unexpected all type names",
-		"java.lang.CharSequence\n" +
-		"java.lang.Class\n" +
-		"java.lang.CloneNotSupportedException\n" +
-		"java.lang.Comparable\n" +
-		"java.lang.Deprecated\n" +
-		"java.lang.Enum\n" +
-		"java.lang.Error\n" +
-		"java.lang.Exception\n" +
-		"java.lang.IllegalMonitorStateException\n" +
-		"java.lang.InterruptedException\n" +
-		"java.lang.Object\n" +
-		"java.lang.RuntimeException\n" +
-		"java.lang.String\n" +
-		"java.lang.Throwable",
+		"""
+		java.lang.Boolean
+		java.lang.Byte
+		java.lang.CharSequence
+		java.lang.Character
+		java.lang.Class
+		java.lang.CloneNotSupportedException
+		java.lang.Comparable
+		java.lang.Deprecated
+		java.lang.Enum
+		java.lang.Error
+		java.lang.Exception
+		java.lang.IllegalMonitorStateException
+		java.lang.Integer
+		java.lang.InterruptedException
+		java.lang.Long
+		java.lang.Number
+		java.lang.NumberFormatException
+		java.lang.Object
+		java.lang.RuntimeException
+		java.lang.Short
+		java.lang.String
+		java.lang.SuppressWarnings
+		java.lang.Throwable
+		java.lang.Void""",
 		requestor);
 }
 public void testBug92264b() throws CoreException {
@@ -3168,6 +3179,7 @@ public void testBug92264b() throws CoreException {
 		"java.lang.Exception\n" +
 		"java.lang.IllegalMonitorStateException\n" +
 		"java.lang.InterruptedException\n" +
+		"java.lang.NumberFormatException\n" +
 		"java.lang.RuntimeException\n" +
 		"java.lang.annotation.Annotation\n" +
 		"java.lang.annotation.Retention",
@@ -6198,20 +6210,31 @@ public void testBug113671() throws CoreException {
    );
 	assertSearchResults(
 		"Unexpected all type names",
-		"java.lang.CharSequence\n" +
-		"java.lang.Class\n" +
-		"java.lang.CloneNotSupportedException\n" +
-		"java.lang.Comparable\n" +
-		"java.lang.Deprecated\n" +
-		"java.lang.Enum\n" +
-		"java.lang.Error\n" +
-		"java.lang.Exception\n" +
-		"java.lang.IllegalMonitorStateException\n" +
-		"java.lang.InterruptedException\n" +
-		"java.lang.Object\n" +
-		"java.lang.RuntimeException\n" +
-		"java.lang.String\n" +
-		"java.lang.Throwable",
+		"""
+		java.lang.Boolean
+		java.lang.Byte
+		java.lang.CharSequence
+		java.lang.Character
+		java.lang.Class
+		java.lang.CloneNotSupportedException
+		java.lang.Comparable
+		java.lang.Deprecated
+		java.lang.Enum
+		java.lang.Error
+		java.lang.Exception
+		java.lang.IllegalMonitorStateException
+		java.lang.Integer
+		java.lang.InterruptedException
+		java.lang.Long
+		java.lang.Number
+		java.lang.NumberFormatException
+		java.lang.Object
+		java.lang.RuntimeException
+		java.lang.Short
+		java.lang.String
+		java.lang.SuppressWarnings
+		java.lang.Throwable
+		java.lang.Void""",
 		requestor);
 }
 
@@ -7808,20 +7831,31 @@ public void testBug156340() throws CoreException {
    );
 	assertSearchResults(
 		"Unexpected all type names",
-		"java.lang.CharSequence\n" +
-		"java.lang.Class\n" +
-		"java.lang.CloneNotSupportedException\n" +
-		"java.lang.Comparable\n" +
-		"java.lang.Deprecated\n" +
-		"java.lang.Enum\n" +
-		"java.lang.Error\n" +
-		"java.lang.Exception\n" +
-		"java.lang.IllegalMonitorStateException\n" +
-		"java.lang.InterruptedException\n" +
-		"java.lang.Object\n" +
-		"java.lang.RuntimeException\n" +
-		"java.lang.String\n" +
-		"java.lang.Throwable",
+		"""
+		java.lang.Boolean
+		java.lang.Byte
+		java.lang.CharSequence
+		java.lang.Character
+		java.lang.Class
+		java.lang.CloneNotSupportedException
+		java.lang.Comparable
+		java.lang.Deprecated
+		java.lang.Enum
+		java.lang.Error
+		java.lang.Exception
+		java.lang.IllegalMonitorStateException
+		java.lang.Integer
+		java.lang.InterruptedException
+		java.lang.Long
+		java.lang.Number
+		java.lang.NumberFormatException
+		java.lang.Object
+		java.lang.RuntimeException
+		java.lang.Short
+		java.lang.String
+		java.lang.SuppressWarnings
+		java.lang.Throwable
+		java.lang.Void""",
 		requestor);
 }
 
@@ -8390,20 +8424,31 @@ public void testBug160854() throws CoreException {
 		null);
 	// Should have same types with these 2 searches
 	assertSearchResults("Wrong types found!",
-		"java.lang.CharSequence\n" +
-		"java.lang.Class\n" +
-		"java.lang.CloneNotSupportedException\n" +
-		"java.lang.Comparable\n" +
-		"java.lang.Deprecated\n" +
-		"java.lang.Enum\n" +
-		"java.lang.Error\n" +
-		"java.lang.Exception\n" +
-		"java.lang.IllegalMonitorStateException\n" +
-		"java.lang.InterruptedException\n" +
-		"java.lang.Object\n" +
-		"java.lang.RuntimeException\n" +
-		"java.lang.String\n" +
-		"java.lang.Throwable",
+			"""
+			java.lang.Boolean
+			java.lang.Byte
+			java.lang.CharSequence
+			java.lang.Character
+			java.lang.Class
+			java.lang.CloneNotSupportedException
+			java.lang.Comparable
+			java.lang.Deprecated
+			java.lang.Enum
+			java.lang.Error
+			java.lang.Exception
+			java.lang.IllegalMonitorStateException
+			java.lang.Integer
+			java.lang.InterruptedException
+			java.lang.Long
+			java.lang.Number
+			java.lang.NumberFormatException
+			java.lang.Object
+			java.lang.RuntimeException
+			java.lang.Short
+			java.lang.String
+			java.lang.SuppressWarnings
+			java.lang.Throwable
+			java.lang.Void""",
 		requestor
 	);
 	assertEquals("Found types sounds not to be correct", requestor.toString(), collector.toString());
