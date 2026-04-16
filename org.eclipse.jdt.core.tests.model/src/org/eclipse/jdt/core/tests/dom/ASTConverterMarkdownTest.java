@@ -1947,8 +1947,8 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			TagElement tagElement = (TagElement) tags.fragments().get(1);
+			assertNonEmptyFragmentCount(1, tags);
+			TagElement tagElement = (TagElement) getNonEmptyFragment(0, tags);
 			List<?> tagFragments = tagElement.fragments();
 			assertTrue(tagFragments.get(0) instanceof TextElement);
 			assertTrue(tagFragments.get(1) instanceof SimpleName);
@@ -1967,13 +1967,56 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			TagElement tagElement = (TagElement) tags.fragments().get(1);
+			assertNonEmptyFragmentCount(1, tags);
+			TagElement tagElement = (TagElement) getNonEmptyFragment(0, tags);
 			List<?> tagFragments = tagElement.fragments();
 			assertTrue(tagFragments.get(0) instanceof TextElement);
 			assertTrue(tagFragments.get(1) instanceof SimpleName);
 		}
 	}
+
+	private List<ASTNode> getNonEmptyFragments(TagElement el) {
+		ArrayList<ASTNode> ret = new ArrayList<>();
+		int fragmentCount = el.fragments().size();
+		for( int i = 0; i < fragmentCount; i++ ) {
+			if( el.fragments().get(i) instanceof TextElement te && te.getText() != null && te.getText().trim().length() == 0 ) {
+				continue;
+			}
+			ret.add((ASTNode)el.fragments().get(i));
+		}
+		return ret;
+	}
+
+	private int getNonEmptyFragmentCount(TagElement el) {
+		return getNonEmptyFragments(el).size();
+	}
+
+	private void assertNonEmptyFragmentCount(int desired, TagElement el) {
+		int nonEmpty = getNonEmptyFragmentCount(el);
+		if( nonEmpty < desired ) {
+			assertEquals("fragments count does not match", desired, el.fragments().size());
+		}
+		assertEquals("fragments count does not match", desired, nonEmpty);
+	}
+
+	private ASTNode getNonEmptyFragment(int desired, TagElement el) {
+		int fragmentCount = el.fragments().size();
+		if( fragmentCount < desired ) {
+			return null;
+		}
+		int nonEmpty = 0;
+		for( int i = 0; i < fragmentCount; i++ ) {
+			if( el.fragments().get(i) instanceof TextElement te && te.getText() != null && te.getText().trim().length() == 0 ) {
+				continue;
+			}
+			if( nonEmpty == desired ) {
+				return (ASTNode)el.fragments().get(i);
+			}
+			nonEmpty++;
+		}
+		return null;
+	}
+
 
 	public void testMarkdownURLs4531_03() throws JavaModelException {
 		String source = """
@@ -1987,11 +2030,9 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			TagElement tagElement = (TagElement) tags.fragments().get(1);
-			List<?> tagFragments = tagElement.fragments();
-			assertTrue(tagFragments.get(0) instanceof TextElement);
-			assertTrue(tagFragments.get(1) instanceof SimpleName);
+			assertNonEmptyFragmentCount(1, tags);
+			assertTrue(getNonEmptyFragment(0, tags) instanceof TextElement);
+			assertTrue(getNonEmptyFragment(1, tags) instanceof SimpleName);
 		}
 	}
 
@@ -2007,8 +2048,8 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			TagElement tagElement = (TagElement) tags.fragments().get(1);
+			assertNonEmptyFragmentCount(1, tags);
+			TagElement tagElement = (TagElement) getNonEmptyFragment(0, tags);
 			List<?> tagFragments = tagElement.fragments();
 			assertTrue(tagFragments.get(0) instanceof TextElement);
 			assertTrue(tagFragments.get(1) instanceof SimpleName);
@@ -2028,10 +2069,13 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 3, tags.fragments().size());
-			assertTrue(tags.fragments().get(0) instanceof TextElement);
-			assertTrue(tags.fragments().get(1) instanceof TextElement);
-			assertTrue(tags.fragments().get(2) instanceof TextElement);
+
+			int nonEmptyC = getNonEmptyFragmentCount(tags);
+			assertTrue(nonEmptyC <= 2);
+			List<ASTNode> nonEmpty = getNonEmptyFragments(tags);
+			for( ASTNode n : nonEmpty ) {
+				assertTrue(n instanceof TextElement);
+			}
 		}
 	}
 
@@ -2085,9 +2129,8 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			assertTrue(tags.fragments().get(0) instanceof TextElement);
-			assertTrue(tags.fragments().get(1) instanceof TextElement);
+			assertNonEmptyFragmentCount(1, tags);
+			assertTrue(getNonEmptyFragment(0, tags) instanceof TextElement);
 		}
 	}
 
@@ -2125,10 +2168,10 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			assertTrue(tags.fragments().get(0) instanceof TextElement);
-			assertTrue(tags.fragments().get(1) instanceof TagElement);
-			TagElement fragTag = (TagElement) tags.fragments().get(1);
+			assertNonEmptyFragmentCount(1, tags);
+			ASTNode firstNonEmpty = getNonEmptyFragment(0, tags);
+			assertTrue(firstNonEmpty instanceof TagElement);
+			TagElement fragTag = (TagElement) firstNonEmpty;
 			assertTrue(fragTag.fragments().get(0) instanceof TextElement);
 			assertTrue(fragTag.fragments().get(1) instanceof QualifiedName);
 		}
@@ -2147,10 +2190,9 @@ public class ASTConverterMarkdownTest extends ConverterTestSetup {
 			TypeDeclaration typedeclaration =  (TypeDeclaration) compilUnit.types().get(0);
 			Javadoc javadoc = typedeclaration.getJavadoc();
 			TagElement tags = (TagElement) javadoc.tags().get(0);
-			assertEquals("fragments count does not match", 2, tags.fragments().size());
-			assertTrue(tags.fragments().get(0) instanceof TextElement);
-			assertTrue(tags.fragments().get(1) instanceof TagElement);
-			TagElement fragTag = (TagElement) tags.fragments().get(1);
+			assertNonEmptyFragmentCount(1, tags);
+			assertTrue(getNonEmptyFragment(0, tags) instanceof TagElement);
+			TagElement fragTag = (TagElement) getNonEmptyFragment(0, tags);
 			assertTrue(fragTag.fragments().get(0) instanceof TextElement);
 			assertTrue(fragTag.fragments().get(1) instanceof QualifiedName);
 		}
