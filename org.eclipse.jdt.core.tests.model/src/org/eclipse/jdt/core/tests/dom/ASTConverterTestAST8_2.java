@@ -9786,7 +9786,13 @@ public class ASTConverterTestAST8_2 extends ConverterTestSetup {
 				"	}\n" +
 				"}";
 			workingCopy = getWorkingCopy("/Converter/src/X.java", true/*resolve*/);
-			ExpressionStatement statement = (ExpressionStatement) buildAST(
+			/*
+			 (ExpressionStatement) - No need for such specificity here.
+			 Statements usually include the semicolon, and it is reasonable for the
+			  node matching the string that does not end in the semicolon to match the
+			  expression itself, and not the wrapping expression statement
+			 */
+			ASTNode statement = (ASTNode) buildAST(
 				contents,
 				workingCopy,
 				false,
