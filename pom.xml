@@ -79,6 +79,13 @@
     <pluginManagement>
       <plugins>
         <plugin>
+        	<groupId>org.eclipse.tycho</groupId>
+        	<artifactId>target-platform-configuration</artifactId>
+        	<configuration>
+        		<executionEnvironment>JavaSE-25</executionEnvironment> <!-- Overrides one from .target -->
+        	</configuration>
+        </plugin>
+        <plugin>
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-toolchains-plugin</artifactId>
           <executions>
@@ -93,4 +100,29 @@
       </plugins>
     </pluginManagement>
   </build>
+
+	<repositories>
+		<repository>
+			<id>workaround-eclipse-outage</id>
+			<url>https://raw.githubusercontent.com/mickaelistria/bordel/refs/heads/main/eclipseInfraOutage/mavenRepo/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</repository>
+	</repositories>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>workaround-eclipse-outage</id>
+			<url>https://raw.githubusercontent.com/mickaelistria/bordel/refs/heads/main/eclipseInfraOutage/mavenRepo/</url>
+			<releases>
+				<enabled>true</enabled>
+			</releases>
+			<snapshots>
+				<enabled>true</enabled>
+			</snapshots>
+		</pluginRepository>
+	</pluginRepositories>
 </project>

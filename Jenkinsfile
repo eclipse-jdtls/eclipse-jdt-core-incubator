@@ -13,51 +13,90 @@ pipeline {
 		jdk 'openjdk-jdk26-latest'
 	}
 	stages {
-		stage('Build') {
+		stage('Build and install forked tests') {
 			steps {
-					sh """#!/bin/bash -x
-					
-					java -version
-					
-					mkdir -p $WORKSPACE/tmp
-					
-					unset JAVA_TOOL_OPTIONS
-					unset _JAVA_OPTIONS
-					
-					# The max heap should be specified for tycho explicitly
-					# via configuration/argLine property in pom.xml
-					# export MAVEN_OPTS="-Xmx2G"
-					
-					mvn clean install -f org.eclipse.jdt.core.compiler.batch -DlocalEcjVersion=99.99 -Dmaven.repo.local=$WORKSPACE/.m2/repository -DcompilerBaselineMode=disable -DcompilerBaselineReplace=none
-					
-					mvn -U clean verify --batch-mode --fail-at-end -Dmaven.repo.local=$WORKSPACE/.m2/repository \
-						-Ptest-on-javase-26 -Pbree-libs -Papi-check -Pjavadoc -Pp2-repo \
-						-Dmaven.test.failure.ignore=true \
-						-Dcompare-version-with-baselines.skip=false \
-						-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
-						-Dtycho.surefire.argLine="--add-modules ALL-SYSTEM -Dcompliance=1.8,11,17,21,25,26 -Djdt.performance.asserts=disabled" \
-						-DDetectVMInstallationsJob.disabled=true \
-						-Dtycho.apitools.debug \
-						-Dtycho.debug.artifactcomparator \
-						-e \
-						-Dcbi-ecj-version=99.99
+				sh """#!/bin/bash -x
+				mkdir -p $WORKSPACE/tmp
+				
+				unset JAVA_TOOL_OPTIONS
+				unset _JAVA_OPTIONS
+				# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
+				mvn install -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
+					-Pbree-libs \
+					-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
+					-Pp2-repo \
+					-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
+					-DskipTests \
+					-pl org.eclipse.jdt.core.tests.compiler,org.eclipse.jdt.core.tests.model
+				"""
+			}
+		}
+		stage('Create composite repo') {
+			steps {
+				dir('repository/target/repository') {
+					writeFile file: 'compositeContent.xml', text: """
+						<?xml version='1.0' encoding='UTF-8'?>
+						<?compositeMetadataRepository version='1.0.0'?>
+						<repository name='Proxy JDT over Javac p2 repository' type='org.eclipse.equinox.internal.p2.metadata.repository.CompositeMetadataRepository' version='1'>
+							<properties size='3'>
+								<property name='p2.timestamp' value='1764168641397'/>
+								<property name='p2.compressed' value='true'/>
+								<property name='p2.atomic.composite.loading' value='true'/>
+							</properties>
+							<children size='1'>
+								<child location='https://ci.eclipse.org/ls/job/eclipse.jdt.javac/job/main/lastSuccessfulBuild/artifact/repository/target/repository/'/>
+							</children>
+						</repository>
 					"""
+					writeFile file: 'compositeArtiacts.xml', text: """
+					<?xml version='1.0' encoding='UTF-8'?>
+					<?compositeArtifactRepository version='1.0.0'?>
+					<repository name='Proxy JDT over Javac p2 repository' type='org.eclipse.equinox.internal.p2.artifact.repository.CompositeArtifactRepository' version='1'>
+						<properties size='3'>
+							<property name='p2.timestamp' value='1764168641397'/>
+							<property name='p2.compressed' value='true'/>
+							<property name='p2.atomic.composite.loading' value='true'/>
+						</properties>
+						<children size='1'>
+							<child location='https://ci.eclipse.org/ls/job/eclipse.jdt.javac/job/main/lastSuccessfulBuild/artifact/repository/target/repository/'/>
+						</children>
+					</repository>
+					"""
+				}
 			}
 			post {
 				always {
-					archiveArtifacts artifacts: '*.log,*/target/work/data/.metadata/*.log,*/tests/target/work/data/.metadata/*.log,apiAnalyzer-workspace/.metadata/*.log,repository/target/repository/**,**/target/artifactcomparison/**', allowEmptyArchive: true
-					// The following lines use the newest build on master that did not fail a reference
-					// To not fail master build on failed test maven needs to be started with "-Dmaven.test.failure.ignore=true" it will then only marked unstable.
-					// To not fail the build also "unstable: true" is used to only mark the build unstable instead of failing when qualityGates are missed
-					// To accept unstable builds (test errors or new warnings introduced by third party changes) as reference using "ignoreQualityGate:true"
-					// To only show warnings related to the PR on a PR using "publishAllIssues:false"
-					discoverGitReferenceBuild referenceJob: 'eclipse.jdt.core-github/master'
-					junit allowEmptyResults: true, testResults: '**/target/surefire-reports/*.xml'
-					recordIssues publishAllIssues: false, ignoreQualityGate: true, enabledForFailure: true, tools: [
-							eclipse(name: 'Compiler', pattern: '**/target/compilelogs/*.xml'),
-							issues(name: 'API Tools', id: 'apitools', pattern: '**/target/apianalysis/*.xml'),
-						], qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
-					recordIssues tools: [javaDoc(), mavenConsole()]
+					archiveArtifacts artifacts: 'repository/target/repository/**'
+				}
+			}
+		}
+		stage('Fetch and tests Javac-based JDT') {
+			steps {
+				dir('eclipse.jdt.javac') {
+					checkout scmGit(
+						branches: [[name: 'main']],
+						extensions: [ cloneOption(shallow: true) ],
+						userRemoteConfigs: [[url: 'https://github.com/eclipse-jdtls/eclipse.jdt.javac.git']])
+					sh """#!/bin/bash -x
+						mkdir -p $WORKSPACE/tmp
+						
+						unset JAVA_TOOL_OPTIONS
+						unset _JAVA_OPTIONS
+						# force qualifier to start with `z` so we identify it more easily and it always seem more recent than upstrea
+						mvn verify --batch-mode -Djava.io.tmpdir=$WORKSPACE/tmp -Dmaven.repo.local=$WORKSPACE/.m2/repository \
+							-Dtycho.buildqualifier.format="'z'yyyyMMdd-HHmm" \
+							-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
+							--fail-at-end -Ptest-on-javase-25 -Pbree-libs -DfailIfNoTests=false -DexcludedGroups=org.junit.Ignore -DproviderHint=junit47 \
+							-Dmaven.test.failure.ignore=true -Dmaven.test.error.ignore=true
+					"""
+				}
+			}
+			post {
+				always {
+					archiveArtifacts artifacts: '*.log,eclipse.jdt.javac/*/target/work/data/.metadata/*.log,*/tests/target/work/data/.metadata/*.log,apiAnalyzer-workspace/.metadata/*.log,repository/target/repository/**,**/target/artifactcomparison/**', allowEmptyArchive: true
+					junit 'eclipse.jdt.javac/org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'
+					discoverGitReferenceBuild referenceJob: 'jdt-core-incubator/dom-with-javac'
+					//recordIssues ignoreQualityGate:true, tool: junitParser(pattern: 'org.eclipse.jdt.core.tests.javac/target/surefire-reports/*.xml'), qualityGates: [[threshold: 1, type: 'DELTA', unstable: true]]
 				}
 			}
 		}
