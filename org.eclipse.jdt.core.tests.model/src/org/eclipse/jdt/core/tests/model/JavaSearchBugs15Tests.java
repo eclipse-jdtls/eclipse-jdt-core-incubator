@@ -1534,6 +1534,7 @@ public class JavaSearchBugs15Tests extends AbstractJavaSearchTests {
 			public void test566062_001() throws CoreException {
 				this.workingCopies = new ICompilationUnit[2];
 				this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/pack/test.java",
+						"package pack;\n" +
 						"public class /* here*/test { \n" +
 						"	/**\n" +
 						"	 * @see mod.one/pack.test\n" +
@@ -1579,6 +1580,7 @@ public class JavaSearchBugs15Tests extends AbstractJavaSearchTests {
 			public void test566062_002() throws CoreException {
 				this.workingCopies = new ICompilationUnit[2];
 				this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/pack/test.java",
+						"package pack;\n" +
 						"public class test { \n" +
 						"	public int /* here*/val;" +
 						"	/**\n" +
@@ -1625,6 +1627,7 @@ public class JavaSearchBugs15Tests extends AbstractJavaSearchTests {
 			public void test566062_003() throws CoreException {
 				this.workingCopies = new ICompilationUnit[2];
 				this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/pack/test.java",
+						"package pack;\n" +
 						"public class test { \n" +
 						"	public void /* here*/setComp ( ) {	  \n"+
 						"		int  compp_=11;\n" +
@@ -1673,6 +1676,7 @@ public class JavaSearchBugs15Tests extends AbstractJavaSearchTests {
 			public void test566062_004() throws CoreException {
 				this.workingCopies = new ICompilationUnit[2];
 				this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/pack/test.java",
+						"package pack;\n" +
 						"public class /* here*/test { \n" +
 						"	public int /* here*/val;" +
 						"	/**\n" +

@@ -34,11 +34,14 @@ import org.eclipse.jdt.core.search.SearchMatch;
 import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.TypeReferenceMatch;
+import org.eclipse.jdt.core.tests.javac.JavacFailReason;
 import org.eclipse.jdt.internal.core.JavaModelManager;
 import org.eclipse.jdt.internal.core.LambdaMethod;
 import org.eclipse.jdt.internal.core.search.indexing.IndexManager;
 import org.eclipse.jdt.internal.core.search.matching.AndPattern;
 import org.eclipse.jdt.internal.core.search.matching.MethodPattern;
+import org.junit.Ignore;
+import org.junit.experimental.categories.Category;
 
 /**
  * Non-regression tests for bugs fixed in Java Search engine.
@@ -1325,6 +1328,7 @@ assertSearchResults(
  * ReferenceExpression ::= Name Dimsopt '::' NonWildTypeArgumentsopt IdentifierOrNew
  * @see "https://bugs.eclipse.org/bugs/show_bug.cgi?id=400899"
  */
+@Category(value=Ignore.class) @JavacFailReason(cause = JavacFailReason.JDT_VIOLATES_SPEC)
 public void testBug400899g36() throws CoreException {
 this.workingCopies = new ICompilationUnit[1];
 this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400899/X.java",
@@ -1694,6 +1698,7 @@ public void testBug427677() throws CoreException {
 public void testBug400904_0001() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1723,6 +1728,7 @@ public void testBug400904_0001() throws CoreException {
 public void testBug400904_0001a() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1758,6 +1764,7 @@ public void testBug400904_0001a() throws CoreException {
 public void testBug400904_0002() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1793,6 +1800,7 @@ public void testBug400904_0002() throws CoreException {
 public void testBug400904_0003() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"	public void doit();\n" +
 			"}\n" +
@@ -1831,6 +1839,7 @@ public void testBug400904_0003() throws CoreException {
 public void testBug400904_0004() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1863,6 +1872,7 @@ public void testBug400904_0004() throws CoreException {
 public void testBug400904_0005() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1897,6 +1907,7 @@ public void testBug400904_0005() throws CoreException {
 public void testBug400904_0006() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1931,6 +1942,7 @@ public void testBug400904_0006() throws CoreException {
 public void testBug400904_0007() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1963,6 +1975,7 @@ public void testBug400904_0007() throws CoreException {
 public void testBug400904_0008() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -1995,6 +2008,7 @@ public void testBug400904_0008() throws CoreException {
 public void testBug400904_0009() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"  void foo(Y<String> y, int x);\n" +
 			"}\n" +
@@ -2034,6 +2048,7 @@ public void testBug400904_0009() throws CoreException {
 public void testBug400904_0010() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 			"  void foo(Y<String> y, int x);\n" +
 			"}\n" +
@@ -2072,6 +2087,7 @@ public void testBug400904_0010() throws CoreException {
 public void testBug400904_0011() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z z, int x);\n" +
 			"}\n" +
@@ -2109,6 +2125,7 @@ public void testBug400904_0011() throws CoreException {
 public void testBug400904_0012() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z z, int x);\n" +
 			"}\n" +
@@ -2146,6 +2163,7 @@ public void testBug400904_0012() throws CoreException {
 public void testBug400904_0013() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z<String> z, int x);\n" +
 			"}\n" +
@@ -2182,6 +2200,7 @@ public void testBug400904_0013() throws CoreException {
 public void testBug400904_0014() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z<String> z, int x);\n" +
 			"}\n" +
@@ -2218,6 +2237,7 @@ public void testBug400904_0014() throws CoreException {
 public void testBug400904_0015() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400904/X.java",
+			"package b400904;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String> y);\n" +
 			"}\n" +
@@ -2255,6 +2275,7 @@ public void testBug400904_0015() throws CoreException {
 public void testBug400905_0001() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"interface I {\n" +
 			"    int foo();\n" +
 			"}\n" +
@@ -2286,6 +2307,7 @@ public void testBug400905_0001() throws CoreException {
 public void testBug400905_0002() throws CoreException {
 	this.workingCopies = new ICompilationUnit[3];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"public class X extends Y {\n" +
 			"    public static void main(String [] args) {\n" +
 			"		Y y = new Y();\n" +
@@ -2301,10 +2323,12 @@ public void testBug400905_0002() throws CoreException {
 			"}\n"
 	);
 	this.workingCopies[1] = getWorkingCopy("/JavaSearchBugs/src/b400905/I.java",
+			"package b400905;\n" +
 			"public interface I {\n" +
 			"    int foo();\n" +
 			"}\n") ;
 	this.workingCopies[2] = getWorkingCopy("/JavaSearchBugs/src/b400905/Y.java",
+			"package b400905;\n" +
 			"public class Y {\n" +
 			"    void goo(I i) {};\n" +
 			"}\n") ;
@@ -2328,6 +2352,7 @@ public void testBug400905_0002() throws CoreException {
 public void testBug400905_0003() throws CoreException {
 	this.workingCopies = new ICompilationUnit[3];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"public class X extends Y {\n" +
 			"    public static void main(String [] args) {\n" +
 			"		I[] i = new I[] { y-> y.exists(), y -> y.canRead(), y  -> y.canWrite()};\n" + // array initialization context
@@ -2335,10 +2360,12 @@ public void testBug400905_0003() throws CoreException {
 			"}\n"
 	);
 	this.workingCopies[1] = getWorkingCopy("/JavaSearchBugs/src/b400905/I.java",
+			"package b400905;\n" +
 			"public interface I {\n" +
 			"    boolean foo(Y y);\n" +
 			"}\n") ;
 	this.workingCopies[2] = getWorkingCopy("/JavaSearchBugs/src/b400905/Y.java",
+			"package b400905;\n" +
 			"public class Y {\n" +
 			"    public boolean exists() { return true};\n" +
 			"    public boolean canRead() { return true};\n" +
@@ -2364,6 +2391,7 @@ public void testBug400905_0003() throws CoreException {
 public void testBug400905_0004() throws CoreException {
 	this.workingCopies = new ICompilationUnit[3];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"public class X extends Y {\n" +
 			"    public static void main(String [] args) {\n" +
 			"		I<Y> c = () /* foo */ -> () /* bar */ -> {};\n" + // array initialization context
@@ -2373,10 +2401,12 @@ public void testBug400905_0004() throws CoreException {
 			"}\n"
 	);
 	this.workingCopies[1] = getWorkingCopy("/JavaSearchBugs/src/b400905/I.java",
+			"package b400905;\n" +
 			"public interface I<T> {\n" +
 			"    public T foo();\n" +
 			"}\n") ;
 	this.workingCopies[2] = getWorkingCopy("/JavaSearchBugs/src/b400905/Y.java",
+			"package b400905;\n" +
 			"public interface Y {\n" +
 			"    public abstract void run() { };\n" +
 			"}\n") ;
@@ -2401,6 +2431,7 @@ public void testBug400905_0004() throws CoreException {
 public void testBug400905_0005() throws CoreException {
 	this.workingCopies = new ICompilationUnit[3];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"public class X extends Y {\n" +
 			"    public static void main(String [] args) {\n" +
 			"		I<Y> c = () /* foo */ -> () /* bar */ -> {};\n" + // array initialization context
@@ -2408,10 +2439,12 @@ public void testBug400905_0005() throws CoreException {
 			"}\n"
 	);
 	this.workingCopies[1] = getWorkingCopy("/JavaSearchBugs/src/b400905/I.java",
+			"package b400905;\n" +
 			"public interface I<T> {\n" +
 			"    public T foo();\n" +
 			"}\n") ;
 	this.workingCopies[2] = getWorkingCopy("/JavaSearchBugs/src/b400905/Y.java",
+			"package b400905;\n" +
 			"public interface Y {\n" +
 			"    public abstract void bar() { };\n" +
 			"}\n") ;
@@ -3146,12 +3179,14 @@ public void testBug400905_0018() throws CoreException {
 public void testBug400905_0019() throws CoreException { // bad package + bad cast - make sure there is no NPE.
 	this.workingCopies = new ICompilationUnit[2];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/Function.java",
+			"package b400905;\n" +
 			"@FunctionalInterface\n" +
 			"public interface Function<T, R> {\n" +
 			"    R apply(T t);\n" +
 			"}\n"
 	);
 	this.workingCopies[1] = getWorkingCopy("/JavaSearchBugs/src/b400905/Collectors.java",
+			"package b400905;\n" +
 			"public final class Collectors {\n" +
 			" @SuppressWarnings(\"unchecked\")\n" +
 			"    private static <I, R> Function<String, String> castingIdentity() {\n" +
@@ -3219,6 +3254,7 @@ public void testBug400905_0021() throws CoreException {
 public void testBug400905_0022() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface FunctionalInterface {\n" +
 			"	int thrice(int x);\n" +
 			"}\n" +
@@ -3240,6 +3276,7 @@ public void testBug400905_0022() throws CoreException {
 public void testBug400905_0023() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int x);\n" +
 			"}\n" +
@@ -3277,6 +3314,7 @@ public void testBug400905_0023() throws CoreException {
 public void testBug400905_0024() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int x);\n" +
 			"}\n" +
@@ -3294,6 +3332,7 @@ public void testBug400905_0024() throws CoreException {
 public void testBug400905_0025() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -3314,6 +3353,7 @@ public void testBug400905_0025() throws CoreException {
 public void testBug400905_0026() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -3334,6 +3374,7 @@ public void testBug400905_0026() throws CoreException {
 public void testBug400905_0027() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -3354,6 +3395,7 @@ public void testBug400905_0027() throws CoreException {
 public void testBug400905_0028() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -3376,6 +3418,7 @@ public void testBug400905_0028() throws CoreException {
 public void testBug400905_0029() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -3399,6 +3442,7 @@ public void testBug400905_0029() throws CoreException {
 public void testBug400905_0030() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -3422,6 +3466,7 @@ public void testBug400905_0030() throws CoreException {
 public void test429738() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"@FunctionalInterface\n" +
 			"interface Foo {\n" +
 			"	int foo(int x);\n" +
@@ -3448,6 +3493,7 @@ public void test429738() throws CoreException {
 public void test429738a() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"@FunctionalInterface\n" +
 			"interface Foo {\n" +
 			"	int foo(int x);\n" +
@@ -3473,7 +3519,8 @@ public void test429738a() throws CoreException {
 // https://bugs.eclipse.org/bugs/show_bug.cgi?id=429836, [1.8][search] Search implementors in workspace does not show lambda expressions.
 public void testBug429836() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
-	String buffer =	"@FunctionalInterface\n" +
+	String buffer =	"package b429836;\n" +
+			"@FunctionalInterface\n" +
 			"interface I {\n" +
 			"	int foo(int x);\n" +
 			"}\n" +
@@ -3500,6 +3547,7 @@ public void testBug429836() throws CoreException {
 public void test429934() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b400905/X.java",
+			"package b400905;\n" +
 			"interface Function<T, R> {\n" +
 			"    R apply(T t);\n" +
 			"}\n" +
@@ -3529,6 +3577,7 @@ public void test429934() throws CoreException {
 public void test430159a() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429498/X.java",
+			"package b429498;\n" +
 			"interface I {\n" +
 			"    public void doit(int xyz);\n" +
 			"}\n" +
@@ -3567,6 +3616,7 @@ public void test430159a() throws CoreException {
 public void test430159b() throws CoreException {	// this test basically checks that and pattern locator does not a lambda from being found.
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429498/X.java",
+			"package b429498;\n" +
 			"interface I {\n" +
 			"    public void doit();\n" +
 			"}\n" +
@@ -3605,6 +3655,7 @@ public void test430159b() throws CoreException {	// this test basically checks t
 public void test430159c() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429498/X.java",
+			"package b429498;\n" +
 			"interface I {\n" +
 			"	public void doit();\n" +
 			"}\n" +
@@ -3645,6 +3696,7 @@ public void test430159c() throws CoreException {
 public void test430159d() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429498/X.java",
+			"package b429498;\n" +
 			"interface I {\n" +
 			"	public void doit();\n" +
 			"}\n" +
@@ -3687,6 +3739,7 @@ public void test430159d() throws CoreException {
 public void testBug429012_0001() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3723,6 +3776,7 @@ public void testBug429012_0001() throws CoreException {
 public void testBug429012_0002() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3759,6 +3813,7 @@ public void testBug429012_0002() throws CoreException {
 public void testBug429012_0003() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"	public void doit();\n" +
 			"}\n" +
@@ -3796,6 +3851,7 @@ public void testBug429012_0003() throws CoreException {
 public void testBug429012_0004() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3829,6 +3885,7 @@ public void testBug429012_0004() throws CoreException {
 public void testBug429012_0005() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3864,6 +3921,7 @@ public void testBug429012_0005() throws CoreException {
 public void testBug429012_0006() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3899,6 +3957,7 @@ public void testBug429012_0006() throws CoreException {
 public void testBug429012_0007() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3932,6 +3991,7 @@ public void testBug429012_0007() throws CoreException {
 public void testBug429012_0008() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"    void foo(int x);\n" +
 			"}\n" +
@@ -3965,6 +4025,7 @@ public void testBug429012_0008() throws CoreException {
 public void testBug429012_0009() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"  void foo(Y<String> y, int x);\n" +
 			"}\n" +
@@ -4005,6 +4066,7 @@ public void testBug429012_0009() throws CoreException {
 public void testBug429012_0010() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 			"  void foo(Y<String> y, int x);\n" +
 			"}\n" +
@@ -4044,6 +4106,7 @@ public void testBug429012_0010() throws CoreException {
 public void testBug429012_0011() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z z, int x);\n" +
 			"}\n" +
@@ -4082,6 +4145,7 @@ public void testBug429012_0011() throws CoreException {
 public void testBug429012_0012() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z z, int x);\n" +
 			"}\n" +
@@ -4120,6 +4184,7 @@ public void testBug429012_0012() throws CoreException {
 public void testBug429012_0013() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z<String> z, int x);\n" +
 			"}\n" +
@@ -4157,6 +4222,7 @@ public void testBug429012_0013() throws CoreException {
 public void testBug429012_0014() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I {\n" +
 				"    void foo(Y<String>.Z<String> z, int x);\n" +
 			"}\n" +
@@ -4194,6 +4260,7 @@ public void testBug429012_0014() throws CoreException {
 public void testBug429012_0015() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429012/X.java",
+			"package b429012;\n" +
 			"interface I<T> {\n"+
 			"    T get();\n"+
 			"}\n"+
@@ -4222,6 +4289,7 @@ public void testBug429012_0015() throws CoreException {
 public void testBug429012_0016() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/b429498/X.java",
+			"package b429498;\n" +
 			"interface I {\n" +
 			"	public void doit();\n" +
 			"}\n" +
@@ -4253,6 +4321,7 @@ public void testBug429012_0016() throws CoreException {
 public void testBug429012_0017() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
@@ -4278,6 +4347,7 @@ public void testBug429012_0017() throws CoreException {
 public void testBug429012_0018() throws CoreException {
 	this.workingCopies = new ICompilationUnit[1];
 	this.workingCopies[0] = getWorkingCopy("/JavaSearchBugs/src/test/Test.java",
+			"package test;\n" +
 			"interface I { \n" +
 			"	int thrice(int p);\n" +
 			"}\n" +
