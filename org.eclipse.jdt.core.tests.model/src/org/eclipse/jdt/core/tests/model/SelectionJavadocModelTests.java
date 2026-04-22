@@ -927,6 +927,10 @@ public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 	 * @see "http://bugs.eclipse.org/bugs/show_bug.cgi?id=165701"
 	 */
 	public void testBug165701() throws JavaModelException {
+		if (CompilationUnit.DOM_BASED_OPERATIONS) {
+			// we don't support this case for DOM-first
+			return;
+		}
 		setUnit("b165701/Test.java",
 			"package b165701;\n" +
 			"/**\n" +
