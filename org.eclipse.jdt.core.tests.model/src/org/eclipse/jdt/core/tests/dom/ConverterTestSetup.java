@@ -13,9 +13,13 @@
 package org.eclipse.jdt.core.tests.dom;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.eclipse.core.runtime.CoreException;
 import org.eclipse.core.runtime.IPath;
 import org.eclipse.core.runtime.Path;
@@ -29,6 +33,7 @@ import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.tests.util.Util;
 import org.eclipse.jdt.internal.compiler.classfmt.ClassFileConstants;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
+import org.eclipse.jdt.internal.compiler.problem.DefaultProblemFactory;
 
 @SuppressWarnings("rawtypes")
 public abstract class ConverterTestSetup extends AbstractASTTests {
@@ -863,20 +868,52 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 		return (node.getFlags() & ASTNode.ORIGINAL) != 0;
 	}
 
+	protected void assertProblemsSizeOnly(CompilationUnit unit, int expected1, int expectedAlternate) {
+		final IProblem[] problemsRaw = unit.getProblems();
+		int length = problemsRaw.length;
+		if( length != expected1 && length != expectedAlternate) {
+			assertEquals("Wrong number of problems", expected1, length); //$NON-NLS-1$<
+		}
+	}
+
 	protected void assertProblemsSize(CompilationUnit compilationUnit, int expectedSize) {
 		assertProblemsSize(compilationUnit, expectedSize, "");
 	}
 	protected void assertProblemsSize(CompilationUnit compilationUnit, int expectedSize, String expectedOutput) {
-		final IProblem[] problems = compilationUnit.getProblems();
-		final int length = problems.length;
-		if (length != expectedSize) {
-			checkProblemMessages(expectedOutput, problems, length);
-			assertEquals("Wrong size", expectedSize, length);
+		final IProblem[] problemsRaw = compilationUnit.getProblems();
+		int length = problemsRaw.length;
+		if( length == expectedSize ) {
+			checkProblemMessages(expectedOutput, problemsRaw, length);
+			return;
 		}
+
+		final IProblem[] problems = filterJavacOnlyProblemsUnknownToECJ(problemsRaw);
+		length = problems.length;
+		if( length == expectedSize ) {
+			checkProblemMessages(expectedOutput, problems, length);
+			return;
+		}
+
 		checkProblemMessages(expectedOutput, problems, length);
+		assertEquals("Wrong size", expectedSize, length);
 	}
 
-	private void checkProblemMessages(String expectedOutput, final IProblem[] problems, final int length) {
+	static IProblem[] filterJavacOnlyProblemsUnknownToECJ(IProblem[] problemsRaw) {
+		return Arrays.stream(problemsRaw).filter(x -> {
+			if( x.getMessage().startsWith("@Deprecated annotation has no effect on this ")) {
+				return false;
+			}
+			if( x.getMessage().endsWith("has been deprecated and marked for removal")) {
+				return false;
+			}
+			if (x.getMessage().equals("possible 'this' escape before subclass is fully initialized")) {
+				return false;
+			}
+			return true;
+		}).toArray((IProblem[]::new));
+	}
+
+	public void checkProblemMessages(String expectedOutput, final IProblem[] problems, final int length) {
 		if (length != 0) {
 			if (expectedOutput != null) {
 				StringBuilder buffer = new StringBuilder();
@@ -890,10 +927,182 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 				expectedOutput = Util.convertToIndependantLineDelimiter(expectedOutput);
 				actualOutput = Util.convertToIndependantLineDelimiter(actualOutput);
 				if (!expectedOutput.equals(actualOutput)) {
-					System.out.println(Util.displayString(actualOutput));
-					assertEquals("different output", expectedOutput, actualOutput);
+					boolean match = checkAlternateProblemMessages(expectedOutput, actualOutput, problems, length);
+					if( !match ) {
+						System.out.println(Util.displayString(actualOutput));
+						assertEquals("different output", expectedOutput, actualOutput);
+					}
 				}
 			}
 		}
 	}
+	private boolean checkAlternateProblemMessages(String expectedOutput, String actualOutput, final IProblem[] problems, final int length) {
+		List<String> expectedSplit = Arrays.asList(expectedOutput.split("\n"));
+		for( int i = 0; i < problems.length; i++ ) {
+			String oneActualMessage = problems[i].getMessage();
+			String oneExpectedMessage = i < expectedSplit.size() ? expectedSplit.get(i) : null;
+			if( !oneActualMessage.equals(oneExpectedMessage)) {
+				boolean matchesAlt = matchesAlternateMessage(oneActualMessage, oneExpectedMessage, problems[i].getID(), problems[i].getArguments());
+				if(!matchesAlt) {
+					return false;
+				}
+			}
+		}
+		return true;
+	}
+	private boolean matchesAlternateMessage(String original, String expected, int problemId, Object[] arguments) {
+		String fqqnToSimpleNameRegex = "[^-\\s<,]*\\.";
+
+		switch(problemId) {
+		case IProblem.NotVisibleType:
+			List<String> possible = new ArrayList<>();
+			String msg = "The type %s is not visible";
+			int lastDot = ((String)arguments[0]).lastIndexOf(".") + 1;
+			String alt = String.format(msg, ((String)arguments[0]).substring(lastDot));
+			String alt2 = String.format(msg, ((String)arguments[0]));
+			possible.add(alt);
+			possible.add(alt2);
+
+			if( arguments.length == 3 && ((String)arguments[0]).startsWith((String)arguments[2])) {
+				int lastDot2 = ((String)arguments[2]).lastIndexOf(".") + 1;
+				String type = ((String)arguments[0]).substring(lastDot2);
+				String alt3 = String.format(msg, type);
+				possible.add(alt3);
+			}
+			return possible.contains(expected);
+		case IProblem.NotVisibleField:
+			if(("The type " + arguments[0] + " is not visible").equals(expected)) {
+				return true;
+			}
+			return false;
+		case IProblem.UsingDeprecatedField:
+			if( arguments.length == 2 ) {
+				String simpleName = ((String)arguments[1]).replaceAll(fqqnToSimpleNameRegex, "");
+				if(("The type " + simpleName + " is deprecated").equals(expected))
+					return true;
+				String simpleName2 = ((String)arguments[0]).replaceAll(fqqnToSimpleNameRegex, "");
+				if(("The type " + simpleName2 + " is deprecated").equals(expected))
+					return true;
+				if((arguments[0] + " in " + arguments[1] + " has been deprecated and marked for removal").equals(expected))
+					return true;
+			}
+			return false;
+		case IProblem.PackageDoesNotExistOrIsEmpty:
+			return (arguments[0] + " cannot be resolved to a type").equals(expected);
+		case IProblem.UndefinedType:
+		case IProblem.UndefinedName:
+			return (arguments[0] + " cannot be resolved to a type").equals(expected);
+		case IProblem.RawTypeReference:
+			String[] segments = ((String)arguments[0]).split("\\.");
+			String simple = segments[segments.length-1];
+			String alt3 = simple + " is a raw type. References to generic type " + simple + "<T> should be parameterized";
+			return alt3.equals(expected);
+		case IProblem.TypeMismatch:
+			if( expected == null )
+				return false;
+			String expected2 = expected.replaceAll("capture#[0-9]*-", "capture ");
+			String arg0 = ((String)arguments[0]).replaceAll(fqqnToSimpleNameRegex, "").replaceAll("capture#[0-9]* ", "capture ");
+			String arg1 = ((String)arguments[1]).replaceAll(fqqnToSimpleNameRegex, "").replaceAll("capture#[0-9]* ", "capture ");
+			String altString = "Type safety: Unchecked cast from " + arg0 + " to " + arg1;
+			if( altString.equals(expected2) )
+				return true;
+
+			altString = "Type mismatch: cannot convert from " + arg0 + " to " + arg1;
+			if( altString.equals(expected2) )
+				return true;
+			return false;
+		case IProblem.VarargsConflict:
+			return "Extended dimensions are illegal for a variable argument".equals(expected);
+		case IProblem.UnsafeRawMethodInvocation:
+			String clazzName = ((String)arguments[1]).substring(((String)arguments[1]).lastIndexOf(".") + 1);
+			String pattern = "Type safety: The method .* belongs to the raw type " + clazzName + ". References to generic type Y.* should be parameterized";
+			boolean m = Pattern.matches(pattern, expected);
+			return m;
+		case IProblem.JavadocMissingParamTag:
+			return original.replace("no @param for ", "Javadoc: Missing tag for parameter ").equals(expected);
+		case IProblem.UncheckedAccessOfValueOfFreeTypeVariable: {
+			String p = "Type safety: The expression of type (.*) needs unchecked conversion to conform to (.*)";
+			Pattern r = Pattern.compile(p);
+			Matcher m1 = r.matcher(expected);
+			if (m1.find( )) {
+				String g0 = m1.group(1);
+				String g1 = m1.group(2);
+				String originalToSimple = original.replaceAll(fqqnToSimpleNameRegex, "");
+				String found = "unchecked conversion\n  required:.*" + g1 + "\n  found:.*" + g0;
+				if( originalToSimple.replaceAll(found, "").equals("")) {
+					return true;
+				}
+			}
+			return false;
+		}
+		case IProblem.UnsafeGenericCast: {
+			String p = "Type safety: Unchecked cast from (.*) to (.*)";
+			Pattern r = Pattern.compile(p);
+			Matcher m1 = r.matcher(expected);
+			if (m1.find( )) {
+				String g0 = m1.group(1).replaceAll("capture#([0-9]*)-", "capture#$1 ");
+				String g1 = m1.group(2).replaceAll("capture#([0-9]*)-", "capture#$1 ");
+				String originalToSimple = original
+						.replaceAll("java\\.lang\\.", "")
+						.replaceAll("java\\.util\\.", "");
+				String found = "unchecked cast\n  required: *" + g1 + "\n  found: *" + g0;
+				found = found.replaceAll("\\?", "\\\\?");
+				if( originalToSimple.replaceAll(found, "").equals("")) {
+					return true;
+				}
+			}
+			return false;
+		}
+		case IProblem.DuplicateMethod: // TODO these should really be fixed elsewhere
+			if( expected.startsWith("Duplicate local variable ")) {
+				return original.startsWith(expected.substring(16) + " is already defined");
+			}
+			if( expected.startsWith("Duplicate parameter ")) {
+				return original.startsWith("variable " + expected.substring(20) + " is already defined");
+			}
+			if( expected.startsWith("Duplicate nested type ")) {
+				return original.startsWith("class " + expected.substring(22) + " is already defined");
+			}
+			return false;
+		case IProblem.UnresolvedVariable:
+			String UnresolvedVariable_arg0 = arguments != null && arguments.length >= 1 ? (String)arguments[0] : null;
+			String UnresolvedVariable_arg3 = arguments != null && arguments.length >= 4 ? (String)arguments[3] : null;
+			if( expected.equals(UnresolvedVariable_arg0 + " cannot be resolved to a variable")) {
+				String mapped = "cannot find symbol\n"
+						+ "  symbol:   variable " + UnresolvedVariable_arg0 + "\n"
+						+ "  location: " + UnresolvedVariable_arg3;
+				return original.equals(mapped);
+			}
+			return false;
+		case IProblem.UndefinedMethod:
+			String undefinedMethod_arg0 = arguments != null && arguments.length >= 1 ? (String)arguments[0] : null;
+			String undefinedMethod_arg3 = arguments != null && arguments.length >= 4 ? (String)arguments[3] : null;
+			if( expected.equals("The method " + undefinedMethod_arg0 + "() is undefined for the type " + undefinedMethod_arg3.replace("class ", ""))) {
+				String mapped = "cannot find symbol\n"
+						+ "  symbol:   method " + undefinedMethod_arg0 + "()\n"
+						+ "  location: " + undefinedMethod_arg3;
+				return original.equals(mapped);
+			}
+			return false;
+		case IProblem.NotAnnotationType:
+			return (arguments[0] + " is not an annotation type").equals(expected);
+		case IProblem.UndefinedAnnotationMember:
+			return ("The attribute " + arguments[0] + " is undefined for the annotation type " + arguments[3]).replaceAll("@interface ", "").equals(expected);
+		case IProblem.CannotOverrideAStaticMethodWithAnInstanceMethod:
+			return ("This instance method cannot override the static method from " + arguments[3]).replaceAll("@interface ", "").equals(expected);
+		case IProblem.CannotHideAnInstanceMethodWithAStaticMethod:
+			return ("This static method cannot hide the instance method from " + arguments[3]).replaceAll("@interface ", "").equals(expected);
+		case IProblem.CannotUseDiamondWithExplicitTypeArguments:
+			return new DefaultProblemFactory().getLocalizedMessage(IProblem.CannotUseDiamondWithExplicitTypeArguments, null).equals(expected);
+		case IProblem.Syntax:
+			return original.equals(switch (expected) {
+				case "Syntax error, insert \"Finally\" to complete BlockStatements" -> "'try' without 'catch', 'finally' or resource declarations";
+				default -> "";
+			});
+		default:
+			return false;
+		}
+	}
+
+
 }

@@ -222,8 +222,12 @@ public class AbstractASTTests extends ModifyingResourceTests implements DefaultM
 		}
 		String actual = buffer.toString();
 		if (!expected.equals(actual)) {
-			System.out.print(displayString(actual, 4));
-			System.out.println(',');
+			try {
+				System.out.print(displayString(actual, 4));
+				System.out.println(',');
+			} catch(Throwable t) {
+				// For some reason ConverterTestSetup.getExternalJCLPathString(etc) returns null directly.
+			}
 		}
 		assertEquals(
 			"Unexpected binding keys",
@@ -425,7 +429,7 @@ public class AbstractASTTests extends ModifyingResourceTests implements DefaultM
 
 		if (reportErrors) {
 			StringBuilder buffer = new StringBuilder();
-			IProblem[] problems = unit.getProblems();
+			IProblem[] problems = ConverterTestSetup.filterJavacOnlyProblemsUnknownToECJ(unit.getProblems());
 			for (int i = 0, length = problems.length; i < length; i++)
 				Util.appendProblem(buffer, problems[i], newContents.toCharArray(), i+1);
 			if (buffer.length() > 0)

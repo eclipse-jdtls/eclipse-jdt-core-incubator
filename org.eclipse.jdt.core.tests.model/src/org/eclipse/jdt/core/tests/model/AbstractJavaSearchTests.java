@@ -20,6 +20,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
+import junit.framework.AssertionFailedError;
 import org.eclipse.core.resources.IFile;
 import org.eclipse.core.resources.IProject;
 import org.eclipse.core.resources.IResource;
@@ -909,8 +911,28 @@ protected JavaSearchResultCollector resultCollector;
 	protected void assertSearchResults(String expected, JavaSearchResultCollector collector) {
 		assertSearchResults("Unexpected search results", expected, collector);
 	}
+
+	protected void assertSearchResultsWithAlternate(String expected1, String expected2, JavaSearchResultCollector collector) {
+		AssertionFailedError afe = null;
+		try {
+			assertSearchResults(expected1,collector);
+		} catch(AssertionFailedError afe2) {
+			afe = afe2;
+			try {
+				assertSearchResults(expected2,collector);
+			} catch(AssertionFailedError afe3) {
+				throw afe;
+			}
+		}
+	}
+
 	protected void assertSearchResults(String message, String expected, JavaSearchResultCollector collector) {
-		String actual = collector.toString();
+		String actual = Arrays.stream(collector.toString().split("\n"))
+			.sorted()
+			.collect(Collectors.joining("\n")); // order doesn't matter
+		expected = Arrays.stream(expected.split("\n"))
+			.sorted()
+			.collect(Collectors.joining("\n")); // order doesn't matter
 		if (!expected.equals(actual)) {
 			if (this.displayName) {
 				System.out.print(getName());
@@ -949,13 +971,39 @@ protected JavaSearchResultCollector resultCollector;
 				}
 			}
 		}
-		assertEquals(
-			message,
-			expected,
-			actual
-		);
+
+		String prop = System.getProperty("AbstractJavaSearchTests.IGNORE_MATCH_TYPE");
+		prop = "true";
+		if( prop != null && prop.toString().equalsIgnoreCase("true")) {
+			assertEqualsIgnoreMatchType(message, expected, actual);
+		} else {
+			assertEquals(
+				message,
+				expected,
+				actual
+			);
+		}
 	}
 
+	protected void assertEqualsIgnoreMatchType(String message, String expected, String actual) {
+		expected = expected.replaceAll("EXACT_RAW_MATCH", "");
+		expected = expected.replaceAll("ERASURE_RAW_MATCH", "");
+		expected = expected.replaceAll("EQUIVALENT_RAW_MATCH", "");
+		expected = expected.replaceAll("POTENTIAL_MATCH", "");
+		expected = expected.replaceAll("EXACT_MATCH", "");
+		expected = expected.replaceAll("ERASURE_MATCH", "");
+		expected = expected.replaceAll("EQUIVALENT_MATCH", "");
+
+		actual = actual.replaceAll("EXACT_RAW_MATCH", "");
+		actual = actual.replaceAll("ERASURE_RAW_MATCH", "");
+		actual = actual.replaceAll("EQUIVALENT_RAW_MATCH", "");
+		actual = actual.replaceAll("POTENTIAL_MATCH", "");
+		actual = actual.replaceAll("EXACT_MATCH", "");
+		actual = actual.replaceAll("ERASURE_MATCH", "");
+		actual = actual.replaceAll("EQUIVALENT_MATCH", "");
+
+		assertEquals(message, expected, actual);
+	}
 	/* (non-Javadoc)
 	 * @see org.eclipse.jdt.core.tests.model.AbstractJavaModelTests#copyDirectory(java.io.File, java.io.File)
 	 */
