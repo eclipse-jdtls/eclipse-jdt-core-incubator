@@ -20,8 +20,8 @@ import junit.extensions.TestSetup;
 import junit.framework.Protectable;
 import junit.framework.Test;
 import junit.framework.TestResult;
-import junit.framework.TestSuite;
 import org.eclipse.test.internal.performance.PerformanceMeterFactory;
+
 
 /**
  * A test case class that can be set up (using the setUpSuite() method) and torn down (using the tearDownSuite() method)
@@ -40,9 +40,7 @@ public class SuiteOfTestCases extends org.eclipse.jdt.core.tests.junit.extension
 	 * A test suite that initialize the test case's fields once, then that copies the values
 	 * of these fields into each subsequent test case.
 	 */
-	public static class Suite extends TestSuite {
-		public SuiteOfTestCases currentTestCase;
-
+	public static class Suite extends RecursivelyFilterableTestSuite {
 		/*
 		 * Creates a new suite on the given class. This class must be a subclass of SetupableTestSuite.
 		 */
@@ -52,6 +50,7 @@ public class SuiteOfTestCases extends org.eclipse.jdt.core.tests.junit.extension
 		public Suite(String name) {
 			super(name);
 		}
+
 		private void initialize(SuiteOfTestCases test) {
 			Class currentClass = test.getClass();
 			while (currentClass != null && !currentClass.equals(SuiteOfTestCases.class)) {
@@ -82,7 +81,7 @@ public class SuiteOfTestCases extends org.eclipse.jdt.core.tests.junit.extension
 				public void protect() throws Exception {
 					try {
 						// run suite (first test run will setup the suite)
-						superRun(result);
+						superOrFilteredRun(result);
 					} finally {
 						// tear down the suite
 						if (Suite.this.currentTestCase != null) { // protect against empty test suite
@@ -93,9 +92,7 @@ public class SuiteOfTestCases extends org.eclipse.jdt.core.tests.junit.extension
 			};
 			result.runProtected(this, p);
 		}
-		public void superRun(TestResult result) {
-			super.run(result);
-		}
+
 		public void runTest(Test test, TestResult result) {
 			SuiteOfTestCases current = (SuiteOfTestCases)test;
 			if (this.currentTestCase == null) {
