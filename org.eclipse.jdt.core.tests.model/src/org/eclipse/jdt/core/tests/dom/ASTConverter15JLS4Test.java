@@ -2571,6 +2571,42 @@ public class ASTConverter15JLS4Test extends ConverterTestSetup {
 		assertFalse("Doesn't override itself", methodBinding.overrides(methodBinding));
 	}
 
+	public void test0081FromTestDoNotUseVarOnGenericMethod() throws JavaModelException {
+		this.workingCopy = getWorkingCopy("/Converter15/src/X.java", true/*resolve*/);
+		String contents =
+				"""
+			import java.util.ArrayList;
+
+			public class X {
+			    public void foo() {
+			        ArrayList<Integer> doNotRefactorGenericMethod = newInstance();
+			    }
+
+			    public <D> ArrayList<D> newInstance() {
+			        return new ArrayList<D>();
+			    }
+			}
+
+				""";
+
+		ASTNode node = buildAST(
+				contents,
+				this.workingCopy,
+				false);
+		assertEquals("Not a compilation unit", ASTNode.COMPILATION_UNIT, node.getNodeType());
+		CompilationUnit unit = (CompilationUnit) node;
+		node = getASTNode(unit, 0, 0, 0);
+		assertEquals("Not a expression statement", ASTNode.VARIABLE_DECLARATION_STATEMENT, node.getNodeType());
+		VariableDeclarationStatement statement = (VariableDeclarationStatement) node;
+		VariableDeclarationFragment frag = (VariableDeclarationFragment) statement.fragments().get(0);
+		MethodInvocation invocation = (MethodInvocation) frag.getInitializer();
+		IMethodBinding methodBinding = invocation.resolveMethodBinding();
+		assertNotNull("No binding", methodBinding);
+		assertFalse("Not a raw method", methodBinding.isRawMethod());
+		assertTrue("Not a parameterized method", methodBinding.isParameterizedMethod());
+	}
+
+
 	/*
 	 * https://bugs.eclipse.org/bugs/show_bug.cgi?id=78183
 	 */
