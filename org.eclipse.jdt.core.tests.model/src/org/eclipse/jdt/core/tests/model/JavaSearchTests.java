@@ -39,10 +39,13 @@ import org.eclipse.jdt.core.search.SearchParticipant;
 import org.eclipse.jdt.core.search.SearchPattern;
 import org.eclipse.jdt.core.search.SearchRequestor;
 import org.eclipse.jdt.core.search.TypeNameRequestor;
+import org.eclipse.jdt.core.tests.javac.JavacFailReason;
 import org.eclipse.jdt.core.tests.util.Util;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
 import org.eclipse.jdt.internal.core.JarPackageFragmentRoot;
 import org.eclipse.jdt.internal.core.JavaModelStatus;
+import org.junit.Ignore;
+import org.junit.experimental.categories.Category;
 
 /**
  * Tests the Java search engine where results are JavaElements and source positions.
@@ -927,6 +930,8 @@ public void testFieldReference06() throws CoreException {
  * Field reference test.
  * (regression test for bug 61017 Refactoring - test case that results in uncompilable source)
  */
+@JavacFailReason(cause=JavacFailReason.JAVAC_DEFICIENCY)
+// symbols for some classes are missing, leading to null bindings and incorrect matches
 public void testFieldReference07() throws CoreException {
 	IType type = getCompilationUnit("JavaSearch", "src", "s5", "A.java").getType("A");
 	IField field = type.getField("b");
@@ -1845,6 +1850,7 @@ public void testMethodReference17() throws CoreException {
  * OrPattern test.
  * (regression test for bug 5862 search : too many matches on search with OrPattern)
  */
+@Category(value=Ignore.class) @JavacFailReason(cause=JavacFailReason.JDT_BEHAVIOR_STRANGE)
 public void testOrPattern() throws CoreException {
 	IMethod leftMethod = getCompilationUnit("JavaSearch", "src", "q9", "I.java")
 		.getType("I").getMethod("m", new String[] {});
@@ -2928,6 +2934,8 @@ public void testTypeOccurence1() throws CoreException { // was testTypeOccurence
  * Type ocuurence in unresolvable import test.
  * (regression test for bug 37166 NPE in SearchEngine when matching type against ProblemReferenceBinding )
  */
+@JavacFailReason(cause=JavacFailReason.JDT_BEHAVIOR_STRANGE)
+// This is the only test I can find where an import r8.B is expected to match only the 'B' and not the 'r8.B'
 public void testTypeOccurence2() throws CoreException {
 	IType type = getCompilationUnit("JavaSearch", "src", "r8", "B.java").getType("B");
 	IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {type.getPackageFragment()});
@@ -3716,6 +3724,10 @@ public void testEnum02() throws CoreException {
 		"src/e1/Team.java e1.Team.FREDERIC [FREDERIC]",
 		this.resultCollector);
 }
+
+@Category(value=Ignore.class) @JavacFailReason(cause=JavacFailReason.VALID_ALTERNATIVE_IMPL)
+// No API available to tell where an anonymous constructor's closing parenthesis is.
+// Off by one error with added space.
 public void testEnum03() throws CoreException {
 	IType type = getCompilationUnit("JavaSearch15", "src", "e1", "Team.java").getType("Team");
 	IMethod method = type.getMethod("Team", new String[] { "I" });
