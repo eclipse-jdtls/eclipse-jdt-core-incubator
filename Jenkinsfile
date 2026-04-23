@@ -27,7 +27,7 @@ pipeline {
 					-Pp2-repo \
 					-Djava.io.tmpdir=$WORKSPACE/tmp -Dproject.build.sourceEncoding=UTF-8 \
 					-DskipTests \
-					-pl org.eclipse.jdt.core.tests.compiler,org.eclipse.jdt.core.tests.model
+					-pl org.eclipse.jdt.core.tests.compiler,org.eclipse.jdt.core.tests.model,org.eclipse.jdt.compiler.apt.tests,org.eclipse.jdt.core.tests.builder,org.eclipse.jdt.core.tests.builder.mockcompiler,repository
 				"""
 			}
 		}
