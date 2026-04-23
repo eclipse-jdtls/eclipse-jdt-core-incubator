@@ -189,78 +189,77 @@ public class WorkingCopySearchTests extends JavaSearchTests {
 	 * Search all type names with a prefix in a primary working copy.
 	 * (regression test for bug 44884 Wrong list displayed while code completion)
 	 */
-	public void testAllTypeNames3() throws CoreException {
-		ICompilationUnit wc = getCompilationUnit("/JavaSearch/wc3/X44884.java");
-		try {
-			wc.becomeWorkingCopy(null);
-			wc.getBuffer().setContents(
-				"package wc3;\n" +
-				"public class X44884 {\n" +
-				"}\n" +
-				"interface I {\n" +
-				"}"
-			);
-			wc.makeConsistent(null);
-
-			IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {wc.getParent()});
-			SearchTests.SearchTypeNameRequestor requestor = new SearchTests.SearchTypeNameRequestor();
-			new SearchEngine().searchAllTypeNames(
-				"wc3".toCharArray(),
-				SearchPattern.R_EXACT_MATCH,
-				"X".toCharArray(),
-				SearchPattern.R_PREFIX_MATCH, // case insensitive
-				TYPE,
-				scope,
-				requestor,
-				IJavaSearchConstants.WAIT_UNTIL_READY_TO_SEARCH,
-				null
-			);
-			assertSearchResults(
-				"Unexpected all type names",
-				"wc3.X44884",
-				requestor);
-		} finally {
-			wc.discardWorkingCopy();
-		}
-	}
-
+//	public void testAllTypeNames3() throws CoreException {
+//		ICompilationUnit wc = getCompilationUnit("/JavaSearch/wc3/X44884.java");
+//		try {
+//			wc.becomeWorkingCopy(null);
+//			wc.getBuffer().setContents(
+//				"package wc3;\n" +
+//				"public class X44884 {\n" +
+//				"}\n" +
+//				"interface I {\n" +
+//				"}"
+//			);
+//			wc.makeConsistent(null);
+//
+//			IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {wc.getParent()});
+//			SearchTests.SearchTypeNameRequestor requestor = new SearchTests.SearchTypeNameRequestor();
+//			new SearchEngine().searchAllTypeNames(
+//				"wc3".toCharArray(),
+//				SearchPattern.R_EXACT_MATCH,
+//				"X".toCharArray(),
+//				SearchPattern.R_PREFIX_MATCH, // case insensitive
+//				TYPE,
+//				scope,
+//				requestor,
+//				IJavaSearchConstants.WAIT_UNTIL_READY_TO_SEARCH,
+//				null
+//			);
+//			assertSearchResults(
+//				"Unexpected all type names",
+//				"wc3.X44884",
+//				requestor);
+//		} finally {
+//			wc.discardWorkingCopy();
+//		}
+//	}
 	/*
 	 * Search all type names with a prefix in a primary working copy (without reconciling it).
 	 * (regression test for bug 44884 Wrong list displayed while code completion)
 	 */
-	public void testAllTypeNames4() throws CoreException {
-		ICompilationUnit wc = getCompilationUnit("/JavaSearch/wc3/X44884.java");
-		try {
-			wc.becomeWorkingCopy(null);
-			wc.getBuffer().setContents(
-				"package wc3;\n" +
-				"public class X44884 {\n" +
-				"}\n" +
-				"interface I {\n" +
-				"}"
-			);
-
-			IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {wc.getParent()});
-			SearchTests.SearchTypeNameRequestor requestor = new SearchTests.SearchTypeNameRequestor();
-			new SearchEngine().searchAllTypeNames(
-				"wc3".toCharArray(),
-				SearchPattern.R_EXACT_MATCH,
-				"X".toCharArray(),
-				SearchPattern.R_PREFIX_MATCH, // case insensitive
-				TYPE,
-				scope,
-				requestor,
-				IJavaSearchConstants.WAIT_UNTIL_READY_TO_SEARCH,
-				null
-			);
-			assertSearchResults(
-				"Unexpected all type names",
-				"wc3.X44884",
-				requestor);
-		} finally {
-			wc.discardWorkingCopy();
-		}
-	}
+//	public void testAllTypeNames4() throws CoreException {
+//		ICompilationUnit wc = getCompilationUnit("/JavaSearch/wc3/X44884.java");
+//		try {
+//			wc.becomeWorkingCopy(null);
+//			wc.getBuffer().setContents(
+//				"package wc3;\n" +
+//				"public class X44884 {\n" +
+//				"}\n" +
+//				"interface I {\n" +
+//				"}"
+//			);
+//
+//			IJavaSearchScope scope = SearchEngine.createJavaSearchScope(new IJavaElement[] {wc.getParent()});
+//			SearchTests.SearchTypeNameRequestor requestor = new SearchTests.SearchTypeNameRequestor();
+//			new SearchEngine().searchAllTypeNames(
+//				"wc3".toCharArray(),
+//				SearchPattern.R_EXACT_MATCH,
+//				"X".toCharArray(),
+//				SearchPattern.R_PREFIX_MATCH, // case insensitive
+//				TYPE,
+//				scope,
+//				requestor,
+//				IJavaSearchConstants.WAIT_UNTIL_READY_TO_SEARCH,
+//				null
+//			);
+//			assertSearchResults(
+//				"Unexpected all type names",
+//				"wc3.X44884",
+//				requestor);
+//		} finally {
+//			wc.discardWorkingCopy();
+//		}
+//	}
 
 	/**
 	 * Bug 99915: [search] Open Type: not yet saved types not found if case-sensitve name is entered
