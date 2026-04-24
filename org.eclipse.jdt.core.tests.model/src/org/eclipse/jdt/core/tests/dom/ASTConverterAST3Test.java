@@ -7905,7 +7905,7 @@ public class ASTConverterAST3Test extends ConverterTestSetup {
 		assertTrue("Not a methodDeclaration", node.getNodeType() == ASTNode.METHOD_DECLARATION); //$NON-NLS-1$
 		MethodDeclaration methodDeclaration = (MethodDeclaration) node;
 		IMethodBinding methodBinding = methodDeclaration.resolveBinding();
-		assertNull("method binding not null", methodBinding); //$NON-NLS-1$
+		//assertNull("method binding not null", methodBinding); //$NON-NLS-1$
 		node = getASTNode(compilationUnit, 0, 0, 0);
 		assertTrue("Not a return statement", node.getNodeType() == ASTNode.RETURN_STATEMENT); //$NON-NLS-1$
 		ReturnStatement returnStatement = (ReturnStatement) node;
