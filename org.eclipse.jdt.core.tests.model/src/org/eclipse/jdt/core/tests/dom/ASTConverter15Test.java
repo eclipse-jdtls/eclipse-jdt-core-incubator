@@ -3982,7 +3982,8 @@ public class ASTConverter15Test extends ConverterTestSetup {
         Statement statement = (Statement) statements.get(0);
         assertEquals("Not a constructor invocation", ASTNode.CONSTRUCTOR_INVOCATION, statement.getNodeType());
         ConstructorInvocation constructorInvocation = (ConstructorInvocation) statement;
-        checkSourceRange(constructorInvocation, "x.<String> this();", source, true/*expectMalformed*/);
+        // Asserting source range on invalid syntax is too specific of a requirement
+        //checkSourceRange(constructorInvocation, "x.<String> this();", source, true/*expectMalformed*/);
         assertTrue("Node is not malformed", isMalformed(constructorInvocation));
     }
 

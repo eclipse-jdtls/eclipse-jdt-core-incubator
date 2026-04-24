@@ -1099,6 +1099,24 @@ public abstract class ConverterTestSetup extends AbstractASTTests {
 				case "Syntax error, insert \"Finally\" to complete BlockStatements" -> "'try' without 'catch', 'finally' or resource declarations";
 				default -> "";
 			});
+		case IProblem.UnsafeTypeConversion: {
+		      String p = "Type safety: The expression of type (.*) needs unchecked conversion to conform to (.*)";
+		      Pattern r = Pattern.compile(p);
+		      Matcher m1 = r.matcher(expected);
+		      if (m1.find()) {
+		          String g0 = m1.group(1);  // Found type (e.g., "ArrayList")
+		          String g1 = m1.group(2);  // Required type (e.g., "List<String>")
+		          String originalToSimple = original.replaceAll(fqqnToSimpleNameRegex, "");
+		          String found = "unchecked conversion\n  required: *" + g1 + "\n  found: *" + g0;
+		          // Escape special regex characters
+		          found = found.replaceAll("\\<", "\\\\<")
+		                       .replaceAll("\\>", "\\\\>");
+		          if (originalToSimple.replaceAll(found, "").equals("")) {
+		              return true;
+		          }
+		      }
+		      return false;
+		}
 		default:
 			return false;
 		}
