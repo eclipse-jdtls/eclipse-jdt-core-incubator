@@ -20,53 +20,10 @@ import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-
 import org.eclipse.core.runtime.NullProgressMonitor;
-import org.eclipse.jdt.core.Flags;
-import org.eclipse.jdt.core.IField;
-import org.eclipse.jdt.core.IJavaElement;
-import org.eclipse.jdt.core.IJavaModelStatusConstants;
-import org.eclipse.jdt.core.IJavaProject;
-import org.eclipse.jdt.core.ILocalVariable;
-import org.eclipse.jdt.core.IMethod;
-import org.eclipse.jdt.core.IPackageFragment;
-import org.eclipse.jdt.core.IParent;
-import org.eclipse.jdt.core.ISourceRange;
-import org.eclipse.jdt.core.ISourceReference;
-import org.eclipse.jdt.core.IType;
-import org.eclipse.jdt.core.JavaModelException;
-import org.eclipse.jdt.core.WorkingCopyOwner;
-import org.eclipse.jdt.core.dom.ASTNode;
-import org.eclipse.jdt.core.dom.AbstractTypeDeclaration;
-import org.eclipse.jdt.core.dom.ClassInstanceCreation;
-import org.eclipse.jdt.core.dom.Comment;
-import org.eclipse.jdt.core.dom.ConstructorInvocation;
-import org.eclipse.jdt.core.dom.ExpressionMethodReference;
-import org.eclipse.jdt.core.dom.FieldAccess;
-import org.eclipse.jdt.core.dom.IBinding;
-import org.eclipse.jdt.core.dom.IMethodBinding;
-import org.eclipse.jdt.core.dom.IPackageBinding;
-import org.eclipse.jdt.core.dom.ITypeBinding;
-import org.eclipse.jdt.core.dom.IVariableBinding;
-import org.eclipse.jdt.core.dom.Javadoc;
+import org.eclipse.jdt.core.*;
+import org.eclipse.jdt.core.dom.*;
 import org.eclipse.jdt.core.dom.LambdaExpression;
-import org.eclipse.jdt.core.dom.MethodDeclaration;
-import org.eclipse.jdt.core.dom.MethodInvocation;
-import org.eclipse.jdt.core.dom.MethodReference;
-import org.eclipse.jdt.core.dom.Name;
-import org.eclipse.jdt.core.dom.NodeFinder;
-import org.eclipse.jdt.core.dom.ParameterizedType;
-import org.eclipse.jdt.core.dom.QualifiedName;
-import org.eclipse.jdt.core.dom.QualifiedType;
-import org.eclipse.jdt.core.dom.SimpleName;
-import org.eclipse.jdt.core.dom.SimpleType;
-import org.eclipse.jdt.core.dom.SingleVariableDeclaration;
-import org.eclipse.jdt.core.dom.SuperConstructorInvocation;
-import org.eclipse.jdt.core.dom.SuperMethodInvocation;
-import org.eclipse.jdt.core.dom.TagElement;
-import org.eclipse.jdt.core.dom.Type;
-import org.eclipse.jdt.core.dom.VariableDeclaration;
-import org.eclipse.jdt.core.dom.VariableDeclarationFragment;
 import org.eclipse.jdt.core.search.IJavaSearchConstants;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
 import org.eclipse.jdt.core.search.SearchPattern;
@@ -92,7 +49,7 @@ class DOMCodeSelector {
 		if (offset + length > this.unit.getSource().length()) {
 			throw new JavaModelException(new IndexOutOfBoundsException(offset + length), IJavaModelStatusConstants.INDEX_OUT_OF_BOUNDS);
 		}
-		org.eclipse.jdt.core.dom.CompilationUnit currentAST = this.unit.getOrBuildAST(this.owner);
+		org.eclipse.jdt.core.dom.CompilationUnit currentAST = this.unit.getOrBuildAST(this.owner, -1);
 		if (currentAST == null) {
 			return new IJavaElement[0];
 		}
@@ -233,8 +190,8 @@ class DOMCodeSelector {
 			if (binding != null) {
 				if (node instanceof SuperMethodInvocation && // on `super`
 					binding instanceof IMethodBinding methodBinding &&
-					methodBinding.getDeclaringClass() instanceof ITypeBinding typeBinding &&
-					typeBinding.getJavaElement() instanceof IType type) {
+					methodBinding.getDeclaringClass() != null &&
+					methodBinding.getDeclaringClass().getJavaElement() instanceof IType type) {
 					return new IJavaElement[] { type };
 				}
 				if (binding instanceof IPackageBinding packageBinding
@@ -249,12 +206,12 @@ class DOMCodeSelector {
 				}
 				// workaround https://github.com/eclipse-jdt/eclipse.jdt.core/issues/2177
 				if (binding instanceof IVariableBinding variableBinding &&
-					variableBinding.getDeclaringMethod() instanceof IMethodBinding declaringMethod &&
-					declaringMethod.isCompactConstructor() &&
-					Arrays.stream(declaringMethod.getParameterNames()).anyMatch(variableBinding.getName()::equals) &&
-					declaringMethod.getDeclaringClass() instanceof ITypeBinding recordBinding &&
-					recordBinding.isRecord() &&
-					recordBinding.getJavaElement() instanceof IType recordType &&
+					variableBinding.getDeclaringMethod() != null &&
+					variableBinding.getDeclaringMethod().isCompactConstructor() &&
+					Arrays.stream(variableBinding.getDeclaringMethod().getParameterNames()).anyMatch(variableBinding.getName()::equals) &&
+					variableBinding.getDeclaringMethod().getDeclaringClass() != null &&
+					variableBinding.getDeclaringMethod().getDeclaringClass().isRecord() &&
+					variableBinding.getDeclaringMethod().getDeclaringClass().getJavaElement() instanceof IType recordType &&
 					recordType.getField(variableBinding.getName()) instanceof SourceField field) {
 					// the parent must be the field and not the method
 					return new IJavaElement[] { new LocalVariable(field,
@@ -304,8 +261,8 @@ class DOMCodeSelector {
 				if (binding instanceof IMethodBinding methodBinding &&
 					methodBinding.isSyntheticRecordMethod() &&
 					methodBinding.getDeclaringClass().getJavaElement() instanceof IType recordType &&
-					recordType.getField(methodBinding.getName()) instanceof IField field) {
-					return new IJavaElement[] { field };
+					recordType.getField(methodBinding.getName()) != null) {
+					return new IJavaElement[] { recordType.getField(methodBinding.getName()) };
 				}
 				ASTNode bindingNode = currentAST.findDeclaringNode(binding);
 				if (bindingNode != null) {
@@ -360,8 +317,8 @@ class DOMCodeSelector {
 				.filter(importedPackage -> importedPackage.endsWith(toSearch))
 				.findAny()
 				.orElse(toSearch);
-			if (this.unit.getJavaProject().findType(resolved) instanceof IType type) {
-				return new IJavaElement[] { type };
+			if (this.unit.getJavaProject().findType(resolved) != null) {
+				return new IJavaElement[] { this.unit.getJavaProject().findType(resolved) };
 			}
 		}
 		// failback to lookup search
