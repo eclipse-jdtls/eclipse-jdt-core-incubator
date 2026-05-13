@@ -97,7 +97,7 @@ public class SourceIndexer extends AbstractIndexer implements ITypeRequestor, Su
 	}
 
 	private boolean usedDomBasedIndexing() {
-		return Boolean.getBoolean(getClass().getSimpleName() + ".DOM_BASED_INDEXER");  //$NON-NLS-1$
+		return false;  //$NON-NLS-1$
 	}
 
 	@Override

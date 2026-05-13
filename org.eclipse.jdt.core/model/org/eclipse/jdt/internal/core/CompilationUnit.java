@@ -69,7 +69,7 @@ import org.eclipse.text.edits.UndoEdit;
  * @see ICompilationUnit
  */
 public class CompilationUnit extends Openable implements ICompilationUnit, org.eclipse.jdt.internal.compiler.env.ICompilationUnit, SuffixConstants {
-	public static boolean DOM_BASED_OPERATIONS = Boolean.getBoolean(CompilationUnit.class.getSimpleName() + ".DOM_BASED_OPERATIONS"); //$NON-NLS-1$
+	public static boolean DOM_BASED_OPERATIONS = false; //$NON-NLS-1$
 	private static final IImportDeclaration[] NO_IMPORTS = new IImportDeclaration[0];
 
 	protected final String name;

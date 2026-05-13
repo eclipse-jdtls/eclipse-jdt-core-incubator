@@ -36,7 +36,7 @@ public class JavaSearchDelegateDiscovery {
 	private static final Map<String, IJavaSearchDelegate> JAVA_SEARCH_DELEGATE_CACHE = new HashMap<>();
 
 	public static IJavaSearchDelegate getInstance() {
-		String id = System.getProperty(SELECTED_SYSPROP);
+		String id = null;
 		IConfigurationElement configElement = getConfigurationElement(id);
 		lastId = id;
 		lastExtension = configElement;
