@@ -34,7 +34,7 @@ class CompletionEngineProviderDiscovery {
 	private static final Map<String, ICompletionEngineProvider> ENGINE_PROVIDER_CACHE = new HashMap<>();
 
 	public static ICompletionEngineProvider getInstance() {
-		String id = null;
+		String id = System.getProperty(SELECTED_SYSPROP);
 		IConfigurationElement configElement = getConfigurationElement(id);
 		lastId = id;
 		lastExtension = configElement;

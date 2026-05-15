@@ -29,7 +29,7 @@ class CompilationUnitResolverDiscovery {
 	private static IConfigurationElement lastExtension;
 
 	static ICompilationUnitResolver getInstance() {
-		String id = null;
+		String id = System.getProperty(SELECTED_SYSPROP);
 		IConfigurationElement configElement = getConfigurationElement(id);
 		lastId = id;
 		lastExtension = configElement;
