@@ -5332,11 +5332,6 @@ public class ModuleBuilderTests extends ModifyingResourceTests {
 		}
 	}
 	public void testAutoModule3() throws Exception {
-		if (org.eclipse.jdt.internal.core.CompilationUnit.DOM_BASED_OPERATIONS) {
-			// Not supported because of
-			// https://github.com/eclipse-jdt/eclipse.jdt.core/issues/2301
-			return;
-		}
 		IJavaProject javaProject = null, auto = null;
 		try {
 			auto = createJava9Project("auto", new String[] {"src"});
@@ -5487,11 +5482,6 @@ public class ModuleBuilderTests extends ModifyingResourceTests {
 	}
 	// like testAutoModule3 without name derived from project, not manifest - warning suppressed
 	public void testAutoModule5() throws Exception {
-		if (org.eclipse.jdt.internal.core.CompilationUnit.DOM_BASED_OPERATIONS) {
-			// Not supported because of
-			// https://github.com/eclipse-jdt/eclipse.jdt.core/issues/2301
-			return;
-		}
 		IJavaProject javaProject = null, auto = null;
 		try {
 			auto = createJava9Project("auto", new String[] {"src"});
@@ -7851,14 +7841,6 @@ public class ModuleBuilderTests extends ModifyingResourceTests {
 			this.problemRequestor.initialize(sourceChars);
 			getCompilationUnit(test1path).getWorkingCopy(this.wcOwner, null);
 			assertProblems("unexpected problems",
-					org.eclipse.jdt.internal.core.CompilationUnit.DOM_BASED_OPERATIONS && dependencyAttrs == null ? """
-					----------
-					1. ERROR in /current/src/current/Test1.java (at line 2)
-						import other.p.C;
-						       ^^^^^^^
-					The package other.p is not accessible
-					----------
-					""" :
 					"""
 					----------
 					1. ERROR in /current/src/current/Test1.java (at line 2)

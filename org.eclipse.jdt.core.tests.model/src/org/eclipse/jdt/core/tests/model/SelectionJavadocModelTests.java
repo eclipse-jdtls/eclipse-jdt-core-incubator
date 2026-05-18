@@ -20,7 +20,6 @@ import org.eclipse.jdt.core.IJavaElement;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.core.WorkingCopyOwner;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.core.CompilationUnit;
 
 public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 
@@ -928,10 +927,6 @@ public class SelectionJavadocModelTests extends AbstractJavaModelTests {
 	 * @see "http://bugs.eclipse.org/bugs/show_bug.cgi?id=165701"
 	 */
 	public void testBug165701() throws JavaModelException {
-		if (CompilationUnit.DOM_BASED_OPERATIONS) {
-			// we don't support this case for DOM-first
-			return;
-		}
 		setUnit("b165701/Test.java",
 			"package b165701;\n" +
 			"/**\n" +

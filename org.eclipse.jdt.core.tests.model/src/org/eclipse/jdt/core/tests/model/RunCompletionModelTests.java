@@ -56,7 +56,6 @@ public class RunCompletionModelTests extends junit.framework.TestCase {
 			COMPLETION_SUITES.add(SnippetCompletionContextTests.class);
 			COMPLETION_SUITES.add(SubstringCompletionTests.class);
 			COMPLETION_SUITES.add(SubwordCompletionTests.class);
-			COMPLETION_SUITES.add(CompletionEngineProviderTests.class);
 		}
 		COMPLETION_SUITES.add(JavadocTypeCompletionModelTest.class);
 		COMPLETION_SUITES.add(JavadocFieldCompletionModelTest.class);

@@ -1272,12 +1272,7 @@ private boolean skipMatch(JavaProject javaProject, PossibleMatch possibleMatch) 
 	return false;
 }
 protected void locateMatches(JavaProject javaProject, PossibleMatch[] possibleMatches, int start, int length) throws CoreException {
-	IJavaSearchDelegate delegate = JavaSearchDelegateDiscovery.getInstance();
-	if( delegate != null ) {
-		delegate.locateMatches(this, javaProject, possibleMatches, start, length);
-	} else {
 		locateMatchesDefaultImpl(javaProject, possibleMatches, start, length);
-	}
 }
 
 protected void locateMatchesDefaultImpl(JavaProject javaProject, PossibleMatch[] possibleMatches, int start, int length) throws CoreException {
