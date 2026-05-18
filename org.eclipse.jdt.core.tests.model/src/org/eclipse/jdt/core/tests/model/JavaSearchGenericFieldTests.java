@@ -18,7 +18,6 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.IField;
 import org.eclipse.jdt.core.ILocalVariable;
 import org.eclipse.jdt.core.search.IJavaSearchScope;
-import org.eclipse.jdt.internal.core.CompilationUnit;
 
 /**
  * Test search for generic fields.
@@ -913,11 +912,6 @@ public void testElementPatternLocalVariables08() throws CoreException {
 		this.resultCollector);
 }
 public void testElementPatternLocalVariables09() throws CoreException {
-	if (CompilationUnit.DOM_BASED_OPERATIONS) {
-		// skip because of
-		// https://github.com/eclipse-jdt/eclipse.jdt.core/issues/2310
-		return;
-	}
 	IJavaSearchScope scope = getJavaSearchScope15("g4.v.ref", false);
 	ILocalVariable localVar = getLocalVariable("/JavaSearch15/src/g4/v/ref/R5.java", "gen_wld, // simple", "gen_wld");
 	search(localVar, ALL_OCCURRENCES, scope, this.resultCollector);
@@ -952,11 +946,6 @@ public void testElementPatternLocalVariables10() throws CoreException {
 		this.resultCollector);
 }
 public void testElementPatternLocalVariables11() throws CoreException {
-	if (CompilationUnit.DOM_BASED_OPERATIONS) {
-		// skip because of
-		// https://github.com/eclipse-jdt/eclipse.jdt.core/issues/2310
-		return;
-	}
 	IJavaSearchScope scope = getJavaSearchScope15("g4.v.ref", false);
 	ILocalVariable localVar = getLocalVariable("/JavaSearch15/src/g4/v/ref/R5.java", "gen_wld, // qualified", "gen_wld");
 	search(localVar, ALL_OCCURRENCES, scope, this.resultCollector);

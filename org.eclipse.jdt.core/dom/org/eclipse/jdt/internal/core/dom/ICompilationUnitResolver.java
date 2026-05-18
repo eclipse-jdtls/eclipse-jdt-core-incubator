@@ -23,7 +23,7 @@ import org.eclipse.jdt.internal.compiler.batch.FileSystem.Classpath;
 
 /**
  * This interface is used to resolve a jdt dom tree from source files.
- * It is contributed to via the compilationUnitResolver extension point.
+ * Internal resolver interface used by ASTParser.
  * This interface is currently internal only, and is not considered API.
  * This interface may be modified, changed, or removed at any time.
  *

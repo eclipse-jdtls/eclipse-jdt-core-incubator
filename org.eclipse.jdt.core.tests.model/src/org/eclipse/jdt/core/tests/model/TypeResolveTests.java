@@ -1542,12 +1542,6 @@ public void testBug533884b_blockless() throws Exception {
 	}
 }
 public void testBug533884c() throws Exception {
-	if (org.eclipse.jdt.internal.core.CompilationUnit.DOM_BASED_OPERATIONS) {
-		// This test requires a better recovery (the one from SelectionParser)
-		// which is not implemented when using ASTParser/CommentRecorderParser
-		// so let's skip it until the CommentRecordParser can recover better
-		return;
-	}
 	try {
 		createJava10Project("P", new String[] {"src"});
 		String source =   "package p;\n" +
@@ -1578,12 +1572,6 @@ public void testBug533884c() throws Exception {
 	}
 }
 public void testBug533884c_blockless() throws Exception {
-	if (org.eclipse.jdt.internal.core.CompilationUnit.DOM_BASED_OPERATIONS) {
-		// This test requires a better recovery (the one from SelectionParser)
-		// which is not implemented when using ASTParser/CommentRecorderParser
-		// so let's skip it until the CommentRecordParser can recover better
-		return;
-	}
 	try {
 		createJava10Project("P", new String[] {"src"});
 		String source =   "package p;\n" +

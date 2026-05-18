@@ -25,7 +25,6 @@ import org.eclipse.core.runtime.PerformanceStats;
 import org.eclipse.jdt.core.*;
 import org.eclipse.jdt.internal.codeassist.CompletionEngine;
 import org.eclipse.jdt.internal.codeassist.ICompletionEngine;
-import org.eclipse.jdt.internal.codeassist.ICompletionEngineProvider;
 import org.eclipse.jdt.internal.codeassist.SelectionEngine;
 import org.eclipse.jdt.internal.compiler.env.IElementInfo;
 import org.eclipse.jdt.internal.core.util.Util;
@@ -134,8 +133,7 @@ protected void codeComplete(
 	environment.unitToSkip = unitToSkip;
 
 	// code complete
-	ICompletionEngineProvider completionEngineProvider = CompletionEngineProviderDiscovery.getInstance();
-	ICompletionEngine completionEngine = completionEngineProvider.newCompletionEngine(environment, requestor, project.getOptions(true), project, owner, monitor);
+	ICompletionEngine completionEngine = new CompletionEngine(environment, requestor, project.getOptions(true), project, owner, monitor);
 	completionEngine.complete(cu, position, 0, typeRoot);
 
 	if(performanceStats != null) {

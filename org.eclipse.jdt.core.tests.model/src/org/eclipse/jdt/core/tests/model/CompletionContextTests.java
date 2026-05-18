@@ -19,8 +19,6 @@ import org.eclipse.core.runtime.CoreException;
 import org.eclipse.jdt.core.ICompilationUnit;
 import org.eclipse.jdt.core.JavaModelException;
 import org.eclipse.jdt.internal.compiler.impl.CompilerOptions;
-import org.eclipse.jdt.internal.core.CompilationUnit;
-import org.junit.Assume;
 
 public class CompletionContextTests extends AbstractJavaModelCompletionTests {
 
@@ -1918,7 +1916,6 @@ public void test0068() throws JavaModelException {
 
 
 public void test0069() throws JavaModelException {
-	Assume.assumeFalse("javac is set, skip it", CompilationUnit.DOM_BASED_OPERATIONS);
 	this.workingCopies = new ICompilationUnit[2];
 	this.workingCopies[0] = getWorkingCopy(
 		"/Completion/src3/test0069/X.java",
@@ -1948,7 +1945,6 @@ public void test0069() throws JavaModelException {
 		result.context);
 }
 public void test0070() throws JavaModelException {
-	Assume.assumeFalse("javac is set, skip it", CompilationUnit.DOM_BASED_OPERATIONS);
 	this.workingCopies = new ICompilationUnit[2];
 	this.workingCopies[0] = getWorkingCopy(
 		"/Completion/src3/test0070/X.java",
@@ -1978,7 +1974,6 @@ public void test0070() throws JavaModelException {
 		result.context);
 }
 public void test0071() throws JavaModelException {
-	Assume.assumeFalse("javac is set, skip it", CompilationUnit.DOM_BASED_OPERATIONS);
 	this.workingCopies = new ICompilationUnit[2];
 	this.workingCopies[0] = getWorkingCopy(
 		"/Completion/src3/test0071/X.java",
